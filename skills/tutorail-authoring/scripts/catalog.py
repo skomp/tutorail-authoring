@@ -258,7 +258,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     bl.atomic_write_text(catalog_path, text)
-    run = bl.run_validator(catalog_path, mode="catalog")
+    # Hand the validator a RESOLVED path. The self-check must test the file, not a
+    # spelling of its name: `catalog.py .` makes catalog_path a bare `catalog.yaml`,
+    # whose parent is `.`, and check 7's containment test mishandles that form and
+    # reports every bundle in a valid catalogue (tutorAIl#14). Resolving sidesteps it
+    # and is right regardless - two spellings of one path must not give two verdicts.
+    run = bl.run_validator(catalog_path.resolve(), mode="catalog")
     print(f"  wrote {catalog_path} ({count} bundle(s))", file=sys.stderr)
     print(f"  validator: {run.validator} --catalog --portable", file=sys.stderr)
     print(f"             {run.summary()}", file=sys.stderr)

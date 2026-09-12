@@ -554,5 +554,70 @@ def main() -> int:
     return report("catalog.py")
 
 
+
+# --------------------------------------------------------------------------
+# tutorail-authoring#6 - a valid catalogue must not depend on how its path is spelled
+# --------------------------------------------------------------------------
+
+def _repo_with_one_bundle(ws: Workspace) -> Path:
+    """A bundles repository holding one real bundle, ready for catalog.py."""
+    repo = ws.path("repo")
+    repo.mkdir()
+    shutil.copytree(FIXTURES / "rust-automaton-db", repo / "rust-automaton-db")
+    return repo
+
+
+with case("catalog.py . succeeds from inside the repository (issue #6)"):
+    with Workspace() as ws:
+        repo = _repo_with_one_bundle(ws)
+        out = run(CATALOG, ".", cwd=repo)
+        check(out.returncode == 0, f"exit 0 with a bare '.' (got {out.returncode})")
+        check_not_in("does not validate", out.output,
+                     "it does not refuse to ship its own valid catalogue")
+
+with case("POSITIVE CONTROL: the same repository passes when named absolutely"):
+    with Workspace() as ws:
+        repo = _repo_with_one_bundle(ws)
+        out = run(CATALOG, str(repo))
+        check(out.returncode == 0, "exit 0 with an absolute path")
+
+with case("the two spellings produce byte-identical catalogues"):
+    with Workspace() as ws:
+        a = _repo_with_one_bundle(ws)
+        run(CATALOG, ".", cwd=a)
+        text_dot = (a / "catalog.yaml").read_text(encoding="utf-8")
+    with Workspace() as ws:
+        b = _repo_with_one_bundle(ws)
+        run(CATALOG, str(b))
+        text_abs = (b / "catalog.yaml").read_text(encoding="utf-8")
+    check(text_dot == text_abs,
+          "one file, one content, whichever spelling wrote it")
+
+with case("NEGATIVE CONTROL: a bundle path that escapes still fails, both spellings"):
+    # The fix must not turn a false alarm into a false negative. --portable exists
+    # to catch a catalogue naming a bundle that will not travel with it.
+    with Workspace() as ws:
+        repo = _repo_with_one_bundle(ws)
+        outside = ws.path("outside")
+        outside.mkdir()
+        shutil.copytree(FIXTURES / "rust-automaton-db", outside / "elsewhere")
+        cat = repo / "catalog.yaml"
+        run(CATALOG, ".", cwd=repo)
+        text = cat.read_text(encoding="utf-8")
+        planted = text.replace("path: rust-automaton-db",
+                               "path: ../outside/elsewhere")
+        # Guard the needle. A replacement that silently matches nothing leaves a VALID
+        # catalogue behind, and the probe below then passes for the wrong reason.
+        check(planted != text, "the escaping path was actually planted")
+        cat.write_text(planted, encoding="utf-8")
+        v = bl.find_validator()[0]
+        for label, target in (("bare", "catalog.yaml"), ("absolute", str(cat))):
+            probe = run(Path(v), "--catalog", target, "--portable",
+                        cwd=repo if label == "bare" else None)
+            check(probe.returncode != 0,
+                  f"an escaping bundle path still fails when named {label}")
+            check_in("leaves", probe.output,
+                     f"and the finding still names the escape ({label})")
+
 if __name__ == "__main__":
     sys.exit(main())

@@ -268,7 +268,7 @@ class Run:
         return self.stdout + self.stderr
 
 
-def run(script: Path, *args: str, env: dict[str, str] | None = None) -> Run:
+def run(script: Path, *args: str, env: dict[str, str] | None = None, cwd: Path | None = None) -> Run:
     argv = [sys.executable, str(script), *[str(a) for a in args]]
     full = dict(os.environ)
     if env is not None:
@@ -277,7 +277,10 @@ def run(script: Path, *args: str, env: dict[str, str] | None = None) -> Run:
                 full.pop(key, None)
             else:
                 full[key] = value
-    done = subprocess.run(argv, capture_output=True, text=True, env=full)
+    done = subprocess.run(
+        argv, capture_output=True, text=True, env=full,
+        cwd=str(cwd) if cwd is not None else None,
+    )
     return Run(argv, done.returncode, done.stdout, done.stderr)
 
 
