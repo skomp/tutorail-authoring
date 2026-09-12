@@ -1021,7 +1021,8 @@ git commit -m "Add audit.py: the evidence a course-quality review starts from"
 **Files:**
 - Create: `skills/course-quality/SKILL.md`
 - Create: `skills/course-quality/references/rubric.md`
-- Modify: `.claude-plugin/plugin.json` (version), `README.md`
+- Modify: **both** `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`
+  (version), `README.md`
 
 **Interfaces:**
 - Consumes: `audit.py` from B4, `supplies.py` from B2, `index.py`
@@ -1079,7 +1080,14 @@ skill to `README.md` beside the authoring one.
 
 ```bash
 grep -rn '"version"' .claude-plugin/*.json
+claude plugin validate .
 ```
+
+Report how many manifests you found and how many you changed. **A half-bumped pair is
+worse than no bump at all.** An install compares the version, not the content: if the
+unbumped manifest is the one an install reads, it reports itself current and silently
+misses the entire course-quality skill. `claude plugin validate .` may catch the
+inconsistency; do not rely on it to.
 
 - [ ] **Step 4: Verify the skill loads**
 
@@ -1091,10 +1099,15 @@ plus: read `skills/course-quality/SKILL.md` back in full and check the commands 
 exist, with the flags it gives them. A skill that names a flag the script does not have is
 the same defect class as a stale schema in a plan.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Add the missing `supplies.py` row to `README.md`**
+
+`README.md` lists the toolkit's scripts and does not list `supplies.py`. No other task owns
+that row, and this task is already editing the file. Add it beside the others.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add skills/course-quality .claude-plugin/plugin.json README.md
+git add skills/course-quality .claude-plugin/plugin.json .claude-plugin/marketplace.json README.md
 git commit -m "Add the course-quality skill"
 ```
 
