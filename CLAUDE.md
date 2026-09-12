@@ -2,7 +2,8 @@
 
 ## Where work is tracked
 
-This project tracks deferred work in `TODO.md`. Do not open GitHub issues for it.
+This project tracks deferred work in **GitHub issues**. `TODO.md` holds only a pointer to
+the open ones. Label every issue Claude creates with `created-by-claude`.
 
 Write every entry in ASD-STE100 Simplified Technical English. Keep identifiers, file paths
 and command names verbatim.
