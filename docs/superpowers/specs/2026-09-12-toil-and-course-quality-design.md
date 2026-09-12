@@ -247,20 +247,39 @@ holding ordinary prose must not. A scanner nobody has seen fire is not a scanner
 | **evidence** | 0 | run a validator, read output, report what happened |
 | **toil** | −2 | deterministic and unambiguous; no decision; a mistake teaches nothing |
 | **unserved objective** | −3 | a stated objective or `DESIGN.md` anchor that no task exercises — counted once per course, not per lesson |
+| **`required_for` on an optional lesson** | −3 | the author declared something load-bearing and then made it skippable. Scored **and** raised — see below (course-level) |
 
-Four further rows a reader answers, because none is mechanically decidable — they are
-raised for review and never scored by the script:
+### `required_for` scores and is raised, both
 
-- **`required_for` on an optional lesson.** The heuristic is that an author who writes it
-  declared something load-bearing and then made it skippable, and the material usually
-  belongs on the main path. But the format deliberately permits the case where it is
-  correct: a lesson that genuinely cannot be completed while the anticipated failure
-  stands. The runner's settled semantics are that **the gate is on the failure** — it binds
-  only once the failure is observed, and is lifted by the repair, not by taking the lesson.
-  So only the *unjustified* case is a defect, a script cannot tell the two apart, and **a
-  row that scored it down unconditionally would teach authors to delete a gate that is
-  doing its job** — after which the course silently lets a learner finish a lesson whose
-  failure is still standing. That is a worse outcome than the toil this rubric hunts.
+This row does two things at once, by decision of 2026-09-12, and doing only one of them is
+wrong in a different direction each way.
+
+**It scores −3, unconditionally.** An author who writes `required_for` on an optional lesson
+has declared something load-bearing and then made it skippable, and the material usually
+belongs on the main path. The cost is visible in the total, the way every other signal is.
+
+**It is also raised, every time, as a question the author answers.** The format deliberately
+permits the case where the gate is correct: a lesson that genuinely cannot be completed
+while its anticipated failure stands. The runner's settled semantics are that **the gate is
+on the failure** — it binds once the failure is observed and is lifted by the repair, not by
+taking the lesson. No script can tell a justified gate from an unjustified one.
+
+**The report must therefore carry this warning beside the score, in these words or better:**
+
+> This gate cost the course 3 points and may still be correct. If the lesson genuinely
+> cannot be completed while its failure stands, the gate is doing its job — say so and keep
+> it. Do not delete a gate to improve a score. A course that drops a justified gate lets a
+> learner finish a lesson whose failure is still standing, which is worse than the toil this
+> rubric hunts.
+
+Without that sentence the score teaches exactly the behaviour the objection warned about.
+The author may record the gate as justified; the score stands anyway, and the justification
+stands beside it, because a rubric that let a reader argue a signal down to zero would stop
+being comparable across courses.
+
+Three further rows a reader answers, because none is mechanically decidable and none is
+scored:
+
 - a `design_refs` entry that does not answer the question its lesson raises;
 - a lesson that introduces a type or concept nothing later uses;
 - a lesson far outside the course's usual size.
