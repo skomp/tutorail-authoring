@@ -151,6 +151,22 @@ frontmatter:
 Report `n/a` when no `supplies` key exists anywhere. That is the common case and it must
 not look like a pass.
 
+**Present-but-empty and present-but-malformed get different answers, and only the second is
+a finding.** `supplies:` with nothing under it, and `supplies: []`, both declare nothing —
+they are silent, exactly as check 18 treats an empty `optional_lessons:`. A bare scalar, or
+a mapping written where a list belongs (the missing `-` before `from`, which is the likeliest
+real author error), is a finding: the author declared files that will never be placed, and a
+validator that answered `n/a` there would be making a false statement about the bundle.
+
+The empty case must stay silent for a concrete reason beyond symmetry: the authoring
+toolkit accepts an empty `supplies: []` and rewrites it in block form when adding the first
+entry, because a freshly scaffolded bundle can carry one. A check that rejected it would
+fail every scaffolded bundle at the moment of creation, and the two tools would then
+disagree about whether a bundle is acceptable — worse than either alone.
+
+The check's limitations text must say that it cannot tell an author who meant to declare
+nothing from one who left an empty key by accident, and does not try.
+
 ### 5.2 Check 6 must not fight check 6
 
 **This is the defect this design would otherwise ship.** Check 6 requires every file in a
