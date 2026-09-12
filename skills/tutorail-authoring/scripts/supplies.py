@@ -92,10 +92,21 @@ def _resolve_from(root: Path, from_path: str) -> Path:
     return resolved
 
 
-def _validate_to(to: str) -> None:
-    """Refuse a `--to` that would escape the workspace or reach `tutorial/`."""
+def _validate_to(to: str) -> str:
+    """Refuse a `--to` that would escape the workspace or reach `tutorial/`.
+
+    Returns the NORMALISED value to actually write. A trailing '/' carries no
+    meaning on `to` - unlike on `from`, where it distinguishes a directory's
+    contents from a single file (section 4.1) - so there is nothing worth
+    preserving in it, and a single trailing '/' is stripped rather than
+    refused: `--to models/` is a natural thing to type precisely because
+    `--from` uses a trailing slash meaningfully, and the runner's validator
+    (check 22) rejects the empty path component an unstripped trailing slash
+    produces. The caller must use the returned value, in the printed plan and
+    in the written entry, because it can differ from what was typed.
+    """
     if to == ".":
-        return
+        return to
     if not to:
         raise bl.ToolError("--to must not be empty; use '.' for the workspace root.")
     if os.path.isabs(to):
@@ -105,6 +116,8 @@ def _validate_to(to: str) -> None:
     if "\\" in to:
         raise bl.ToolError(f"--to {to!r} uses a backslash; use '/' in bundle paths.")
     stripped = to[:-1] if to.endswith("/") else to
+    if not stripped:
+        raise bl.ToolError(f"--to {to!r} is not a usable workspace path.")
     parts = stripped.split("/")
     for part in parts:
         if part in ("", ".", ".."):
@@ -117,6 +130,7 @@ def _validate_to(to: str) -> None:
             f"--to {to!r} begins with 'tutorial/'. Placement never reaches "
             f"inside tutorial/ - the instance is not the workspace."
         )
+    return stripped
 
 
 def _resolve_lesson(bundle: bl.Bundle, lesson_id: str) -> bl.Lesson:
@@ -206,9 +220,9 @@ def add(args: argparse.Namespace) -> int:
         lesson = _resolve_lesson(bundle, args.lesson)
 
     _resolve_from(root, args.from_)
-    _validate_to(args.to)
+    to = _validate_to(args.to)
 
-    entry = {"from": args.from_, "to": args.to, "describe": describe}
+    entry = {"from": args.from_, "to": to, "describe": describe}
 
     if lesson is not None:
         text = bl.read_text(lesson.path)

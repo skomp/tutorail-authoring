@@ -1,0 +1,38 @@
+bundle_format: 1
+id: durable-event-broker-mini
+title: Durable Event Broker (trimmed fixture)
+description: >
+  A small, trimmed copy of durable-event-broker (tutorail-bundles), kept just
+  big enough to exercise a bundle that uses optional_lessons: two lessons on
+  the main path and one optional lesson offered alongside the second.
+subjects: [distributed-systems, testing]
+aliases: [event-broker-fixture]
+level: intermediate
+style: [project-driven]
+
+lessons:
+  - lessons/00-running-broker.md
+  - lessons/01-offsets-and-replay.md
+
+optional_lessons:
+  lessons/tcp-transport.md:
+    offer_at: [lessons/01-offsets-and-replay.md]
+    offer_because: >
+      HTTP keeps the main path focused on broker semantics. This optional lesson
+      adds a length-prefixed TCP protocol for a learner who also wants to study
+      framing, partial reads, and connection lifecycle.
+
+workspace_kind: existing-or-new-repository
+tutor_owned: [tutorial/STATE.md, tutorial/DESIGN.md]
+learner_owned: [go.mod, go.sum]
+ownership_policy: tutor-must-not-edit-learner-owned
+
+validators:
+  go-build: { kind: command, command: [go, build, ./...] }
+  go-test: { kind: command, command: [go, test, ./...] }
+  go-test-race: { kind: command, command: [go, test, -race, ./...] }
+  manual-behaviour: { kind: manual }
+
+one_task_at_a_time: true
+solution_code: on-request-only
+advance_on: validated-evidence-only

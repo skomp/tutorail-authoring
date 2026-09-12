@@ -386,6 +386,73 @@ def cli_case_to_tutorial() -> None:
         check(ok.returncode == 0, "--to control: a destination outside tutorial/ is accepted")
 
 
+def cli_case_to_trailing_slash() -> None:
+    """A `--to` ending in '/' is normalised, not refused (fix round 1).
+
+    `--from` needs a trailing slash to mean "this directory's contents,
+    recursively" (section 4.1). `--to` has no such meaning for the slash, so
+    typing `--to models/` - a natural thing to do right after typing `--from
+    supplies/models/` - must not produce a `to: models/` that trips check
+    22's "path component '' is not allowed" on the empty component after the
+    slash. It is stripped instead, and the PLAN must print the stripped
+    value, because it differs from what the author typed.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy("rust-automaton-db")
+        (bundle / "supplies" / "models").mkdir(parents=True)
+        (bundle / "supplies" / "models" / "duck.glb").write_text("glb\n", encoding="utf-8")
+        h.git_init(bundle)
+
+        result = add_cmd(
+            bundle, "--from", "supplies/models/", "--to", "models/",
+            "--describe", "the sample models this course assumes",
+        )
+        check(result.returncode == 0, "--to trailing slash: the add succeeds")
+        check_in(
+            "PASS", result.output,
+            "--to trailing slash: the validator PASSES (check 22 clears it)",
+        )
+        check_in(
+            "to       models\n",
+            result.output,
+            "--to trailing slash: the PLAN prints the normalised value, not the raw one",
+        )
+
+        manifest_text = (bundle / "tutorial.yaml").read_text(encoding="utf-8")
+        check(
+            "to: models\n" in manifest_text,
+            f"--to trailing slash: the WRITTEN entry reads 'to: models', not "
+            f"'to: models/' (manifest text: {manifest_text!r})",
+        )
+        check(
+            "to: models/" not in manifest_text,
+            "--to trailing slash: the raw trailing-slash form is not what got written",
+        )
+
+    with Workspace() as ws:
+        # Normalising a trailing slash is not the same as relaxing the
+        # escape check: a genuinely malformed --to, spelled WITH a trailing
+        # slash, must still be refused.
+        bundle = ws.copy("rust-automaton-db")
+        (bundle / "supplies").mkdir()
+        (bundle / "supplies" / "a.txt").write_text("a\n", encoding="utf-8")
+        h.git_init(bundle)
+
+        refusal(
+            "--to escaping the workspace, spelled with a trailing slash",
+            bundle,
+            ("--from", "supplies/a.txt", "--to", "../", "--describe", "escape attempt"),
+            "is not allowed",
+        )
+        # POSITIVE CONTROL: the identical escape, without the trailing
+        # slash, is refused the same way - proving the refusal is about the
+        # escape, not incidentally about the slash this case adds.
+        before = h.tree_digest(bundle)
+        control = add_cmd(bundle, "--from", "supplies/a.txt", "--to", "..", "--describe", "escape attempt")
+        check(control.returncode != 0, "--to escaping control: '..' without a trailing slash is refused too")
+        check(h.tree_digest(bundle) == before, "--to escaping control: the bundle is unchanged")
+
+
 def cli_case_empty_describe() -> None:
     with Workspace() as ws:
         bundle = ws.copy("rust-automaton-db")
@@ -455,6 +522,91 @@ def cli_case_lesson_unknown() -> None:
         check("supplies:" in fm_text, "--lesson control: the entry lands in the lesson's frontmatter")
         manifest_text = (bundle / "tutorial.yaml").read_text(encoding="utf-8")
         check("supplies:" not in manifest_text, "--lesson control: and NOT in the manifest")
+
+
+def cli_case_lesson_optional() -> None:
+    """`--lesson` must accept a lesson that is listed ONLY in optional_lessons.
+
+    Fix round 1, finding 2: `rust-automaton-db` has no optional lesson, so
+    every earlier case here only ever exercised "not listed anywhere ->
+    refused". `_resolve_lesson` consults `set(bundle.listed) | bundle.optional`
+    (bundlelib's own defensive-but-shallow `Bundle.optional` property), and
+    that union is exactly what this fixture is built to exercise: a lesson a
+    reviewer could only prove correct earlier by constructing a `Bundle` by
+    hand is now proven by a real bundle and a real subprocess run.
+
+    `tests/fixtures/durable-event-broker-mini` is a trimmed copy of
+    `durable-event-broker` (tutorail-bundles), the bundle named in the
+    finding: two lessons on the main path, and `lessons/tcp-transport.md`
+    declared only in `optional_lessons`, with `optional: true` in its own
+    frontmatter, exactly like the original.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy("durable-event-broker-mini")
+        (bundle / "supplies").mkdir()
+        (bundle / "supplies" / "cert.pem").write_text("cert\n", encoding="utf-8")
+        h.git_init(bundle)
+
+        # ACCEPTED: the id names a lesson that is listed ONLY in
+        # optional_lessons, not in lessons:.
+        ok = add_cmd(
+            bundle, "--from", "supplies/cert.pem", "--to", "tls/cert.pem",
+            "--describe", "the TLS certificate the TCP transport lesson uses",
+            "--lesson", "tcp-transport",
+        )
+        check(
+            ok.returncode == 0,
+            "--lesson (optional_lessons only): a lesson listed only in "
+            "optional_lessons is accepted",
+        )
+        check_in(
+            "lesson scope: tcp-transport",
+            ok.output,
+            "--lesson (optional_lessons only): the plan names the lesson scope",
+        )
+        fm_text = (bundle / "lessons" / "tcp-transport.md").read_text(encoding="utf-8")
+        check(
+            "supplies:" in fm_text,
+            "--lesson (optional_lessons only): the entry lands in that "
+            "lesson's frontmatter",
+        )
+        manifest_text = (bundle / "tutorial.yaml").read_text(encoding="utf-8")
+        check(
+            "\nsupplies:" not in manifest_text,
+            "--lesson (optional_lessons only): and NOT in the manifest",
+        )
+
+    with Workspace() as ws:
+        # REFUSED: a lesson FILE that genuinely exists on disk, but that
+        # tutorial.yaml names in NEITHER lessons: nor optional_lessons:, is
+        # still refused. Consulting the union must not become "anything
+        # under lessons/ is fair game" - this is the other half of the same
+        # branch, and it is what stops _resolve_lesson from silently
+        # widening into "any file on disk".
+        bundle = ws.copy("durable-event-broker-mini")
+        (bundle / "supplies").mkdir()
+        (bundle / "supplies" / "notes.txt").write_text("n\n", encoding="utf-8")
+        (bundle / "lessons" / "orphan-lesson.md").write_text(
+            "---\n"
+            "id: orphan-lesson\n"
+            "title: Not part of this bundle\n"
+            "---\n\n"
+            "## Purpose\n\n"
+            "This file is on disk but named in neither lessons: nor "
+            "optional_lessons:.\n",
+            encoding="utf-8",
+        )
+        h.git_init(bundle)
+
+        refusal(
+            "--lesson naming a lesson that is on disk but in neither list",
+            bundle,
+            (
+                "--from", "supplies/notes.txt", "--to", "notes.txt",
+                "--describe", "orphan notes", "--lesson", "orphan-lesson",
+            ),
+            "not listed in tutorial.yaml's lessons: or optional_lessons:",
+        )
 
 
 def cli_case_dirty_tree() -> None:
@@ -596,12 +748,16 @@ def main() -> int:
         cli_case_to_escapes()
     with case("add refuses a --to that begins with tutorial/"):
         cli_case_to_tutorial()
+    with case("add normalises a --to ending in '/' instead of refusing it"):
+        cli_case_to_trailing_slash()
     with case("add refuses an empty --describe"):
         cli_case_empty_describe()
     with case("add refuses an identical entry already declared"):
         cli_case_duplicate_entry()
     with case("add refuses a --lesson naming a lesson that does not exist"):
         cli_case_lesson_unknown()
+    with case("--lesson accepts a lesson listed only in optional_lessons, and still refuses one in neither list"):
+        cli_case_lesson_optional()
     with case("add refuses a dirty working tree, and --force overrides"):
         cli_case_dirty_tree()
     with case("add --check prints the plan and changes nothing"):
