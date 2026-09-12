@@ -1,0 +1,19 @@
+{
+  "name": "tutorail-authoring",
+  "description": "Authoring and maintenance tooling for tutorAIl bundles",
+  "owner": {
+    "name": "skomp"
+  },
+  "plugins": [
+    {
+      "name": "tutorail-authoring",
+      "source": "./",
+      "version": "0.1.0",
+      "description": "Interviews you about a course, then builds or changes a tutorAIl bundle correctly.",
+      "author": {
+        "name": "skomp",
+        "url": "https://github.com/skomp"
+      }
+    }
+  ]
+}

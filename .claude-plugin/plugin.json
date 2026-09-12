@@ -1,0 +1,19 @@
+{
+  "name": "tutorail-authoring",
+  "version": "0.1.0",
+  "description": "Interviews you about a course, then builds or changes a tutorAIl bundle correctly. Ends the interview with a spec you approve before any lesson file is written.",
+  "author": {
+    "name": "skomp",
+    "url": "https://github.com/skomp"
+  },
+  "homepage": "https://github.com/skomp/tutorail-authoring",
+  "repository": "https://github.com/skomp/tutorail-authoring",
+  "license": "MIT",
+  "keywords": [
+    "tutorial",
+    "authoring",
+    "course",
+    "teaching",
+    "skills"
+  ]
+}
