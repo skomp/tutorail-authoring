@@ -43,6 +43,32 @@ from a learner having a bad run. `STALL_DISCLAIMER` says so in every stall
 report, and `verdict_language()` is the probe that keeps the rest of the
 report free of verdict wording. The ruling belongs to whoever reads the log.
 
+A RANGE THAT DOES NOT START AT LESSON 0 NEEDS A SEED
+====================================================
+
+To start a run at lesson 10, the workspace must already hold everything
+lessons 0 to 9 build. There are two honest ways to get there and there is no
+third: walk from lesson 0, paying the tokens of every lesson you are not
+testing, or start from a workspace someone prepared and hand it over with
+`--seed`.
+
+So `--from` naming anything but the course's first lesson REFUSES without
+`--seed`. Letting it run against a workspace that does not hold what the
+lesson assumes would fail every completion condition for a reason that has
+nothing to do with the course, and the harness would report a course defect
+it had manufactured itself. A false finding is worse than no finding.
+
+A run with no `--from` is not affected: it walks the instance from where its
+own `STATE.md` says the learner is, and that workspace holds the earlier
+lessons' work because the learner did it.
+
+Open question for the spec, deliberately NOT solved here: a seeded workspace
+was built by someone who had read the lessons, so a run starting from one is
+testing a different thing from a run walked from lesson 0. That difference
+has to be stated wherever a finding from a seeded run is reported. The run
+log records `seed` and `seeded_files` in its `run-start` record so a reader
+can tell the two apart; nothing else about it is mechanised.
+
 THE PROCESS CALL IS BEHIND ONE SEAM
 ===================================
 
@@ -930,6 +956,73 @@ def select_lessons(
     return lessons[first : last + 1]
 
 
+SEED_REFUSAL = """{first} is not the first lesson of this course, so this run
+needs --seed <path>: a workspace that already holds everything
+{earlier} build(s).
+
+There are two honest ways to reach that state and there is no third:
+
+  1. walk the course from {course_first}, which costs the tokens of every
+     lesson you are not testing;
+  2. hand this harness a workspace someone prepared, with --seed.
+
+Starting {first} against a workspace that does not hold what it assumes makes
+every completion condition fail for a reason that has nothing to do with the
+course. The harness would then report a course defect that is entirely an
+artefact of how the run was started, which is worse than reporting nothing."""
+
+
+def require_seed(
+    lessons: list[LessonRef],
+    chosen: list[LessonRef],
+    seed: Path | None,
+    *,
+    explicit_from: bool,
+) -> None:
+    """Refuse a --from past the first lesson unless a prepared workspace is named.
+
+    The rule is attached to `--from` because `--from` is the caller OVERRIDING
+    where the run starts. A run with no --from walks the instance from where
+    its own STATE.md says the learner is, and that workspace is the learner's
+    real one - it holds what the earlier lessons built because the learner
+    built it. An override carries no such guarantee, so the caller has to say
+    where the state came from.
+    """
+    if not explicit_from or not chosen or not lessons:
+        return
+    if chosen[0].rel == lessons[0].rel:
+        return
+    if seed is not None:
+        return
+    index = lessons.index(chosen[0])
+    earlier = ", ".join(lesson.rel for lesson in lessons[:index])
+    raise DryRunError(
+        SEED_REFUSAL.format(
+            first=chosen[0].rel,
+            earlier=earlier or "the earlier lessons",
+            course_first=lessons[0].rel,
+        )
+    )
+
+
+def apply_seed(seed: Path, instance: Path) -> list[str]:
+    """Copy a prepared workspace into the instance before the run starts.
+
+    Course material in the seed is SKIPPED. The instance's own `tutorial/` is
+    the course of record, and a seed that carried its own copy would quietly
+    become the thing under test.
+    """
+    if not seed.is_dir():
+        raise DryRunError(f"{seed}: --seed must name a directory.")
+    written: list[str] = []
+    for rel, path in _walk_files(seed):
+        if is_course_material(rel) or is_harness_artefact(rel):
+            continue
+        if _copy_file(path, instance / rel):
+            written.append(rel)
+    return written
+
+
 # --------------------------------------------------------------------------
 # Prompts
 #
@@ -1048,6 +1141,10 @@ class DryRun:
         self.run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
         self.turn = 0
         self.learner_session: str | None = None
+        # A run starting from a prepared workspace is testing a different
+        # thing from a run walked from lesson 0, so the log says which it was.
+        self.seed: str | None = None
+        self.seeded_files = 0
         # The run log carries every task the tutor has written. When it sits
         # inside the instance it is excluded from the sync by name as well as
         # by the `dryrun-*.jsonl` pattern, so a --log the caller named
@@ -1071,6 +1168,8 @@ class DryRun:
                 "instance": str(self.config.instance),
                 "mirror": str(self.config.mirror),
                 "lessons": [l.rel for l in lessons],
+                "seed": self.seed,
+                "seeded_files": self.seeded_files,
                 "max_turns": self.config.max_turns,
                 "stall_after": self.config.stall_after,
                 "agent": getattr(self.agent, "name", type(self.agent).__name__),
@@ -1226,6 +1325,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--from", dest="frm", help="first lesson of the range")
     parser.add_argument("--to", dest="to", help="last lesson of the range (default: the same one)")
     parser.add_argument("--mirror", type=Path, help="the learner's directory (default: a temp dir)")
+    parser.add_argument(
+        "--seed",
+        type=Path,
+        help=(
+            "a prepared workspace holding what the lessons before --from build. "
+            "Required whenever --from names anything but the course's first lesson."
+        ),
+    )
     parser.add_argument("--log", type=Path, help="the run log (default: <instance>/dryrun-<run>.jsonl)")
     parser.add_argument("--max-turns", type=int, default=12, help="turns per lesson before stopping")
     parser.add_argument("--stall-after", type=int, default=3, help="quiet learner turns that make a stall")
@@ -1274,6 +1381,10 @@ def _run(args) -> int:
 
     lessons = read_lessons(instance_dir)
     chosen = select_lessons(lessons, args.frm, args.to, active_lesson(instance_dir))
+    # Before anything else, and before --plan: a plan for a run that would
+    # manufacture its own findings is not a plan worth printing.
+    require_seed(lessons, chosen, args.seed, explicit_from=args.frm is not None)
+    seeded: list[str] = []
 
     mirror = (args.mirror.resolve() if args.mirror else Path(tempfile.mkdtemp(prefix="dryrun-learner-")))
     if mirror == instance or instance in mirror.parents or mirror in instance.parents:
@@ -1291,6 +1402,7 @@ def _run(args) -> int:
         print(f"course:       {course}")
         print(f"mirror:       {mirror}")
         print(f"log:          {log_path}")
+        print(f"seed:         {args.seed or '-'}")
         print(f"agent:        {args.agent_command} {' '.join(args.agent_arg)}".rstrip())
         print(f"max turns:    {args.max_turns} per lesson")
         print(f"stall after:  {args.stall_after} quiet learner turns")
@@ -1308,6 +1420,9 @@ def _run(args) -> int:
         max_turns=args.max_turns,
         stall_after=args.stall_after,
     )
+    if args.seed is not None:
+        seeded = apply_seed(args.seed.resolve(), instance)
+        print(f"seeded {len(seeded)} file(s) from {args.seed}")
     agent = CliAgent(command=args.agent_command, extra_args=args.agent_arg)
     probe = CommandValidators(instance, manifest)
     run_log = RunLog(log_path)
@@ -1315,6 +1430,8 @@ def _run(args) -> int:
     print(f"mirror: {mirror}")
     print(f"log:    {log_path}")
     driver = DryRun(config, agent, probe, run_log, course=course)
+    driver.seed = str(args.seed) if args.seed is not None else None
+    driver.seeded_files = len(seeded)
     outcome = driver.walk(chosen)
     print()
     print(f"{outcome.turns} turn(s) over {len(outcome.lessons)} lesson(s). Log: {log_path}")

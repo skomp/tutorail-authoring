@@ -893,6 +893,141 @@ def range_case_not_an_instance() -> None:
         check(done.returncode == 0, "and an instance is accepted by the same check")
 
 
+def seed_case_unit_rule() -> None:
+    """--from past the first lesson needs --seed. --from at the first does not."""
+    with Workspace() as ws:
+        instance = ws.copy(INSTANCE_FIXTURE)
+        lessons = dryrun.read_lessons(instance / "tutorial")
+        second = [l for l in lessons if l.rel == LESSON_01]
+        first = [l for l in lessons if l.rel == LESSON_00]
+
+        raised = False
+        try:
+            dryrun.require_seed(lessons, second, None, explicit_from=True)
+        except dryrun.DryRunError as exc:
+            raised = True
+            check_in("--seed", str(exc), "the refusal names the flag that fixes it")
+            check_in(
+                "artefact of how the run was started",
+                str(exc),
+                "and says WHY: the harness would manufacture the finding",
+            )
+            check_in(LESSON_00, str(exc), "and names the lessons whose work is missing")
+        check(raised, "--from lessons/01 with no --seed is refused")
+
+        # Three positive controls, each differing from the refusal in exactly
+        # one thing. Without them the refusal could be a function that always
+        # raises.
+        try:
+            dryrun.require_seed(lessons, second, Path("/tmp/prepared"), explicit_from=True)
+            check(True, "the SAME call with --seed supplied is allowed")
+        except dryrun.DryRunError as exc:
+            check(False, f"--seed should have satisfied the rule: {exc}")
+        try:
+            dryrun.require_seed(lessons, first, None, explicit_from=True)
+            check(True, "--from at the course's first lesson needs no --seed")
+        except dryrun.DryRunError as exc:
+            check(False, f"the first lesson should need no seed: {exc}")
+        try:
+            dryrun.require_seed(lessons, second, None, explicit_from=False)
+            check(True, "a run with no --from at all is not affected by the rule")
+        except dryrun.DryRunError as exc:
+            check(False, f"the default range should need no seed: {exc}")
+
+
+def seed_case_cli_refuses() -> None:
+    with Workspace() as ws:
+        instance = ws.copy(INSTANCE_FIXTURE)
+        done = run(
+            DRYRUN, instance, "--from", LESSON_01, "--plan",
+            env=cli_env(ws.path("tripwire.txt")),
+        )
+        check(done.returncode == 2, f"the CLI refuses --from 01 with no --seed (exit {done.returncode})")
+        check_in("--seed", done.output, "the CLI refusal names --seed")
+        check(
+            not ws.path("tripwire.txt").exists(),
+            "and it refuses before any agent process could start",
+        )
+        # THE POSITIVE CONTROL: the same invocation with --seed supplied runs.
+        prepared = learner_workspace(ws.path("prepared"))
+        done = run(
+            DRYRUN, instance, "--from", LESSON_01, "--seed", prepared, "--plan",
+            env=cli_env(ws.path("tripwire2.txt")),
+        )
+        check(done.returncode == 0, f"the same invocation with --seed is allowed (exit {done.returncode}):\n{done.output}")
+        check_in(str(prepared), done.stdout, "--plan says which workspace it would seed from")
+        # And the other axis: the first lesson still needs nothing.
+        done = run(
+            DRYRUN, instance, "--from", LESSON_00, "--plan",
+            env=cli_env(ws.path("tripwire3.txt")),
+        )
+        check(done.returncode == 0, "--from at the first lesson still needs no --seed")
+
+
+def seed_case_applied_and_logged() -> None:
+    """A seeded run copies the workspace in, skips the course, and says so."""
+    with Workspace() as ws:
+        instance = ws.copy(INSTANCE_FIXTURE)
+        prepared = learner_workspace(ws.path("prepared"))
+        (prepared / "src" / "answer.txt").write_text("42\n", encoding="utf-8")
+        # A seed carrying its own course must not overwrite the instance's.
+        plant_lesson(prepared, "tutorial/lessons/00-first-steps.md")
+        (prepared / "tutorial" / "STATE.md").write_text("---\nfake: true\n---\n", encoding="utf-8")
+        log = ws.path("run.jsonl")
+        done = run(
+            DRYRUN, instance,
+            "--from", LESSON_01,
+            "--seed", prepared,
+            "--mirror", ws.path("mirror"),
+            "--log", log,
+            "--agent-command", STUB_AGENT,
+            "--max-turns", "2",
+            "--stall-after", "9",
+            env=cli_env(
+                ws.path("tripwire.txt"),
+                DRYRUN_STUB_ARGV=str(ws.path("argv.jsonl")),
+                DRYRUN_STUB_TOUCH="src/second.txt",
+                DRYRUN_STUB_COMPLETE_AFTER="2",
+            ),
+        )
+        check(done.returncode == 0, f"the seeded run exits 0 (got {done.returncode}):\n{done.output}")
+        check(
+            (instance / "src" / "answer.txt").read_text(encoding="utf-8") == "42\n",
+            "the seed's learner files are in the instance",
+        )
+        check(
+            "fake: true" not in (instance / "tutorial" / "STATE.md").read_text(encoding="utf-8"),
+            "a seed carrying its own course NEVER overwrites the instance's course",
+        )
+        records = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+        start = [r for r in records if r["kind"] == "run-start"][0]
+        check(start["seed"] == str(prepared), "the run log records which workspace seeded the run")
+        check(
+            start["seeded_files"] >= 2,
+            f"and how many files it brought (got {start.get('seeded_files')})",
+        )
+        # The control: an unseeded run records a null seed, so a reader can
+        # tell a walked run from a seeded one.
+        log2 = ws.path("run2.jsonl")
+        run(
+            DRYRUN, instance,
+            "--from", LESSON_00,
+            "--mirror", ws.path("mirror2"),
+            "--log", log2,
+            "--agent-command", STUB_AGENT,
+            "--max-turns", "1",
+            "--stall-after", "9",
+            env=cli_env(
+                ws.path("tripwire2.txt"),
+                DRYRUN_STUB_ARGV=str(ws.path("argv2.jsonl")),
+                DRYRUN_STUB_COMPLETE_AFTER="1",
+            ),
+        )
+        records = [json.loads(line) for line in log2.read_text(encoding="utf-8").splitlines()]
+        start = [r for r in records if r["kind"] == "run-start"][0]
+        check(start["seed"] is None, "an unseeded run records a null seed")
+
+
 # --------------------------------------------------------------------------
 # 7. The validator probe
 # --------------------------------------------------------------------------
@@ -1005,6 +1140,13 @@ def main() -> int:
         range_case_from_to()
     with case("a bundle is refused, an instance is accepted"):
         range_case_not_an_instance()
+
+    with case("--from past the first lesson requires --seed"):
+        seed_case_unit_rule()
+    with case("the CLI refuses a seedless --from and allows a seeded one"):
+        seed_case_cli_refuses()
+    with case("a seeded run copies the workspace in, skips the course, and logs it"):
+        seed_case_applied_and_logged()
 
     with case("the validator probe separates unprobeable from failing"):
         validator_case_probes_and_unprobeables()
