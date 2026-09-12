@@ -37,16 +37,30 @@ one.
 - Already implemented there: the coverage-list signal, and the completion-conditions signal
   as a reader-answered row citing the dry-run harness as evidence rather than verdict.
 
-### One signal still open — needs Robert
+### The `required_for` signal — settled 2026-09-12
 
-**`required_for` on an optional lesson.** Robert asked for it to score **negatively**: an
-author who writes it has declared something load-bearing and then made it skippable.
+**Both: it scores negatively AND it is raised for review.** Not either.
 
-The session building the gate objected that scoring it down unconditionally would teach
-authors to **delete a gate that is doing its job**, and implemented it as *raise for review*
-instead.
+Robert ruled this directly when the course-quality session asked him. The -3 stands
+unconditionally and is visible in the total; every instance is also raised as a question the
+author answers.
 
-Both are defensible and they are not the same thing. Unresolved; Robert's call.
+The objection that argued against scoring survives, because it was a good objection — a
+score alone teaches authors to delete a gate that is doing its job. It does not get to cancel
+the instruction, so it becomes required text printed beside the score:
+
+> This gate cost the course 3 points and may still be correct. If the lesson genuinely
+> cannot be completed while its failure stands, the gate is doing its job — say so and keep
+> it. Do not delete a gate to improve a score. A course that drops a justified gate lets a
+> learner finish a lesson whose failure is still standing, which is worse than the toil this
+> rubric hunts.
+
+An author may record the gate as justified. The score stands anyway and the justification
+stands beside it, because a rubric a reader can argue down to zero stops being comparable
+across courses.
+
+Recorded here second-hand, relayed by the session that asked. Correct it if that is not what
+you meant.
 
 ### Signals not yet implemented
 
