@@ -99,10 +99,10 @@ setup" lesson whose whole content is a scaffold arriving on disk fails that test
 in it can be got wrong in an instructive way. Say so, in as many words, and fold it into
 `supplies:` rather than accepting it into the arc:
 
-> "Lesson 00 there is a handover, not a lesson — the learner cannot get any of it wrong in
-> a way that teaches them something. I will declare those files as supplies, so they are
-> in place before lesson 01, and the course starts where the teaching starts. Is anything
-> in that setup worth a learner's attention on its own?"
+> "Lesson 00 as you have it is a handover, not a lesson — the learner cannot get any of
+> it wrong in a way that teaches them something. I will declare those files as supplies,
+> so they are in place before lesson 01, and the course starts where the teaching starts.
+> Is anything in that setup worth a learner's attention on its own?"
 
 Sometimes the answer is yes and a real lesson survives — a learner who must understand the
 build configuration because lesson 09 changes it is being taught, not set up. Then the

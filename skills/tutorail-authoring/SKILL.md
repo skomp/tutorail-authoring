@@ -33,11 +33,11 @@ test: *what can the learner get wrong here, and does getting it wrong teach anyt
 nothing, it is not a task — it is `supplies:`.* Copying files, installing dependencies,
 downloading assets, unzipping an archive and pasting supplied code verbatim all fail that
 test, every time, in every course. A bundle declares such files in its `supplies:` key and
-the runner places them; a lesson never assigns them. The scar: a generated course opened
-its very first lesson by having the learner copy five files out of `starter/` into the
-root of the workspace, preserving `src/`. The author was not careless — the format had no
-way to hand a file over, and the manifest forbade the tutor to place it, so a task was the
-only channel left. The learner learned nothing from the five copies. `supplies:` is that
+the runner places them; a lesson never assigns them. A generated course opened its very
+first lesson by having the learner copy five files out of `starter/` into the root of
+the workspace, preserving `src/`. The author was not careless — the format had no way to
+hand a file over, and the manifest forbade the tutor to place it, so a task was the only
+channel left. The learner learned nothing from the five copies. `supplies:` is that
 missing channel, and it is the only place this kind of work belongs.
 
 ## This plugin depends on the tutorAIl runner
@@ -154,9 +154,7 @@ the validator. Green means structurally well-formed. It says nothing about wheth
 course teaches.
 
 For that second question, run the course audit before delivering: the `course-quality`
-skill scores every lesson on what a learner gets wrong in it, and lists the steps that
-look like toil. A green validator on a course whose first lesson is five file copies is
-exactly what this project has already shipped once.
+skill scores every lesson and lists the steps that look like toil.
 
 ## Reference files, and when to load each
 
