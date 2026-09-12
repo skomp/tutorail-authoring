@@ -68,11 +68,14 @@ each lesson a short block instead; the fields are required, the table is not.
 
 The completion and `design_refs` columns are not decoration: the self-check in section 4 is
 run against them, and an arc without them cannot be checked at all. Neither is the
-instructive-failure column. **A row you cannot fill that column in for is not a lesson.** It is
-either toil, which belongs in *Supplied files* and not in the arc at all, or a lesson with
-no reason to exist. Writing "the learner copies the starter files into place" in that
-column is the defect announcing itself; the correct response is to move the files to
-*Supplied files* and delete the row.
+instructive-failure column. **A row you cannot fill that column in for is not a lesson.**
+It is toil, if the bundle could have shipped what the row asks for, in which case it
+belongs in *Supplied files* and not in the arc at all; it is the learner's own setup, if
+the bundle could not have shipped it, in which case it belongs inside a lesson's
+progression rather than standing as a lesson; or it is a lesson with no reason to exist.
+Writing "the learner copies the starter files into place" in that column is the first case
+announcing itself; the correct response is to move the files to *Supplied files* and
+delete the row.
 
 **Teaching stance.** `workspace_kind`, `ownership_policy`, `solution_code`, `advance_on`,
 `one_task_at_a_time`, and the validator definitions — the actual map, not a description of
@@ -199,8 +202,10 @@ hours later. It is a first filter, not a proof — say so when you present.
 - [ ] Every arc row names an instructive failure, and none of them is a file being put in
       place. A row without one is toil: move the files to *Supplied files* and drop the row.
 - [ ] Every file the course hands the learner appears in *Supplied files*, with a scope and
-      a describe line, and no arc row tells the learner to copy, download, unzip, install or
-      paste one. A course that supplies nothing says `none`, in the section, on purpose.
+      a describe line, and no arc row tells the learner to put one in place by hand. A step
+      the bundle could not have shipped — installing a toolchain, creating an account — is
+      not toil and stays. A course that supplies nothing says `none`, in the section, on
+      purpose.
 - [ ] Every slug is unique, lowercase, and in the form a filename can take.
 - [ ] The coverage list names topics, not lessons, and says what is out of scope.
 - [ ] No placeholder survives: no "TBD", no purpose line that restates the title.

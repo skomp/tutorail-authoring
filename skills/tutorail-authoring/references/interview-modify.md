@@ -74,8 +74,11 @@ Two follow-ups earn their place:
 
 Authors and learners report this as a tone problem, a lesson-01 problem, or a tutor
 problem. It is none of those. It means a lesson assigns toil: prose telling the learner to
-copy, download, unzip, install or paste something that the course could simply hand over.
-The repair is mechanical, and it is the same every time.
+copy, unzip or paste into place something the bundle could have shipped and did not. Ask
+that question before reaching for the repair — **could this bundle have shipped the
+result?** A step it could not ship, such as installing a toolchain, is the learner's work
+and nothing here applies to it. When the answer is yes, the repair is mechanical and the
+same every time.
 
 1. Open the lesson the learner names and find the prose. It is usually in *Constraints* or
    *Suggested progression*, and it usually names a `starter/` directory.
@@ -119,8 +122,10 @@ can the learner get wrong here, and does getting it wrong teach anything? If not
 not a task — it is `supplies:`.* A modify is where toil enters a course that did not have
 any, because a change arrives as a fix for one learner's confusion and the quickest fix is
 to hand the learner a step to perform. State the instructive failure of every lesson you
-touch, in the spec, in one line. A lesson you cannot write that line for is toil, and the
-handover it needs goes through `supplies.py add`.
+touch, in the spec, in one line. A lesson you cannot write that line for is toil when the
+bundle could have shipped what it asks for, and then the handover goes through
+`supplies.py add`; when the bundle could not ship it, the step is the learner's own setup
+and stays where it is.
 
 ---
 

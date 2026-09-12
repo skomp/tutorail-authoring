@@ -30,10 +30,15 @@ bookkeeping is.
 
 **Toil is declared, not taught.** Before any step becomes a task in a lesson, apply the
 test: *what can the learner get wrong here, and does getting it wrong teach anything? If
-nothing, it is not a task — it is `supplies:`.* Copying files, installing dependencies,
-downloading assets, unzipping an archive and pasting supplied code verbatim all fail that
-test, every time, in every course. A bundle declares such files in its `supplies:` key and
-the runner places them; a lesson never assigns them. A generated course opened its very
+nothing, it is not a task — it is `supplies:`.* Copying files, downloading an asset the
+bundle already carries, unzipping an archive the bundle ships and pasting supplied code
+verbatim fail that test every time, in every course. One question keeps the test sharp
+rather than greedy: **could this bundle have shipped the result?** If it could and did
+not, the step is toil. If it could not — `npm install`, a toolchain, an account, anything
+that needs the network — it is the learner's work and a lesson is right to ask for it,
+because `supplies:` reaches only as far as the bundle itself. A bundle declares the files
+it can ship in its `supplies:` key and the runner places them; a lesson never assigns
+them. A generated course opened its very
 first lesson by having the learner copy five files out of `starter/` into the root of
 the workspace, preserving `src/`. The author was not careless — the format had no way to
 hand a file over, and the manifest forbade the tutor to place it, so a task was the only

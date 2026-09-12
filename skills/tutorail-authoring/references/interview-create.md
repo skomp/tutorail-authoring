@@ -216,8 +216,9 @@ course would find hours later.
 - [ ] **Every validator a lesson names is in the proposed `validators` map.**
 - [ ] **Every lesson contains something the learner can get wrong instructively**, and the
       spec says what it is. A lesson that fails this is toil: it moves to *Supplied files*
-      and leaves the arc. No lesson asks the learner to copy, download, unzip, install or
-      paste anything.
+      and leaves the arc. No lesson asks the learner to put into place by hand — copying,
+      unzipping, pasting — anything the bundle could have shipped. A step the bundle could
+      not ship, such as installing a toolchain, is the learner's work and stays.
 - [ ] **Every file the course hands the learner is in *Supplied files***, with its
       destination and the line that describes it. A course that supplies nothing says so
       explicitly; an absent section and a deliberate "none" are different claims.
