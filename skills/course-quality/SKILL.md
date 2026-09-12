@@ -93,9 +93,10 @@ The script says this about itself in its own output, and the report must repeat 
   position. Whether the learner learns anything from that line is not a thing the pattern
   can see. On `webgl-typescript-scene`, `lessons/00-project-setup/LESSON.md:42` reads
   "Install dependencies, inspect each supplied file, type-check, build, start the
-  development server" — one clause of that is toil and the rest is the lesson. Quote the
-  sentence, split it if it needs splitting, and decide. Never carry a candidate into the
-  report as a finding without having opened the line.
+  development server" — the `install` pattern fires, and **none of that line is toil under
+  this rubric**: no bundle can ship `node_modules`, and the rest of the clause is the
+  lesson. Quote the sentence, split it if it needs splitting, and decide. Never carry a
+  candidate into the report as a finding without having opened the line.
 - **Topic matches are word overlap, not coverage.** A topic with candidate lessons may
   still go untaught, and a topic with no candidate may be taught throughout under
   different words. The list is a place to look, not an answer.
@@ -105,14 +106,26 @@ The script says this about itself in its own output, and the report must repeat 
 The rubric is in `references/rubric.md`. Load it, apply it per element, and print it in
 the report so the author can argue with the scoring rather than with a number.
 
-**The rubric is more than its scored table.** It also carries three rows a reader answers
-and a scored table cannot reach, and one course-level invariant no structural check can
-reach. Those are not optional reading and they are not footnotes: section 6 of the report
+**The rubric is more than its scored table.** It also carries four rows a reader answers
+and a scored table cannot reach, one course-level invariant no structural check can reach,
+and two elements — a branch point, and an instruction addressed to the tutor — that are
+easy to score wrong and are settled there rather than left to you. Those are not optional reading and they are not footnotes: section 6 of the report
 is where each of them is answered in writing.
 
 Work lesson by lesson, and within a lesson, element by element: each task, each step, each
 completion condition. Give every element its own score, its `file:line` and the sentence
 it scored. A lesson's figure is the visible sum of its own elements.
+
+**Before scoring anything −2, ask whether the bundle could have handed the result over.**
+That clause is part of the toil test, and it is what keeps `npm install` off the charge
+sheet: no `supplies:` entry can create `node_modules`, so a course cannot remove that step
+and must not be charged for it. Setup that needs the network, a toolchain or an account is
+the learner's work. Toil is what the bundle *could* have shipped and assigned instead.
+
+**Totals are comparable within one course, not between two.** A lesson's figure tracks how
+finely its `## Suggested progression` enumerates clauses, so two courses with different
+house styles are not measured with the same ruler. Compare lessons against each other
+inside the course you are auditing, and never set one course's total beside another's.
 
 The course-level penalties are counted and shown separately, never folded into a lesson's
 figure. **An unserved objective or anchor costs −3 each**, not −3 for the fact of having
@@ -143,9 +156,14 @@ lesson exercises, listed one per line with its −3. State how you decided each 
 `topic_candidates` does not decide it. The penalty is per gap, so this list and the
 arithmetic in section 1 must agree: *n* gaps listed, −3*n* subtracted.
 
+Do **not** decide an anchor by searching `design_refs` for it. An anchor is served when
+lessons do what it describes, not when they cite it — on the first course audited,
+`#unresolved-decisions` is named in no `design_refs` at all and four lessons serve it.
+
 **4. The toil inventory.** Every confirmed site with its `file:line` and **the exact
 sentence**, quoted. Separately and briefly: which script candidates you examined and
-rejected, so the next reader does not re-litigate them. Then state plainly that the
+rejected, so the next reader does not re-litigate them — including any rejected because the
+bundle could not have supplied the result, which is a rejection worth naming as such. Then state plainly that the
 scanner is a candidate generator and that this inventory came from the lessons.
 
 **5. Proposals.** See below.
@@ -154,11 +172,14 @@ scanner is a candidate generator and that this inventory came from the lessons.
 Silence is not an answer here, and neither is "nothing found" with nothing underneath it.
 None of these is scored; all of them change what the author does next.
 
-- **Each of the rubric's three reader-answered rows**, answered explicitly, with a
+- **Each of the rubric's four reader-answered rows**, answered explicitly, with a
   `file:line` for every instance found and an explicit "none found" where none was:
   - a `design_refs` entry that does not answer the question its lesson raises;
   - a lesson that introduces a type or concept nothing later uses;
-  - a lesson far outside the course's usual size, in either direction.
+  - a lesson far outside the course's usual size, in either direction;
+  - a must-cover topic that only an optional lesson teaches — acceptable for this course,
+    given that a learner who declines every offer never meets it? This one is a **question
+    and not a score**, deliberately and permanently; the rubric says why.
 - **The completability invariant, asked out loud**, for any course that declares
   `optional_lessons`:
 
@@ -173,7 +194,13 @@ None of these is scored; all of them change what the author does next.
   place it is ever asked.
 
   For a course with no optional lessons, "not applicable — no optional lessons declared"
-  is a complete and acceptable written answer. Leaving the question out is not.
+  is a complete and acceptable written answer. Leaving the question out is not — and before
+  writing it, check the prose as well as the manifest. **Prose optionality is not
+  optionality:** a lesson its own text calls optional, sitting in `lessons:` rather than
+  `optional_lessons:`, is a required lesson everywhere it counts. The tooling reports "0
+  optional", this question never gets asked, and the total banks points a learner who takes
+  the prose at its word never earns. Where the two disagree, say so, score the course as the
+  manifest has it, and give the total without that lesson as well.
 
 A proposal in section 5 may answer one of these, in which case say so and cite it. What is
 not allowed is a report with five tidy sections that never asked.
@@ -197,6 +224,11 @@ The two paths have **different roots**. `--from` is relative to the bundle root 
 files live in the course. `--to` is relative to the learner's workspace root, and `.` is
 that root itself. Quoting a workspace path as `--from` is the easiest way to get this
 wrong.
+
+`--from` naming a file the bundle does not contain is the tell that this was never toil:
+if the result has to come off the network, out of a package registry or from an account the
+learner holds, there is no supplies entry to write and nothing to propose. Say that
+plainly instead, and leave the step scored as the learner's setup.
 
 `supplies.py` belongs to the `tutorail-authoring` toolkit, not to this skill, so that
 path is relative to **that** skill's directory and running it is that skill's job. Quote

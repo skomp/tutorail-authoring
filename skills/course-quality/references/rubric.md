@@ -10,6 +10,14 @@ replace the judgement. Nothing in this file is computed by a script: `audit.py` 
 evidence and refuses to rule, and every figure below comes from someone who opened the
 lessons and decided.
 
+**Comparable within one course's house style, not between courses.** A lesson's figure
+tracks how finely its `## Suggested progression` enumerates clauses, so a course that
+writes six terse steps and a course that writes three fat ones are not on the same scale,
+and their totals must not be set side by side. This costs the rubric nothing it was for:
+comparing a course against itself, lesson by lesson, is exactly what the report does. Left
+unsaid, it invites a false comparison between two totals that were never measured with the
+same ruler.
+
 Two failure modes this rubric is shaped against:
 
 - **a bare total.** It invites gaming and hides which signal fired.
@@ -23,9 +31,34 @@ Two failure modes this rubric is shaped against:
 | **teaching** | +2 | the learner decides or constructs; a wrong answer is instructive; it serves a stated objective |
 | **practice** | +1 | applies something already taught; no new decision, but the repetition is the point |
 | **evidence** | 0 | run a validator, read output, report what happened |
-| **toil** | −2 | deterministic and unambiguous; no decision; a mistake teaches nothing |
+| **toil** | −2 | deterministic and unambiguous; no decision; a mistake teaches nothing — **and the bundle could have handed the result over instead of assigning it** |
 | **unserved objective** | −3 **each** | a stated objective or `DESIGN.md` anchor that no task exercises. Course-level rather than per-lesson, but counted once PER UNSERVED OBJECTIVE — a course owing twelve topics is not the same course as one owing a single topic, and a rubric whose purpose is comparability must not score them alike |
 | **`required_for` on an optional lesson** | −3 | the author declared something load-bearing and then made it skippable. Scored **and** raised — see below (course-level) |
+
+### The toil row's last clause is load-bearing
+
+Without it the test literally catches `npm install`, and **no `supplies:` entry can create
+`node_modules`.** Scoring that −2 charges a course for something its author has no way to
+remove, which is a rubric punishing an author for the format's reach rather than for their
+teaching.
+
+So: **setup that needs the network, a toolchain or an account is the learner's work, and is
+not toil under this rubric.** The bundle format is explicit that supplies reach only as far
+as the bundle itself; this clause aligns the rubric with that contract. The question to ask
+at every candidate is not "is this boring?" but **"could this bundle have shipped the
+result?"** If it could and it did not, that is toil. If it could not, it is the learner's
+setup and it scores as whatever it actually is.
+
+### An anchor is served by what lessons DO, not by what they CITE
+
+The obvious mechanical proxy for the unserved-anchor row is *does some `design_refs` name
+this anchor?*, and it is **wrong**. On the first course audited, `#unresolved-decisions`
+appears in no lesson's `design_refs` at all and is nonetheless served, by four lessons that
+do what it describes.
+
+`design_refs` is a citation, and an anchor is a decision the course must honour. A lesson
+can honour one without citing it, and — the other reader-answered row below — can cite one
+without honouring it. Judge the row on what the lessons make the learner do.
 
 A lesson's score is the sum of its own elements. The course score is the sum of the
 lessons minus the course-level gap penalties — **one penalty per unserved objective or
@@ -36,6 +69,23 @@ Scoring the *fact* of having gaps once, rather than each gap, would make a cours
 twelve topics score identically to one owing a single topic. That fights the whole purpose
 of the rubric, and it fights the decomposition rule below: twelve gaps folded into one −3
 is exactly the hidden aggregate that rule exists to forbid.
+
+## Two elements that are easy to score wrong
+
+Neither needs a new row. Both were scored by elimination on the first real run, which means
+two auditors would have scored them differently, so both are settled here.
+
+- **A branch point — where the lesson offers the learner a choice of paths — scores
+  `evidence`, 0.** The example is `webgl 14/LESSON.md:48`, "Choose or skip the path." It is
+  a real step and it teaches nothing by itself; the teaching is in whichever branch the
+  learner takes, and that branch is scored on its own. Scoring the fork as teaching would
+  count the same instruction twice.
+- **A tutor-addressed element scores `teaching`, +2, when the learner must decide or
+  construct in response.** Lesson 11's "the tutor MUST explicitly ask" block is an
+  instruction to the tutor, not to the learner, and it is load-bearing teaching all the
+  same. **The fact that a sentence addresses the tutor does not change what the learner
+  does.** Score the element by what it makes the learner do, at whatever grammatical person
+  the author wrote it in.
 
 ## The decomposition is mandatory, not a nicety
 
@@ -95,6 +145,21 @@ as a question, with its `file:line`.
 - **a lesson far outside the course's usual size.** Both directions matter: one that is
   much larger is usually two lessons, and one that is much smaller is usually a paragraph
   of the lesson beside it.
+- **a must-cover topic that only an optional lesson teaches.** Ask it as a question, in
+  these words or better: *is that acceptable for this course, given that a learner who
+  declines every offer never meets it?* Some courses will answer yes with good reason.
+
+### Why that last one is a question and not a scored row
+
+The first real run proposed scoring it, at a cost of −6 to one course. **Declined, and it
+stays declined** — this is recorded here so the next auditor does not re-open it.
+
+The bundle format is explicit that a topic an optional lesson teaches **is in the course**,
+and that it belongs in the coverage list precisely so the tutor offers the authored lesson
+instead of improvising a replacement. A row penalising that would push authors toward
+dropping the topic from the coverage list, which produces the outcome the format calls
+worse: a tutor improvising material an author had already written. Asking the question gets
+the author's judgement without prejudging it.
 
 ## The invariant no structural check can reach
 
@@ -116,7 +181,22 @@ So ask it, as a course-level question, every audit:
   is for a mistake the learner has already made, never for a prerequisite.
 
 A course with no optional lessons answers this in one line: none declared, invariant not
-at risk.
+at risk. **Check that claim against the lessons, not only against the manifest.**
+
+### Prose optionality is not optionality
+
+The sharpest thing the first real run found. In the catalogue's webgl bundle, lesson 14 is
+called optional in three separate places of prose — its title, its own text, its neighbours
+— and sits in `lessons:`, not in `optional_lessons:`. Everything downstream follows the
+manifest: the tooling reports "0 optional", the completability machinery never engages, and
+the rubric banks that lesson's 11 points into a course total of 194 when a learner who takes
+the course at its word and skips it earns 183.
+
+So a course whose prose offers a lesson while its manifest requires one is **both** scored
+wrongly and unchecked for the invariant above, and neither failure announces itself. When
+the prose and the manifest disagree about whether a lesson is optional, say so in the
+report, score the course as the manifest has it, and state what the total would be without
+the lesson.
 
 ## Dynamic evidence is evidence, not a verdict
 
