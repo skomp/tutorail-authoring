@@ -115,11 +115,33 @@ corrupted.
 |---|---|
 | `python3 scripts/index.py <bundle>` | the compact map of a course: id, title, form, `design_refs`, `validators`, purpose |
 | `python3 scripts/lesson.py add <bundle> --id <slug> --title <text> [--after <lesson-path> \| --position <n>] [--folder]` | a new lesson, in the right position, with `id` equal to its slug |
+| `python3 scripts/lesson.py add <bundle> --id <slug> --title <text> --optional --offer-at <lesson> --offer-because <text> [--anticipates <failure-mode-id>] [--repair-in <lesson>] [--required-for <lesson>] [--folder]` | a lesson the tutor **offers** instead of sequencing: written under `optional_lessons`, never into the `lessons` list, with no number prefix and no renumber |
 | `python3 scripts/lesson.py renumber <bundle> [--check] [--force]` | consistent numbering after inserting or moving lessons |
 | `python3 scripts/supplies.py list <bundle>` | what the bundle already hands the learner, in which scope, and when each entry is placed |
 | `python3 scripts/supplies.py add <bundle> --from <path> --to <path> --describe <text> [--lesson <lesson-id>] [--check] [--force]` | declaring a file the bundle hands over, instead of a lesson step that tells the learner to copy it |
 | `python3 scripts/promote.py <instance> <generated-lesson-path> <bundle> [--check] [--force]` | a generated lesson becoming a course lesson |
+| `python3 scripts/promote.py <instance> <generated-lesson-path> <bundle> --optional [--confirm] [--check] [--force]` | a generated lesson becoming an **offered** lesson rather than a main-path one, with the offer metadata derived from its provenance |
 | `python3 scripts/catalog.py <bundles-repo> [-o <path>]` | `catalog.yaml` for a bundles repository |
+
+Three things about the two `--optional` modes that the table cannot show, and that you
+cannot find out by running the command wrong:
+
+- **`--offer-at`, `--repair-in` and `--required-for` name a lesson on the MAIN PATH.**
+  Each accepts either spelling an author has in front of them: the `lessons` entry
+  (`lessons/03-first-refactor.md`) or the bare lesson id (`03-first-refactor`). Both
+  resolve to the manifest entry. The runner's check 18 resolves these three fields against
+  the `lessons` list, so a bare id naming an *optional* lesson is refused — correctly, an
+  optional lesson is not a place the course reaches.
+- **`promote.py --optional` exits 2 until `--confirm` is passed, and that is the design.**
+  It derives `offer_at` from the generated lesson's `after:` and `offer_because` from its
+  `reason:`, prints both, and writes nothing. The non-zero exit is the confirmation gate,
+  not a failure: put the two printed values in front of the author, get a yes, then run the
+  same command again with `--confirm`. Do not treat the exit code as an error to work
+  around. `--confirm` means nothing without `--optional` and is refused there.
+- **`--required-for` prints the course-quality rubric's warning, verbatim.** A gate on an
+  optional lesson scores -3 and is raised for review: the author has declared something
+  load-bearing and then made it skippable. Show the author the printed warning. That is the
+  one moment the warning reaches them while they are still making the decision.
 
 Three disciplines, which matter more than the commands:
 

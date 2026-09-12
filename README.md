@@ -104,10 +104,12 @@ slug drift apart and how a `lessons` list stops matching the files beside it.
 | Command | Does |
 |---|---|
 | `index.py <bundle>` | compact index: id, title, form, design refs, validators, purpose |
-| `lesson.py add` | new lesson in either form, correct frontmatter, inserted in the list |
+| `lesson.py add` | new lesson in either form, correct frontmatter, inserted in the `lessons` list |
+| `lesson.py add --optional` | a lesson the tutor **offers** instead of sequencing: written under `optional_lessons`, never into the `lessons` list, with no number prefix and no renumber |
 | `lesson.py renumber` | renumber files, ids, the list, and prose cross-references |
 | `supplies.py` | declare the files a bundle hands the learner, instead of a lesson step that assigns a copy |
 | `promote.py` | move a generated lesson from a learner instance into a bundle |
+| `promote.py --optional` | move a generated lesson into `optional_lessons` instead; `offer_at` and `offer_because` are derived from the lesson's provenance, printed, and written only once `--confirm` is passed |
 | `catalog.py` | generate a repository-level `catalog.yaml` from bundle manifests |
 
 Every operation that changes a bundle:

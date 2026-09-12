@@ -9,7 +9,8 @@
 ## 1. Status
 
 All three pieces are implemented and committed. The full suite passes against the pinned
-validator, with one suite red for a cause outside this change (section 7).
+validator, with one suite red for a cause outside this change (section 7 — that suite has
+since been made green by 565b888; see the correction note there).
 
 | Piece | Spec section | State |
 |---|---|---|
@@ -157,6 +158,16 @@ prose case for the wrong reason (an empty plan rewrites nothing at all, so the c
 with it).
 
 ## 7. One suite is red, for a cause outside this change
+
+> **CORRECTION, 2026-09-12, added after the review of 67ef718.** This section is now
+> historical. `test_yamlite_drift.py` is GREEN: commit 565b888 re-copied the vendored
+> `skills/tutorail-authoring/scripts/yamlite.py` from the runner, which is what the
+> vendored banner tells the next reader to do and what this section argued should happen
+> elsewhere. The full suite is green, 11 suites. The passage below is kept rather than
+> deleted because someone read it while it was true, and the reasoning in it — that a
+> file mid-edit in another checkout is not a file to vendor — still stands; only its
+> conclusion, "it was deliberately not done here", has been overtaken.
+
 
 `test_yamlite_drift.py` fails: 4 of 49 assertions.
 

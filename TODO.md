@@ -4,7 +4,7 @@ Deferred work for tutorail-authoring is tracked in **GitHub issues**, not in thi
 
 - https://github.com/skomp/tutorail-authoring/issues
 
-Open issues from the supplies and course-quality work, 2026-09-12:
+Open issues from the supplies, course-quality and optional-lesson work, 2026-09-12:
 
 | Issue | What |
 |---|---|
@@ -15,6 +15,16 @@ Open issues from the supplies and course-quality work, 2026-09-12:
 | tutorAIl#12 | `run_case` can pass when the wrong file produces the finding |
 | tutorAIl#13 | Two claims in `bundle-format.md` are now wrong |
 | tutorail-bundles#1 | Three findings from the first course-quality audit |
+
+Two issues from the optional-lesson work are deliberately not rows in that table, because
+the table lists what is still OPEN:
+
+- `tutorail-authoring#7` (SKILL.md does not document the optional lesson modes) was filed
+  and closed on 2026-09-12. The command table in `skills/tutorail-authoring/SKILL.md` now
+  carries both `--optional` modes and the three calling contracts the table cannot show.
+- `tutorail-authoring#1` (the commands that did not know about `optional_lessons`) is
+  implemented and stays open until the owner closes it. Nothing in it is outstanding except
+  `catalog.py`'s `scope` line, which is #2 above.
 
 The audit that produced several of these is at
 `docs/audits/2026-09-12-course-quality-first-run.md`.

@@ -148,6 +148,13 @@ reuses the validator's lesson discovery rather than reimplementing it.
 | `promote.py` | The ten-step instance-to-bundle procedure, including re-checking `design_refs` against the **bundle's** `DESIGN.md`. Does not delete the learner's copy. |
 | `catalog.py` | Scans a bundles repository, reads each manifest, emits `catalog.yaml` with relative paths. Derives `scope` from the lesson count. |
 
+**CORRECTION, 2026-09-12.** The `lesson.py add` and `promote.py` rows above describe the
+main path only, which is all this design covered. Both commands have since gained an
+`--optional` mode that writes an `optional_lessons` entry instead, adds nothing to the
+`lessons` list and never renumbers. See
+`docs/superpowers/specs/2026-09-12-optional-lessons-in-the-toolkit.md`, and
+`skills/tutorail-authoring/SKILL.md` for the calling contract.
+
 `catalog.py` earns its place immediately: the multi-catalogue work expects a bundles
 repository to ship a `catalog.yaml` listing its bundles by relative path, and maintaining
 that by hand beside twenty bundles is the drift this toolkit exists to prevent.

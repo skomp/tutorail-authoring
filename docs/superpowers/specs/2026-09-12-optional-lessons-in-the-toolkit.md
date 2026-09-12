@@ -110,6 +110,16 @@ confirmed by the author**:
 The derived values are printed and the command requires confirmation before writing,
 matching the `--check`-then-apply discipline the rest of the toolkit uses.
 
+**CORRECTION, 2026-09-12 — what "requires confirmation" turned out to mean.** This
+sentence left the mechanism to the implementer, and a calling agent must not have to read
+an implementation report to use the command. The mechanism is a second flag, `--confirm`,
+not a prompt: these commands are run by the authoring skill, and a tty prompt would hang an
+agent. Without `--confirm` and without `--check`, `promote.py --optional` prints both
+derived values and **exits 2**, writing nothing — the non-zero exit is the confirmation
+gate, not a failure, and it is non-zero precisely because exit 0 would read to an agent as
+"done". `--confirm` is meaningless without `--optional` and is refused there. The same
+contract is stated for callers in `skills/tutorail-authoring/SKILL.md`.
+
 Deriving judgement from data is normally the wrong move. It is right here because the
 provenance is the best evidence anyone will ever have about when the lesson is needed: a real
 learner needed it at exactly that point, which is a stronger signal than an author's

@@ -1285,15 +1285,27 @@ def render_optional_entry(rel: str, entry: dict) -> list[str]:
     return lines
 
 
-def read_optional_lessons(text: str) -> dict:
-    """The `optional_lessons` mapping as the loader sees it, or {}."""
+def _optional_lessons_value(text: str):
+    """The raw `optional_lessons` value as the loader sees it, with no shape
+    filter. None when the key is absent or empty, or the text does not parse.
+
+    read_optional_lessons flattens every non-mapping shape to {}, which is
+    right for a READER asking which entries are declared and wrong for the
+    EDITOR, which has to tell "there is no key" apart from "there is a key
+    holding a shape this editor cannot append to".
+    """
     try:
         parsed = load_yaml(text, "tutorial.yaml")
     except YamlError:
-        return {}
+        return None
     if not isinstance(parsed, dict):
-        return {}
-    raw = parsed.get(OPTIONAL_KEY)
+        return None
+    return parsed.get(OPTIONAL_KEY)
+
+
+def read_optional_lessons(text: str) -> dict:
+    """The `optional_lessons` mapping as the loader sees it, or {}."""
+    raw = _optional_lessons_value(text)
     return raw if isinstance(raw, dict) else {}
 
 
@@ -1310,9 +1322,11 @@ def add_optional_lesson(text: str, rel: str, entry: dict) -> str:
         optional_lessons: {}    an empty flow mapping
 
     A NON-empty inline value is refused with ManifestEditError rather than
-    reformatted into a shape the author did not choose. A path already
-    declared is refused too: the loader rejects a duplicate key, so writing
-    one would produce a manifest nothing can read.
+    reformatted into a shape the author did not choose, and so is a block
+    `optional_lessons:` holding anything but a mapping - a sequence of paths
+    is the shape that occurs, because Bundle.optional reads one. A path
+    already declared is refused too: the loader rejects a duplicate key, so
+    writing one would produce a manifest nothing can read.
 
     Ends by parsing its own output back through `load_yaml` and comparing the
     entry it wrote to the entry it was given. Raises ToolError when they
@@ -1350,6 +1364,32 @@ def add_optional_lesson(text: str, rel: str, entry: dict) -> str:
                     f"Rewrite it in block form and run the command again."
                 )
             break
+
+    # A BLOCK `optional_lessons:` holding something other than a mapping -
+    # a sequence of paths is the shape that actually occurs, and Bundle.optional
+    # reads it - reaches this point untouched: read_optional_lessons flattened
+    # it to {}, so the duplicate check saw nothing, and it is not inline, so the
+    # loop above said nothing either. Appending a block mapping underneath a
+    # sequence produces YAML that does not parse, and the round-trip guard at
+    # the end of this function would then tell the author "this is a bug in
+    # add_optional_lesson itself" about a shape their own manifest chose.
+    # Refuse it here instead, with the remedy the non-empty inline case gets.
+    raw_value = _optional_lessons_value(text)
+    if raw_value is not None and not isinstance(raw_value, dict):
+        shape = "a list" if isinstance(raw_value, list) else f"a {type(raw_value).__name__}"
+        raise ManifestEditError(
+            f"the {OPTIONAL_KEY}: key holds {shape}, not a mapping of lesson "
+            f"path to offer metadata. This toolkit only appends to the block "
+            f"mapping form:\n"
+            f"    {OPTIONAL_KEY}:\n"
+            f"      lessons/a-detour.md:\n"
+            f"        offer_at:\n"
+            f"          - lessons/03-x.md\n"
+            f"        offer_because: ...\n"
+            f"Rewrite it in block form - each existing path becomes a key "
+            f"carrying its own offer_at and offer_because - and run the command "
+            f"again. Nothing was written."
+        )
 
     rendered = render_optional_entry(rel, entry)
 

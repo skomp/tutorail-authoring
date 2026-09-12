@@ -1067,6 +1067,31 @@ def case_optional_creates_the_block() -> None:
         )
         check_in("PASS", result.output, "optional: the validator PASSED")
         check_in("OPTIONAL", result.output, "optional: the plan says so out loud")
+
+        # POSITIVE CONTROL FOR THE ORACLE ITSELF. `numbered_twins` is only
+        # ever asserted == [], and a function that returned [] for every input
+        # would satisfy every one of those assertions. So make it report a
+        # twin: a main-path add into the SAME lessons/ directory writes
+        # `23-twin-probe.md`, and the oracle has to find it. The
+        # `borrow-detour` assertion is then re-run over that same listing, so
+        # the empty answer is a fact about the optional lesson and not about
+        # the probe.
+        twin = add(bundle, "--id", "twin-probe", "--title", "A twin probe")
+        check(
+            twin.returncode == 0,
+            f"numbered_twins control: the main-path add succeeds ({twin.output[-300:]})",
+        )
+        found = numbered_twins(bundle / "lessons", "twin-probe")
+        check(
+            found == ["23-twin-probe.md"],
+            f"numbered_twins control: the oracle DOES report a numbered file when "
+            f"one exists, not {found!r}",
+        )
+        check(
+            numbered_twins(bundle / "lessons", "borrow-detour") == [],
+            "numbered_twins control: and in that same listing it still reports no "
+            "numbered twin for the optional lesson",
+        )
         # An optional lesson has no position, so no renumber can ever be owed.
         # Case A3 shows this probe firing on a main-path insert.
         check_not_in(
@@ -1389,6 +1414,65 @@ def case_optional_refusals() -> None:
             "--offer-at control: a MAIN-PATH path at the same spelling is accepted",
         )
 
+    with Workspace() as ws:
+        # --required-for is the third field check 18 resolves against the
+        # lessons list, and it needs its own case: --repair-in is a scalar and
+        # --required-for is a repeatable list, so they reach the same resolver
+        # by different code paths. Both halves run on optional-course, because
+        # the CONTROL needs a bundle that declares a failure mode - check 18
+        # refuses a gate that anticipates nothing, so a gate on
+        # rust-automaton-db could never be accepted for an unrelated reason.
+        bundle = ws.copy("optional-course", "b")
+        gated = (
+            "--id", "gate-probe", "--title", "A gate probe", "--optional",
+            "--offer-at", "01-shapes", "--offer-because", BECAUSE,
+            "--anticipates", "inverted-winding",
+        )
+        gate = refusal(
+            "--required-for names no lesson",
+            bundle,
+            gated + ("--required-for", "lessons/99-nowhere.md"),
+            "--required-for 'lessons/99-nowhere.md' is not a lesson",
+        )
+        check_not_in(
+            "This gate cost the course 3 points",
+            gate.output,
+            "--required-for refusal: the refusal comes BEFORE the rubric warning, so "
+            "a run that wrote nothing does not also lecture the author about a gate "
+            "it did not write",
+        )
+        miscased_gate = refusal(
+            "--required-for is mis-cased",
+            bundle,
+            gated + ("--required-for", "lessons/02-Finish.md"),
+            "is not a lesson",
+        )
+        check_in(
+            "Did you mean 'lessons/02-finish.md'?",
+            miscased_gate.output,
+            "--required-for mis-cased: the message offers the exact-case entry",
+        )
+        # POSITIVE CONTROL for both: the same command, with a gate that names a
+        # main-path lesson, is accepted - so neither refusal is about
+        # --required-for itself, and the check_not_in above is measuring a probe
+        # that really can fire.
+        gate_ok = add(bundle, *gated, "--required-for", "02-finish")
+        check(
+            gate_ok.returncode == 0,
+            f"--required-for control: a gate naming a main-path lesson is accepted "
+            f"({gate_ok.output[-400:]})",
+        )
+        check_in(
+            "This gate cost the course 3 points",
+            gate_ok.output,
+            "--required-for control: and THAT run DOES print the rubric warning",
+        )
+        check(
+            manifest_optional(bundle)["lessons/gate-probe.md"].get("required_for")
+            == ["lessons/02-finish.md"],
+            "--required-for control: the gate was written, resolved to the manifest path",
+        )
+
 
 def case_optional_duplicate_and_inline() -> None:
     with Workspace() as ws:
@@ -1453,6 +1537,159 @@ def case_optional_duplicate_and_inline() -> None:
             not has_exactly(inline / "lessons", "borrow-detour.md"),
             "non-empty inline map: the lesson file written to the staging copy "
             "is not left behind",
+        )
+
+    with Workspace() as ws:
+        # A BLOCK `optional_lessons:` holding a SEQUENCE of paths. Bundle.optional
+        # accepts that shape - it reads a list of strings - so every READING
+        # command in this toolkit copes with one and an author can really be
+        # holding it. add_optional_lesson cannot append a mapping entry
+        # underneath a sequence, and before this case it did not notice: it
+        # appended anyway, its own round-trip guard caught the unparseable
+        # result, and the author was told "This is a bug in add_optional_lesson
+        # itself, not in the caller's entry" - true about the wrong thing, and
+        # with no remedy in it.
+        seq = ws.copy("optional-course", "seq")
+        seq_manifest = seq / "tutorial.yaml"
+        seq_text = seq_manifest.read_text(encoding="utf-8")
+        block = seq_text[seq_text.index("optional_lessons:") : seq_text.index("failure_modes:")]
+        seq_manifest.write_text(
+            seq_text.replace(
+                block, "optional_lessons:\n  - lessons/vertex-winding-detour.md\n\n"
+            ),
+            encoding="utf-8",
+        )
+        check(
+            "- lessons/vertex-winding-detour.md" in seq_manifest.read_text(encoding="utf-8"),
+            "sequence optional_lessons: the fixture really was rewritten in list form",
+        )
+        refused_seq = refusal(
+            "a sequence-shaped optional_lessons",
+            seq,
+            (
+                "--id", "borrow-detour", "--title", "D", "--optional",
+                "--offer-at", "01-shapes", "--offer-because", BECAUSE,
+            ),
+            "holds a list, not a mapping",
+        )
+        check_in(
+            "block form",
+            refused_seq.output,
+            "sequence optional_lessons: the message tells the author to use block "
+            "form, which is the same remedy the inline case gets",
+        )
+        check_not_in(
+            "bug in add_optional_lesson itself",
+            refused_seq.output,
+            "sequence optional_lessons: the author is NOT told the tool is broken",
+        )
+        check(
+            not has_exactly(seq / "lessons", "borrow-detour.md"),
+            "sequence optional_lessons: the lesson file written to the staging copy "
+            "is not left behind",
+        )
+        # POSITIVE CONTROL: the SAME fixture with that value left in its block
+        # mapping form - the only difference between the two bundles - accepts
+        # the identical command and keeps the entry it already had.
+        mapped = ws.copy("optional-course", "mapped")
+        ok_seq = add(
+            mapped, "--id", "borrow-detour", "--title", "D", "--optional",
+            "--offer-at", "01-shapes", "--offer-because", BECAUSE,
+        )
+        check(
+            ok_seq.returncode == 0,
+            f"sequence control: the block-mapping spelling is accepted "
+            f"({ok_seq.output[-400:]})",
+        )
+        check(
+            sorted(manifest_optional(mapped))
+            == ["lessons/borrow-detour.md", "lessons/vertex-winding-detour.md"],
+            f"sequence control: and the new entry joins the one that was there, "
+            f"not {sorted(manifest_optional(mapped))!r}",
+        )
+
+
+def case_optional_dirty_tree() -> None:
+    """--optional obeys the dirty-tree refusal, and --force overrides it.
+
+    D15 proves this for the main-path add. --optional takes its own branch
+    through `add()`, so a refusal that moved into `add_main_path` would leave
+    the optional mode writing into a tree `git diff` no longer describes -
+    which is the whole reason the refusal exists.
+    """
+    with Workspace() as ws:
+        # POSITIVE CONTROL FIRST, inside a git repository whose tree is clean.
+        clean_repo = ws.path("clean-repo")
+        clean_repo.mkdir()
+        clean_bundle = ws.copy("rust-automaton-db", "clean-repo/b")
+        git_init(clean_repo)
+        ok = optional_add(clean_bundle, "--offer-at", OFFER_AT, "--offer-because", BECAUSE)
+        check(
+            ok.returncode == 0,
+            f"optional dirty tree control: a clean repo is accepted ({ok.output[-300:]})",
+        )
+        check_not_in(
+            "uncommitted change",
+            ok.output,
+            "optional dirty tree control: and nothing is reported as uncommitted",
+        )
+        check_not_in(
+            "not inside a git repository",
+            ok.output,
+            "optional dirty tree control: the bundle really was inside a git repo",
+        )
+
+        dirty_repo = ws.path("dirty-repo")
+        dirty_repo.mkdir()
+        dirty_bundle = ws.copy("rust-automaton-db", "dirty-repo/b")
+        git_init(dirty_repo)
+        lesson_file = dirty_bundle / "lessons" / "00-foundations.md"
+        lesson_file.write_text(
+            lesson_file.read_text(encoding="utf-8") + "\nAn uncommitted edit.\n",
+            encoding="utf-8",
+        )
+        dirty = refusal(
+            "optional add on a dirty tree",
+            dirty_bundle,
+            (
+                "--id", "borrow-detour", "--title", "A borrow detour", "--optional",
+                "--offer-at", OFFER_AT, "--offer-because", BECAUSE,
+            ),
+            "uncommitted change(s)",
+        )
+        check_in(
+            "lessons/00-foundations.md",
+            dirty.output,
+            "optional dirty tree: the message NAMES the dirty path",
+        )
+        check(
+            manifest_optional(dirty_bundle) == {},
+            "optional dirty tree: no optional_lessons entry was written",
+        )
+
+        # --force overrides, on the same still-dirty bundle.
+        forced = add(
+            dirty_bundle, "--id", "borrow-detour", "--title", "A borrow detour",
+            "--optional", "--offer-at", OFFER_AT, "--offer-because", BECAUSE,
+            "--force",
+        )
+        check(forced.returncode == 0, f"optional dirty tree: --force runs anyway ({forced.output[-300:]})")
+        check_in(
+            "--force was given",
+            forced.output,
+            "optional dirty tree: --force says out loud that it is overriding",
+        )
+        check(
+            list(manifest_optional(dirty_bundle)) == ["lessons/borrow-detour.md"],
+            "optional dirty tree: --force actually wrote the optional_lessons entry",
+        )
+        check(
+            has_exactly(dirty_bundle / "lessons", "borrow-detour.md"),
+            "optional dirty tree: --force actually wrote the lesson file",
+        )
+        check(
+            "An uncommitted edit." in lesson_file.read_text(encoding="utf-8"),
+            "optional dirty tree: --force left the author's uncommitted edit alone",
         )
 
 
@@ -1587,8 +1824,10 @@ def main() -> int:
         case_required_for_quotes_the_rubric()
     with case("E22 every --optional refusal fires, with one positive control"):
         case_optional_refusals()
-    with case("E23 a duplicate lesson and an inline optional_lessons are refused"):
+    with case("E23 a duplicate lesson, an inline and a sequence optional_lessons are refused"):
         case_optional_duplicate_and_inline()
+    with case("E23b --optional refuses a dirty tree, and --force overrides"):
+        case_optional_dirty_tree()
     with case("E24 a validator failure discards all three optional writes"):
         case_optional_validator_failure_discards()
     with case("E25 --optional --check prints the plan and changes nothing"):

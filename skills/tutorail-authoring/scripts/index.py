@@ -67,7 +67,13 @@ def build(bundle: bl.Bundle) -> tuple[list[str], int]:
     ordered = bundle.ordered
     listed = set(bundle.listed)
     # See Bundle.optional: an authored lesson off the main path is accounted
-    # for, not reported as UNLISTED. This toolkit does not edit one.
+    # for, not reported as UNLISTED.
+    #
+    # CORRECTION, 2026-09-12. This comment used to end "This toolkit does not
+    # edit one." It does now: `lesson.py add --optional` and `promote.py
+    # --optional` author one, and Bundle.optional's own docstring carries the
+    # same correction. index.py is unchanged by that work and still only READS
+    # the field, which is all this line was ever about.
     optional = bundle.optional
     anchors = bundle.design_anchors()
     declared = bundle.declared_validators()
