@@ -201,6 +201,20 @@ in its own change.
    appears in ANY finding of that check number. A case can pass while the wrong file produces
    the finding. This is why one check-6 test passed against unfixed code.
 
+### Two documentation over-statements — not blocking
+
+The final re-review confirmed both. Each is conservative, so neither causes a wrong result.
+
+1. The documents say a single-file lesson that supplies a file must become a folder. This is
+   not true. A loose file directly under `lessons/` passes check 4, and a single-file lesson
+   that declares `from: lessons/seed.txt` validates in both modes. Correct
+   `bundle-format.md`, `references/interview-create.md`, `references/interview-modify.md`,
+   `skills/course-quality/SKILL.md` and the fixture helper docstring.
+2. `bundlelib.py`'s comment says all values round-trip. That measurement used a
+   27-character alphabet. `js-yaml` still type-coerces `0x1f`, `.inf`, `.nan` and a date such
+   as `2026-09-12`, which `yamlite` keeps as text. The previous emitter fails these the same
+   way, so this is not new. Add one line to the comment that states the limit.
+
 ### Step 5. Close the plan
 
 Delete `.superpowers/sdd/2026-09-12-supplies-and-course-quality/` only after steps 1 to 4.
