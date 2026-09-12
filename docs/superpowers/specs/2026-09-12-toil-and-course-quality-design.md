@@ -220,7 +220,8 @@ does this tutorial teach, audit a course, find the toil in this course.
 
 ### 9.1 What the script does, and what it refuses to do
 
-`scripts/audit.py <bundle>` emits the part a script can produce honestly:
+`skills/course-quality/scripts/audit.py <bundle>` emits the part a script can produce
+honestly — it is the quality skill's own script, not the authoring toolkit's:
 
 - the lesson skeleton: id, title, objectives, `design_refs`, `validators`, form;
 - the goal inventory from `COURSE.md` and the `DESIGN.md` anchors;

@@ -829,10 +829,23 @@ git commit -m "Forbid authored toil: declare it, do not teach it"
 ### Task B4: `audit.py` — the evidence a script can honestly produce
 
 **Files:**
-- Create: `skills/tutorail-authoring/scripts/audit.py`
+- Create: `skills/course-quality/scripts/audit.py`
 - Create: `tests/test_audit.py`
 - Create: `tests/fixtures/toil-course/` (a small bundle carrying both controls)
-- Modify: `tests/harness.py` (`AUDIT = SCRIPTS / "audit.py"`), `tests/run_all.py`
+- Modify: `tests/harness.py` — **a new base constant, not a fifth sibling.** `SCRIPTS`
+  points at `skills/tutorail-authoring/scripts`; `audit.py` belongs to the course-quality
+  skill, so it needs its own base, and a second session's `dryrun.py` will hang off the
+  same one:
+
+  ```python
+  QUALITY_SCRIPTS = REPO / "skills" / "course-quality" / "scripts"
+
+  AUDIT = QUALITY_SCRIPTS / "audit.py"
+  ```
+
+- `tests/run_all.py` needs **no edit**: it discovers suites with
+  `sorted(HERE.glob("test_*.py"))` at line 72. Add the suite to `NEEDS_CLEAN_SEARCH`
+  (line 67) only if it manipulates `TUTORAIL_VALIDATOR`, which this one does not.
 
 **Interfaces:**
 - Consumes: `bl.load_bundle`, `bl.Lesson`, `bl._ANCHOR_RE`, `yamlite.load_yaml`
@@ -922,6 +935,13 @@ optional lesson as unreachable.
 
 - [ ] **Step 3: Run and watch them fail**
 
+**Run `audit.py` as a SUBPROCESS, the way every other suite here runs its script — the
+`audit_json` helper shells out to `--json` and parses stdout. Do not import it as a
+module.** `harness.py:49` already does `sys.path.insert(0, str(SCRIPTS))` for the authoring
+scripts; a second insert for a second script directory puts two of them on one path, and
+any module name they share then resolves by insert order. Nothing needs the import, so
+nothing should take that risk.
+
 - [ ] **Step 4: Implement `audit.py`**
 
 The scan is the part with a sharp edge. It must require an imperative construction, not a
@@ -975,8 +995,8 @@ cd ~/src/github.com/skomp/tutorail-authoring && python3 tests/test_audit.py
 - [ ] **Step 6: Run it against the two real bundles and read the output yourself**
 
 ```bash
-python3 skills/tutorail-authoring/scripts/audit.py ../tutorail-bundles/webgl-typescript-scene
-python3 skills/tutorail-authoring/scripts/audit.py ../tutorail-bundles/durable-event-broker
+python3 skills/course-quality/scripts/audit.py ../tutorail-bundles/webgl-typescript-scene
+python3 skills/course-quality/scripts/audit.py ../tutorail-bundles/durable-event-broker
 ```
 
 The first must produce a candidate at `lessons/00-project-setup/LESSON.md:34` and one at
@@ -988,7 +1008,7 @@ a scanner's false positives are a finding about the scanner.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add skills/tutorail-authoring/scripts/audit.py tests/test_audit.py \
+git add skills/course-quality/scripts/audit.py tests/test_audit.py \
         tests/fixtures/toil-course tests/fixtures/toil-course-no-coverage \
         tests/harness.py tests/run_all.py
 git commit -m "Add audit.py: the evidence a course-quality review starts from"
