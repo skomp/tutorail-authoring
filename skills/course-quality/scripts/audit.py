@@ -114,25 +114,84 @@ _TOIL_PATTERNS = {
     for name, verb in TOIL_VERBS.items()
 }
 
+# `move` and `unzip`/`extract` are narrowed to require a nearby file-or-path
+# token on the SAME LINE. Measured against both real bundles
+# (webgl-typescript-scene and durable-event-broker), every `move` and every
+# `unzip`/`extract` candidate found was a false positive - both words are
+# used constantly in ordinary technical prose with no file anywhere in
+# sight ("Move from clip-space drawing to a genuine 3D coordinate
+# pipeline.", "Extract one supported mesh primitive into the existing
+# `MeshData` representation."). A pattern with zero observed true positives
+# does not buy recall, it buys noise, and noise accumulates linearly with
+# course size while real toil stays rare.
+#
+# `copy` is deliberately NOT narrowed. It produced both of this scanner's
+# required true positives, and its own false positives are the accepted
+# cost of the one pattern that actually works - narrowing it too risks the
+# real toil this tool exists to find for a small gain in tidiness.
+_REQUIRES_FILE_TOKEN = {"move", "unzip"}
+
+# A "recognisable file extension" - deliberately not exhaustive, but wide
+# enough to cover source, markup, data, image, shader and archive files, the
+# categories this project's own bundles actually reference.
+_PATH_EXTENSIONS = (
+    r"md|txt|json|ya?ml|toml|lock|ini|cfg"
+    r"|py|rs|go|c|cc|cpp|h|hpp|java|rb|sh"
+    r"|js|jsx|ts|tsx|mjs|cjs"
+    r"|html?|css|scss"
+    r"|glb|gltf|obj|fbx|png|jpe?g|gif|svg|ico|bmp|webp"
+    r"|glsl|frag|vert|wgsl|hlsl"
+    r"|zip|tar|gz|tgz|rar|7z"
+)
+
+# A backticked span containing '.' or '/' - a backticked path, such as
+# `starter/package.json` or `model/` - and a recognisable extension anywhere
+# on the line, backticked or not. A BARE forward slash on its own is
+# deliberately NOT treated as a path signal: the real corpus has at least
+# one line where a bare '/' is ordinary English shorthand rather than a
+# path ("Introduce emissive/bright scene values, ... extract bright
+# regions, ...", durable-event-broker is unaffected but webgl-typescript-
+# scene's own 16-bloom.md:43 has this exact shape), and treating every
+# slash as a path token would let that line keep firing - exactly the noise
+# this narrowing exists to remove.
+_FILE_TOKEN_RE = re.compile(
+    r"`[^`\n]*[/.][^`\n]*`" r"|\.(?:" + _PATH_EXTENSIONS + r")\b",
+    re.IGNORECASE,
+)
+
+
+def _has_file_token(line: str) -> bool:
+    return _FILE_TOKEN_RE.search(line) is not None
+
 
 def scan_toil(rel: str, text: str) -> list[dict]:
     """Candidate toil sites in `text`, scanned one physical line at a time.
 
     Each hit carries the whole raw line as `text`, not just the matched
     span, so a reader (or a test) can see the sentence the verb sits in.
+
+    `move` and `unzip`/`extract` additionally require a file-or-path token
+    on the same line - see `_REQUIRES_FILE_TOKEN` above for why.
     """
     candidates: list[dict] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
+        has_token: bool | None = None
         for name, pattern in _TOIL_PATTERNS.items():
-            if pattern.search(line):
-                candidates.append(
-                    {
-                        "rel": rel,
-                        "line": lineno,
-                        "text": line.strip(),
-                        "pattern": name,
-                    }
-                )
+            if not pattern.search(line):
+                continue
+            if name in _REQUIRES_FILE_TOKEN:
+                if has_token is None:
+                    has_token = _has_file_token(line)
+                if not has_token:
+                    continue
+            candidates.append(
+                {
+                    "rel": rel,
+                    "line": lineno,
+                    "text": line.strip(),
+                    "pattern": name,
+                }
+            )
     return candidates
 
 
@@ -161,7 +220,7 @@ def _bullets(body: str) -> list[str]:
 
 
 def coverage_list(course_text: str | None) -> dict | None:
-    """The bundle's coverage list, or None when it declares none.
+    """The bundle's coverage list, or None when it declares none at all.
 
     bundle-format.md section 3: `COURSE.md` SHOULD carry a section naming
     the topics the course must eventually cover, one per line, under a
@@ -174,17 +233,32 @@ def coverage_list(course_text: str | None) -> dict | None:
     The heading is matched on the substring "cover" (case-insensitive),
     which both real examples in bundle-format.md contain and which the
     other headings a COURSE.md carries ("Course map", "Checkpoints",
-    "Explicit boundaries", "Prerequisites", ...) do not. A heading match
-    with no bullet list under it is not a coverage list - keep looking.
+    "Explicit boundaries", "Prerequisites", ...) do not.
+
+    A heading matching "cover" with a bullet list under it wins outright. If
+    several such headings exist, the first one that actually lists topics is
+    used; the search keeps going past a heading with nothing under it, in
+    case a later heading is the real one. Only if NO matching heading ever
+    has topics does this fall back to reporting the first empty one it saw -
+    `{"heading": ..., "topics": []}` - which is a THIRD, DISTINCT case from
+    "no matching heading at all" (returns None). A course that writes the
+    heading and lists nothing under it has done something different from a
+    course that never declared a coverage list, and this function must not
+    collapse the two into the same result.
     """
     if course_text is None:
         return None
+    empty_heading: str | None = None
     for heading, body in _sections(course_text):
         if "cover" not in heading.lower():
             continue
         topics = _bullets(body)
         if topics:
             return {"heading": heading, "topics": topics}
+        if empty_heading is None:
+            empty_heading = heading
+    if empty_heading is not None:
+        return {"heading": empty_heading, "topics": []}
     return None
 
 
@@ -404,9 +478,15 @@ def render_markdown(data: dict) -> str:
     cov = data["coverage_list"]
     if cov is None:
         out.append(
-            "COURSE.md declares no coverage list. This is a finding, not an "
-            "empty result: the course has no declared boundary for a tutor "
-            "to check a blocked learner's topic against."
+            "COURSE.md declares no coverage list at all - no heading naming one. "
+            "This is a finding, not an empty result: the course has no declared "
+            "boundary for a tutor to check a blocked learner's topic against."
+        )
+    elif not cov["topics"]:
+        out.append(
+            f'COURSE.md has a coverage-list heading, "{cov["heading"]}", but it '
+            f"names no topics. This is a DIFFERENT finding from declaring none "
+            f"at all: the author started this section and never filled it in."
         )
     else:
         out.append(f'Under "{cov["heading"]}":')

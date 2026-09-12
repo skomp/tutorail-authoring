@@ -30,6 +30,7 @@ Compilation, linking, program status.
 ## Constraints
 
 Copy `starter/package.json`, `starter/tsconfig.json` and `starter/src/main.ts` into their corresponding repository-root paths, preserving `src/`.
+Copy the reference values exactly as given, without rounding.
 
 ## Suggested progression
 

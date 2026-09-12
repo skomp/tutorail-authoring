@@ -26,11 +26,20 @@ control, both drawn from the actual tutorail-bundles corpus:
     positive case and still be useless.
 
 The coverage-list parser gets the same treatment: a fixture that HAS a list
-proves it is read verbatim, and a second fixture - the same bundle with the
-section deleted - proves absence comes back as `None`, not `[]`. Without the
-second fixture, `None` is indistinguishable from a parser that returns an
-empty result for every input, which is the one thing the field exists to
-rule out.
+proves it is read verbatim, a second fixture - the same bundle with the
+section deleted - proves absence comes back as `None`, not `[]`, and a THIRD
+case (a copy of the second with just the heading re-added, no topics under
+it) proves a declared-but-empty list is neither of the other two. Without
+each control, its neighbour is indistinguishable from a parser that cannot
+tell the cases apart.
+
+Fix round 1 narrowed `move` and `unzip`/`extract` to require a file-or-path
+token on the same line, after both patterns turned out to have zero observed
+true positives across the two real bundles while firing constantly on
+ordinary technical prose. `copy` was deliberately left alone - it produced
+both of this scanner's required true positives. The narrowing is tested with
+both halves, using the real corpus sentences for the negative half wherever
+one already existed.
 """
 
 from __future__ import annotations
@@ -44,6 +53,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from harness import (  # noqa: E402
     AUDIT,
     FIXTURES,
+    Workspace,
     case,
     check,
     report,
@@ -99,6 +109,122 @@ def case_negative_control_silent() -> None:
         "Provide a direct-copy composition shader before adding effects." in lesson_text,
         "control: the real negative-control sentence is actually in the fixture",
     )
+
+
+def case_move_and_extract_require_a_path_token() -> None:
+    """`move` and `unzip`/`extract` are narrowed: they need a file-or-path
+    token (a backticked path, or a recognisable file extension) on the same
+    line.
+
+    Both verbs were dropped to zero observed true positives across the two
+    real bundles during this tool's own verification, while firing on
+    ordinary technical prose that has no file anywhere in sight. `copy` is
+    deliberately NOT narrowed - see case_copy_is_not_narrowed.
+
+    Both negative halves here are the REAL sentences from the corpus, not
+    invented ones:
+
+      * "Move from clip-space drawing to a genuine 3D coordinate pipeline."
+        - webgl-typescript-scene/lessons/05-transforms-and-perspective.md:10
+      * "Extract one supported mesh primitive into the existing `MeshData`
+        representation" - webgl-typescript-scene/lessons/13-load-gltf-model/
+        LESSON.md:21 (a Learning objectives bullet there too)
+
+    No real `move`/`unzip` true positive exists in either corpus (that is
+    the whole reason for this change), so the positive halves are
+    necessarily invented, in the same prose style as the rest of the fixture.
+    """
+    data = audit_json(FIXTURES / "toil-course")
+
+    move_fires = [c for c in data["candidates"] if "checker.png" in c["text"]]
+    check(len(move_fires) == 1, f"a 'move' with a real path token fires (got {move_fires})")
+    if move_fires:
+        check(move_fires[0]["pattern"] == "move", f"pattern is 'move' (got {move_fires[0]['pattern']!r})")
+
+    move_silent = [c for c in data["candidates"] if "clip-space drawing" in c["text"]]
+    check(
+        not move_silent,
+        f"the real corpus sentence about clip-space drawing still does not fire - "
+        f"no path token, ordinary prose (got {move_silent})",
+    )
+
+    unzip_fires = [c for c in data["candidates"] if "textures.zip" in c["text"]]
+    check(len(unzip_fires) == 1, f"an 'unzip' with a real path token fires (got {unzip_fires})")
+    if unzip_fires:
+        check(unzip_fires[0]["pattern"] == "unzip", f"pattern is 'unzip' (got {unzip_fires[0]['pattern']!r})")
+
+    unzip_silent = [c for c in data["candidates"] if "MeshData" in c["text"]]
+    check(
+        not unzip_silent,
+        f"the real corpus sentence about extracting a mesh primitive still does not "
+        f"fire - the backticked `MeshData` token has no '.' or '/' inside it, so it "
+        f"is not a path (got {unzip_silent})",
+    )
+
+    # Positive control on the fixture itself: the real negative sentences
+    # really are present verbatim, or the absence checks above prove nothing.
+    lesson_text = (FIXTURES / "toil-course" / "lessons" / "01-texture-work.md").read_text(encoding="utf-8")
+    check(
+        "Move from clip-space drawing to a genuine 3D coordinate pipeline." in lesson_text,
+        "control: the real 'move' negative sentence is actually in the fixture",
+    )
+    check(
+        "Extract one supported mesh primitive into the existing `MeshData` representation" in lesson_text,
+        "control: the real 'extract' negative sentence is actually in the fixture",
+    )
+
+
+def case_copy_is_not_narrowed() -> None:
+    """`copy` keeps firing with no path token at all - it was deliberately
+    left as it was, because it is the one pattern that produced both of
+    this scanner's required true positives.
+    """
+    data = audit_json(FIXTURES / "toil-course")
+    hits = [c for c in data["candidates"] if "without rounding" in c["text"]]
+    check(
+        len(hits) == 1,
+        f"'Copy the reference values exactly as given, without rounding.' has no "
+        f"backtick, no '/', no file extension anywhere on the line, and still "
+        f"fires (got {hits})",
+    )
+    if hits:
+        check(hits[0]["pattern"] == "copy", f"pattern is 'copy' (got {hits[0]['pattern']!r})")
+
+
+def case_coverage_heading_with_no_topics() -> None:
+    """A heading that says 'cover' but lists nothing is a THIRD, distinct case
+    from both "no coverage list at all" and "a coverage list with topics".
+
+    Built from `toil-course-no-coverage` (which has neither the heading nor
+    any topics) by inserting the real heading text with no bullets under it,
+    so the only variable between this case and case_no_coverage_reports_null
+    is whether the heading is there at all.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy("toil-course-no-coverage", "empty-heading")
+        path = bundle / "COURSE.md"
+        text = path.read_text(encoding="utf-8")
+        check("## Optional lessons" in text, "fixture sanity: the anchor point for the edit is present")
+        edited = text.replace(
+            "## Optional lessons",
+            "## Topics this course must cover\n\n## Optional lessons",
+            1,
+        )
+        check(edited != text, "the edit actually changed the fixture copy")
+        path.write_text(edited, encoding="utf-8")
+
+        data = audit_json(bundle)
+        cov = data["coverage_list"]
+        check(cov is not None, f"a declared-but-empty coverage list is NOT null (got {cov!r})")
+        if cov is not None:
+            check(
+                cov["heading"] == "Topics this course must cover",
+                f"the heading is still reported (got {cov.get('heading')!r})",
+            )
+            check(
+                cov["topics"] == [],
+                f"topics is an explicit empty list, distinct from the null case (got {cov.get('topics')!r})",
+            )
 
 
 def case_coverage_list_verbatim() -> None:
@@ -257,10 +383,16 @@ def main() -> int:
         case_positive_control_fires()
     with case("NEGATIVE CONTROL: it does not fire on 'a direct-copy composition shader'"):
         case_negative_control_silent()
+    with case("NARROWED: 'move'/'unzip' need a path token; both real negatives stay silent"):
+        case_move_and_extract_require_a_path_token()
+    with case("'copy' is deliberately NOT narrowed: it still fires with no path token"):
+        case_copy_is_not_narrowed()
     with case("the coverage list comes back verbatim, under its own heading"):
         case_coverage_list_verbatim()
     with case("NEGATIVE CONTROL: a course with no coverage list reports null, not empty"):
         case_no_coverage_reports_null()
+    with case("a coverage heading with no topics is a third case, distinct from null"):
+        case_coverage_heading_with_no_topics()
     with case("an optional lesson is inventoried, not reported as unreachable"):
         case_optional_lesson_inventoried()
     with case("each lesson row carries id, title, form, design_refs, validators, objectives"):
