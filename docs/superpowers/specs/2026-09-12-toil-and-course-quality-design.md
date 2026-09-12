@@ -247,11 +247,24 @@ holding ordinary prose must not. A scanner nobody has seen fire is not a scanner
 | **evidence** | 0 | run a validator, read output, report what happened |
 | **toil** | −2 | deterministic and unambiguous; no decision; a mistake teaches nothing |
 | **unserved objective** | −3 | a stated objective or `DESIGN.md` anchor that no task exercises — counted once per course, not per lesson |
+| **`required_for` on an optional lesson** | −3 | the author declared something load-bearing and then made it skippable. The format permits it and the runner copes, but the material usually belongs on the main path (course-level) |
+
+Three further rows a reader answers, because none is mechanically decidable: a `design_refs`
+entry that does not answer the question its lesson raises; a lesson that introduces a type
+or concept nothing later uses; and a lesson far outside the course's usual size.
 
 A lesson's score is the sum of its elements. The course score is the sum of the lessons
 minus the gap penalties. The numbers are a way to make a judgement legible and comparable
 across a long course; the rubric is printed with the report so a reader can disagree with
 the scoring rather than with a bare number.
+
+**The decomposition is mandatory, not a nicety.** A single number invites gaming and hides
+which signal fired — the objection is worth stating in full because a later reader will
+otherwise be tempted to print the total alone. So the total is never reported by itself:
+every element carries its own score, its `file:line` and the sentence it scored, a lesson's
+figure is the visible sum of its own elements, and course-level gaps are counted separately
+rather than folded in. The top-line figure is a summary of an inventory the reader already
+has. If it ever appears without that inventory, the report is defective.
 
 ### 9.3 The report
 
