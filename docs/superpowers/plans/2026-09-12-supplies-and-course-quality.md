@@ -858,8 +858,16 @@ a JSON object, and is what the tests read. Both carry, per bundle:
 
 - [ ] **Step 1: Build the fixture carrying both controls**
 
-`tests/fixtures/toil-course/` is a minimal valid bundle. One lesson's Constraints section
-carries the real sentence from the corpus:
+`tests/fixtures/toil-course/` is a minimal valid bundle with a coverage list under the
+heading `## Topics this course must cover`, holding exactly three topics in this order:
+`shader compilation`, `depth testing`, `texture sampling`. One of the three is taught by no
+lesson, so the gap case has something to find.
+
+`tests/fixtures/toil-course-no-coverage/` is the same bundle with that section deleted. It
+exists so the coverage-list parser can be shown reporting absence, which is the one thing
+a parser that returns an empty list on every input would also appear to do.
+
+One lesson's Constraints section carries the real sentence from the corpus:
 
 > Copy `starter/package.json`, `starter/tsconfig.json` and `starter/src/main.ts` into
 > their corresponding repository-root paths, preserving `src/`.
@@ -884,10 +892,22 @@ with case("NEGATIVE CONTROL: it does not fire on 'a direct-copy composition shad
     hits = [c for c in data["candidates"] if "composition shader" in c["text"]]
     check(not hits, "prose that merely contains 'copy' is not a candidate")
 
-with case("a course with no coverage list is reported as null, not as empty"):
+with case("the coverage list comes back verbatim, under its own heading"):
     data = audit_json(FIXTURES / "toil-course")
-    check(data["coverage_list"] is None or isinstance(data["coverage_list"], dict),
-          "coverage_list distinguishes absent from empty")
+    check(data["coverage_list"]["heading"] == "Topics this course must cover",
+          "the heading the topics were found under is reported")
+    check(data["coverage_list"]["topics"] == ["shader compilation", "depth testing",
+                                              "texture sampling"],
+          "every topic is reported verbatim, in order")
+
+with case("NEGATIVE CONTROL: a course with no coverage list reports null, not empty"):
+    # `toil-course-no-coverage` is the same fixture with the section deleted.
+    # Without this case the assertion above is consistent with a parser that
+    # cannot tell an absent section from an empty one, which is the
+    # distinction the whole field exists to make.
+    data = audit_json(FIXTURES / "toil-course-no-coverage")
+    check(data["coverage_list"] is None, "absent is null")
+    check(data["coverage_list"] != [], "absent is not an empty list")
 
 with case("an optional lesson is inventoried, not reported as unreachable"):
     data = audit_json(FIXTURES / "toil-course")
@@ -921,10 +941,22 @@ TOIL_VERBS = {
     "clone": r"clone",
     "create-directory": r"(?:create|make) (?:the |a )?(?:directory|folder)",
 }
-_LEAD = r"(?:^|^[-*]\s+|(?<=[.!?]\s)|(?<=\bmust\s)|(?<=\bshould\s)|(?<=\bthen\s))"
+_LEAD = r"(?:^|^[-*]\s+|(?<=[.!?]\s)|(?<=,\s)|(?<=\bmust\s)|(?<=\bshould\s)|(?<=\bthen\s))"
 ```
 
 matched case-insensitively, per line, with the verb required to be a whole word.
+
+**The comma alternative is load-bearing and was added after testing the pattern against the
+corpus.** Without it the scanner misses the real toil at
+`lessons/13-load-gltf-model/LESSON.md:40`, which reads "Before starting, copy every file
+under `model/` ..." — an introductory clause, so the verb is neither at the start of the
+line nor after a full stop. A pattern that catches lesson 00 and misses lesson 13 would
+have looked like it worked.
+
+Favour recall over precision here, deliberately: the output is a candidate list a reader
+adjudicates, so a false positive costs one glance and a false negative hides the thing the
+skill exists to find. The negative control must still pass — `direct-copy` stays unmatched
+because the verb is hyphenated into a noun phrase, not because of where it sits.
 
 **This scanner is a candidate generator and nothing more.** Print that sentence in the
 report header, and say in the same breath that an empty candidate list is not evidence that
@@ -956,7 +988,9 @@ a scanner's false positives are a finding about the scanner.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add skills/tutorail-authoring/scripts/audit.py tests/test_audit.py tests/fixtures/toil-course tests/harness.py tests/run_all.py
+git add skills/tutorail-authoring/scripts/audit.py tests/test_audit.py \
+        tests/fixtures/toil-course tests/fixtures/toil-course-no-coverage \
+        tests/harness.py tests/run_all.py
 git commit -m "Add audit.py: the evidence a course-quality review starts from"
 ```
 
