@@ -454,6 +454,141 @@ def test_unlisted_lesson_is_not_renumbered() -> None:
         )
 
 
+def optional_entries(bundle: Path) -> dict:
+    manifest, _ = bl.load_manifest(bundle)
+    raw = manifest.get("optional_lessons")
+    return raw if isinstance(raw, dict) else {}
+
+
+def test_optional_lesson_is_not_renumbered() -> None:
+    """An optional lesson has no position, so a renumber never renames it.
+
+    This locks in behaviour that already exists; `renumber_plan` iterates the
+    manifest's `lessons` list, and an optional lesson is not in it. The issue
+    that asked for this reported the opposite from a reference count, without
+    reading the code, and the correction is the reason this test exists.
+
+    The control is in the same run: a MAIN-PATH lesson of the same bundle IS
+    renamed. Without it, "the optional lesson kept its name" would also be
+    the result of a renumber that did nothing at all.
+    """
+    with h.Workspace() as ws, case("a renumber renames main-path lessons and leaves the optional one alone"):
+        bundle = ws.copy("optional-course")
+        optional = bundle / "lessons" / "vertex-winding-detour.md"
+        before_bytes = optional.read_bytes()
+
+        added = run(
+            h.LESSON, "add", bundle, "--id", "warmup", "--title", "W", "--position", "0"
+        )
+        check(added.returncode == 0, f"the insert at position 0 succeeds ({added.output[-300:]})")
+
+        done = run(h.LESSON, "renumber", bundle)
+        check(done.returncode == 0, f"renumber succeeds ({done.output[-400:]})")
+
+        lessons = bundle / "lessons"
+        # POSITIVE CONTROL: a main-path lesson really did move.
+        check(
+            h.has_exactly(lessons, "02-shapes.md"),
+            f"control: the main-path lesson moved 01-shapes -> 02-shapes "
+            f"(listing: {h.listing(lessons)!r})",
+        )
+        check(
+            not h.has_exactly(lessons, "01-shapes.md"),
+            "control: and its old name is gone",
+        )
+        # The lesson under test.
+        check(
+            h.has_exactly(lessons, "vertex-winding-detour.md"),
+            f"the optional lesson keeps its un-numbered name "
+            f"(listing: {h.listing(lessons)!r})",
+        )
+        numbered = [
+            name
+            for name in h.listing(lessons)
+            if re.fullmatch(r"\d+-vertex-winding-detour(\.md)?", name)
+        ]
+        check(
+            numbered == [],
+            f"and no numbered copy of it was created ({numbered!r})",
+        )
+        check(
+            optional.read_bytes() != before_bytes,
+            "positive control for the byte probe: the optional lesson's CONTENT "
+            "did change, so 'the file was not renamed' is not 'the file was not "
+            "visited'",
+        )
+        check(
+            list(optional_entries(bundle)) == ["lessons/vertex-winding-detour.md"],
+            f"the optional_lessons key still names the same path, got "
+            f"{list(optional_entries(bundle))!r}",
+        )
+        # The offer point IS a main-path path, so it must follow the rename.
+        # This is the half that would break check 18 if the manifest were not
+        # rewritten with everything else.
+        check(
+            optional_entries(bundle)["lessons/vertex-winding-detour.md"]["offer_at"]
+            == ["lessons/02-shapes.md"],
+            f"its offer_at followed the renamed main-path lesson, got "
+            f"{optional_entries(bundle)['lessons/vertex-winding-detour.md'].get('offer_at')!r}",
+        )
+        check(real_validator_passes(bundle), "the renumbered bundle validates")
+
+
+def test_prose_inside_an_optional_lesson_is_rewritten() -> None:
+    """A reference inside an optional lesson is rewritten like any other.
+
+    `renumber` rewrites through `bl.text_files(root)`, which walks every
+    readable file in the bundle - not only the ones the lessons list names.
+    An optional lesson's `Prerequisites:` line therefore follows a rename.
+
+    The control is the same prose reference in a MAIN-PATH lesson: both must
+    change, so a pass cannot come from a rewriter that skipped everything.
+    """
+    with h.Workspace() as ws, case("a prose reference inside an optional lesson is rewritten"):
+        bundle = ws.copy("optional-course")
+        optional = bundle / "lessons" / "vertex-winding-detour.md"
+        control = bundle / "lessons" / "02-finish.md"
+        check(
+            "- `01-shapes`" in optional.read_text(encoding="utf-8"),
+            "the fixture's OPTIONAL lesson really does name 01-shapes in prose",
+        )
+        check(
+            "- `01-shapes`" in control.read_text(encoding="utf-8"),
+            "and so does the main-path lesson used as the control",
+        )
+
+        added = run(
+            h.LESSON, "add", bundle, "--id", "warmup", "--title", "W", "--position", "0"
+        )
+        check(added.returncode == 0, "the insert at position 0 succeeds")
+        done = run(h.LESSON, "renumber", bundle)
+        check(done.returncode == 0, f"renumber succeeds ({done.output[-400:]})")
+
+        after = optional.read_text(encoding="utf-8")
+        check(
+            "- `02-shapes`" in after,
+            f"the optional lesson's prerequisite now names 02-shapes",
+        )
+        check(
+            "01-shapes" not in after,
+            "and no trace of the old id is left inside the optional lesson",
+        )
+        # POSITIVE CONTROL, in the same run: the main-path lesson that carried
+        # the identical line was rewritten too.
+        moved_control = bundle / "lessons" / "03-finish.md"
+        check(
+            "- `02-shapes`" in moved_control.read_text(encoding="utf-8"),
+            "control: the same prose line in a main-path lesson was rewritten too",
+        )
+        check_in(
+            "lessons/vertex-winding-detour.md",
+            done.output,
+            "the rewrite inside the optional lesson is REPORTED by file, so "
+            "git diff is reviewable",
+        )
+        check(real_validator_passes(bundle), "the renumbered bundle validates")
+
+
 def main() -> int:
     print("lesson.py renumber test suite")
     print(f"  script:  {h.LESSON}")
@@ -474,6 +609,8 @@ def main() -> int:
     test_state_template_follows_lesson_zero()
     test_dirty_tree_refusal()
     test_unlisted_lesson_is_not_renumbered()
+    test_optional_lesson_is_not_renumbered()
+    test_prose_inside_an_optional_lesson_is_rewritten()
     return h.report("lesson.py renumber")
 
 

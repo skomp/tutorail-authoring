@@ -23,6 +23,7 @@ already paid for once:
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -82,6 +83,23 @@ def manifest_lessons(bundle: Path) -> list[str]:
 def manifest_id(bundle: Path) -> str:
     manifest, _text = bl.load_manifest(bundle)
     return str(manifest.get("id"))
+
+
+def manifest_optional(bundle: Path) -> dict:
+    """tutorial.yaml's `optional_lessons` map, as the YAML reader sees it."""
+    manifest, _text = bl.load_manifest(bundle)
+    raw = manifest.get("optional_lessons")
+    return raw if isinstance(raw, dict) else {}
+
+
+def numbered_twins(directory: Path, body: str) -> list[str]:
+    """Listing entries that are `<digits>-<body>` - the prefix that must not
+    appear on an optional lesson. By listing, never by exists()."""
+    return [
+        name
+        for name in listing(directory)
+        if re.fullmatch(rf"\d+-{re.escape(body)}(?:\.md)?", name)
+    ]
 
 
 def validate(bundle: Path) -> Run:
@@ -954,6 +972,556 @@ def case_validator_failure_discards() -> None:
 
 
 # --------------------------------------------------------------------------
+# E. --optional: a lesson the tutor offers instead of sequencing
+#
+# Three writes have to land together - the lesson file, its `optional: true`
+# frontmatter and the optional_lessons entry - because the runner's check 20
+# requires the frontmatter and the list to agree. Every refusal below is
+# therefore followed by tree_digest, not by "the new file is absent": a run
+# that wrote the file and then failed on the manifest would pass the weaker
+# check and leave a bundle the runner rejects.
+# --------------------------------------------------------------------------
+
+OFFER_AT = "lessons/03-first-refactor.md"
+BECAUSE = "The borrow checker usually stops a learner right here."
+
+
+def optional_add(bundle: Path, *args: str, env: dict | None = None) -> Run:
+    return add(
+        bundle,
+        "--id",
+        "borrow-detour",
+        "--title",
+        "A borrow detour",
+        "--optional",
+        *args,
+        env=env,
+    )
+
+
+def case_optional_creates_the_block() -> None:
+    """A bundle with no optional_lessons key at all gets one."""
+    with Workspace() as ws:
+        bundle = ws.copy("rust-automaton-db", "b")
+        # POSITIVE CONTROL for the manifest probe: before the run there is no
+        # optional_lessons map, so "it holds the entry" below records a change
+        # rather than reading a fixture that already had one.
+        check(
+            manifest_optional(bundle) == {},
+            "optional: the fixture declares no optional_lessons before the run",
+        )
+        result = optional_add(
+            bundle, "--offer-at", OFFER_AT, "--offer-because", BECAUSE
+        )
+        check(result.returncode == 0, f"optional: exit 0 ({result.output[-400:]})")
+
+        check(
+            has_exactly(bundle / "lessons", "borrow-detour.md"),
+            "optional: lessons/ holds borrow-detour.md by directory listing",
+        )
+        # The format says an optional lesson has no position, so it carries no
+        # number prefix. Asserting the absence of a numbered twin is the check
+        # that fails if the tool reused the main-path naming.
+        check(
+            numbered_twins(bundle / "lessons", "borrow-detour") == [],
+            f"optional: no numbered twin was written "
+            f"({numbered_twins(bundle / 'lessons', 'borrow-detour')!r})",
+        )
+        fm = frontmatter(bundle / "lessons" / "borrow-detour.md")
+        check(
+            fm.get("id") == "borrow-detour",
+            f"optional: the frontmatter id is the un-numbered slug, not {fm.get('id')!r}",
+        )
+        check(
+            fm.get("optional") is True,
+            f"optional: the frontmatter declares optional: true as a BOOLEAN, "
+            f"not {fm.get('optional')!r} - check 20 compares against True",
+        )
+
+        # It is never in the lessons list. This is the assertion the whole
+        # mode exists for.
+        check(
+            manifest_lessons(bundle) == ORIGINAL,
+            "optional: the lessons list is byte-for-byte the original 23 entries",
+        )
+        entries = manifest_optional(bundle)
+        check(
+            list(entries) == ["lessons/borrow-detour.md"],
+            f"optional: optional_lessons holds exactly the new path, not {list(entries)!r}",
+        )
+        entry = entries.get("lessons/borrow-detour.md", {})
+        check(
+            entry.get("offer_at") == [OFFER_AT],
+            f"optional: offer_at is a LIST holding the resolved path, not "
+            f"{entry.get('offer_at')!r}",
+        )
+        check(
+            entry.get("offer_because") == BECAUSE,
+            f"optional: offer_because is the sentence that was passed, not "
+            f"{entry.get('offer_because')!r}",
+        )
+        check(
+            sorted(entry) == ["offer_at", "offer_because"],
+            f"optional: no empty optional field was written alongside them "
+            f"(keys: {sorted(entry)})",
+        )
+        check_in("PASS", result.output, "optional: the validator PASSED")
+        check_in("OPTIONAL", result.output, "optional: the plan says so out loud")
+        # An optional lesson has no position, so no renumber can ever be owed.
+        # Case A3 shows this probe firing on a main-path insert.
+        check_not_in(
+            "out of sequence",
+            result.output,
+            "optional: no renumber is advised, because there are no prefixes to fix",
+        )
+
+
+def case_optional_appends_to_an_existing_block() -> None:
+    """A bundle that already offers a lesson keeps the entry it had."""
+    with Workspace() as ws:
+        bundle = ws.copy("optional-course", "b")
+        before = manifest_optional(bundle)
+        check(
+            list(before) == ["lessons/vertex-winding-detour.md"],
+            f"optional append: the fixture starts with one optional lesson, not {list(before)!r}",
+        )
+        result = add(
+            bundle,
+            "--id",
+            "second-detour",
+            "--title",
+            "A second detour",
+            "--optional",
+            "--offer-at",
+            "02-finish",
+            "--offer-because",
+            "A learner who asks twice deserves an answer.",
+            "--anticipates",
+            "inverted-winding",
+            "--repair-in",
+            "01-shapes",
+        )
+        check(result.returncode == 0, f"optional append: exit 0 ({result.output[-400:]})")
+        after = manifest_optional(bundle)
+        check(
+            list(after) == ["lessons/vertex-winding-detour.md", "lessons/second-detour.md"],
+            f"optional append: both entries are present, the old one first, got {list(after)!r}",
+        )
+        check(
+            after["lessons/vertex-winding-detour.md"] == before["lessons/vertex-winding-detour.md"],
+            "optional append: the entry that was already there reads back unchanged",
+        )
+        entry = after["lessons/second-detour.md"]
+        check(
+            entry.get("offer_at") == ["lessons/02-finish.md"],
+            f"optional append: the lesson ID form of --offer-at resolved to the "
+            f"manifest path, got {entry.get('offer_at')!r}",
+        )
+        check(
+            entry.get("anticipates") == ["inverted-winding"],
+            f"optional append: anticipates is a list, got {entry.get('anticipates')!r}",
+        )
+        check(
+            entry.get("repair_in") == "lessons/01-shapes.md",
+            f"optional append: repair_in is a SCALAR path, not a list, got "
+            f"{entry.get('repair_in')!r}",
+        )
+        check(
+            manifest_lessons(bundle) == [
+                "lessons/00-start.md",
+                "lessons/01-shapes.md",
+                "lessons/02-finish.md",
+            ],
+            "optional append: the main path is untouched",
+        )
+        check_in("PASS", result.output, "optional append: the validator PASSED")
+
+
+def case_optional_folder() -> None:
+    with Workspace() as ws:
+        bundle = ws.copy("rust-automaton-db", "b")
+        result = optional_add(
+            bundle, "--offer-at", OFFER_AT, "--offer-because", BECAUSE, "--folder"
+        )
+        check(result.returncode == 0, f"optional --folder: exit 0 ({result.output[-300:]})")
+        folder = bundle / "lessons" / "borrow-detour"
+        check(
+            has_exactly(bundle / "lessons", "borrow-detour"),
+            "optional --folder: lessons/ holds the un-numbered folder by listing",
+        )
+        check(
+            has_exactly(folder, "LESSON.md")
+            and has_miscased(folder, "LESSON.md") is None,
+            f"optional --folder: the folder holds an exact-case LESSON.md "
+            f"({listing(folder)!r})",
+        )
+        check(
+            list(manifest_optional(bundle)) == ["lessons/borrow-detour/LESSON.md"],
+            f"optional --folder: the optional_lessons key names the LESSON.md path, "
+            f"got {list(manifest_optional(bundle))!r}",
+        )
+        check(
+            frontmatter(folder / "LESSON.md").get("optional") is True,
+            "optional --folder: the foldered body declares optional: true",
+        )
+        check_in("PASS", result.output, "optional --folder: the validator PASSED")
+
+
+def case_required_for_quotes_the_rubric() -> None:
+    """The one opinion the toolkit carries must be the rubric's own words.
+
+    Two halves, and both are needed. The tool must PRINT the warning, and the
+    printed text must be IN the rubric - otherwise the tool drifts into
+    teaching something the rubric does not say, silently, and no test notices.
+    """
+    rubric = (
+        Path(__file__).resolve().parent.parent
+        / "skills"
+        / "course-quality"
+        / "references"
+        / "rubric.md"
+    )
+    rubric_text = rubric.read_text(encoding="utf-8")
+    check(
+        "`required_for` scores and is raised, both" in rubric_text,
+        "required_for: the rubric still carries the section this warning comes from",
+    )
+
+    with Workspace() as ws:
+        bundle = ws.copy("optional-course", "b")
+        result = add(
+            bundle,
+            "--id",
+            "gated-detour",
+            "--title",
+            "A gated detour",
+            "--optional",
+            "--offer-at",
+            "01-shapes",
+            "--offer-because",
+            "The winding rule is worth a detour.",
+            "--anticipates",
+            "inverted-winding",
+            "--required-for",
+            "02-finish",
+        )
+        check(result.returncode == 0, f"required_for: exit 0 ({result.output[-400:]})")
+
+        # The warning is quoted, line for line, from the rubric's block quote.
+        # Asserting both sides is what makes a drift in EITHER file fail here.
+        for line in (
+            "This gate cost the course 3 points and may still be correct. If the lesson genuinely",
+            "cannot be completed while its failure stands, the gate is doing its job — say so and",
+            "keep it. Do not delete a gate to improve a score. A course that drops a justified gate",
+            "lets a learner finish a lesson whose failure is still standing, which is worse than the",
+            "toil this rubric hunts.",
+        ):
+            check_in(line, result.output, f"required_for: the tool prints {line[:38]!r}...")
+            check(
+                f"> {line}" in rubric_text,
+                f"required_for: and the rubric carries that line VERBATIM as a "
+                f"quoted line ({line[:38]!r}...)",
+            )
+        check_in(
+            "skills/course-quality/references/rubric.md",
+            result.output,
+            "required_for: the warning names the file it is quoting",
+        )
+        check_in(
+            "-3", result.output, "required_for: the warning names the score it costs"
+        )
+        check(
+            manifest_optional(bundle)["lessons/gated-detour.md"].get("required_for")
+            == ["lessons/02-finish.md"],
+            "required_for: the gate really was written, resolved to the manifest path",
+        )
+        check_in("PASS", result.output, "required_for: the validator PASSED")
+
+        # POSITIVE CONTROL for the check_in probes above: the same command
+        # WITHOUT --required-for must not print the warning. Otherwise "the
+        # warning is there" is equally consistent with a tool that prints it
+        # on every run, which would train an author to ignore it.
+        quiet = add(
+            bundle,
+            "--id",
+            "ungated-detour",
+            "--title",
+            "An ungated detour",
+            "--optional",
+            "--offer-at",
+            "01-shapes",
+            "--offer-because",
+            "The winding rule is worth a second detour.",
+        )
+        check(quiet.returncode == 0, "required_for control: the ungated add succeeds")
+        check_not_in(
+            "This gate cost the course 3 points",
+            quiet.output,
+            "required_for control: an add with no gate prints NO warning",
+        )
+
+
+def case_optional_refusals() -> None:
+    with Workspace() as ws:
+        bundle = ws.copy("rust-automaton-db", "b")
+
+        refusal(
+            "--optional with no --offer-at",
+            bundle,
+            ("--id", "d1", "--title", "D", "--optional", "--offer-because", BECAUSE),
+            "--optional needs --offer-at",
+        )
+        refusal(
+            "--optional with no --offer-because",
+            bundle,
+            ("--id", "d1", "--title", "D", "--optional", "--offer-at", OFFER_AT),
+            "--optional needs --offer-because",
+        )
+        refusal(
+            "--optional with --position",
+            bundle,
+            (
+                "--id", "d1", "--title", "D", "--optional", "--position", "3",
+                "--offer-at", OFFER_AT, "--offer-because", BECAUSE,
+            ),
+            "--position cannot be combined with --optional",
+        )
+        refusal(
+            "--optional with --after",
+            bundle,
+            (
+                "--id", "d1", "--title", "D", "--optional", "--after", OFFER_AT,
+                "--offer-at", OFFER_AT, "--offer-because", BECAUSE,
+            ),
+            "--after cannot be combined with --optional",
+        )
+        refusal(
+            "--optional with a numbered --id",
+            bundle,
+            (
+                "--id", "05-d1", "--title", "D", "--optional",
+                "--offer-at", OFFER_AT, "--offer-because", BECAUSE,
+            ),
+            "carries the number prefix",
+        )
+        refusal(
+            "--offer-at names no lesson",
+            bundle,
+            (
+                "--id", "d1", "--title", "D", "--optional",
+                "--offer-at", "lessons/99-nowhere.md", "--offer-because", BECAUSE,
+            ),
+            "is not a lesson on this course's main path",
+        )
+        miscased = refusal(
+            "--offer-at is mis-cased",
+            bundle,
+            (
+                "--id", "d1", "--title", "D", "--optional",
+                "--offer-at", "lessons/03-First-Refactor.md",
+                "--offer-because", BECAUSE,
+            ),
+            "is not a lesson on this course's main path",
+        )
+        check_in(
+            "Did you mean 'lessons/03-first-refactor.md'?",
+            miscased.output,
+            "--offer-at mis-cased: the message offers the exact-case entry",
+        )
+        refusal(
+            "--repair-in names no lesson",
+            bundle,
+            (
+                "--id", "d1", "--title", "D", "--optional",
+                "--offer-at", OFFER_AT, "--offer-because", BECAUSE,
+                "--repair-in", "lessons/99-nowhere.md",
+            ),
+            "--repair-in 'lessons/99-nowhere.md' is not a lesson",
+        )
+        refusal(
+            "an offer flag without --optional",
+            bundle,
+            ("--id", "d1", "--title", "D", "--offer-at", OFFER_AT),
+            "Add --optional",
+        )
+
+        # POSITIVE CONTROL for all nine. The same command, with exactly the
+        # two required flags and nothing wrong, is accepted - so each refusal
+        # above is about the thing it names and not about --optional itself,
+        # the bundle, or the slug.
+        ok = add(
+            bundle, "--id", "d1", "--title", "D", "--optional",
+            "--offer-at", OFFER_AT, "--offer-because", BECAUSE,
+        )
+        check(ok.returncode == 0, f"optional refusal control: the good run is accepted ({ok.output[-300:]})")
+        check(
+            list(manifest_optional(bundle)) == ["lessons/d1.md"],
+            "optional refusal control: and it writes the entry the nine refused runs did not",
+        )
+
+    with Workspace() as ws:
+        # An --offer-at naming a lesson the bundle HAS, but which is not on
+        # the main path. The path resolves on disk, so a tool that checked the
+        # filesystem instead of the lessons list would accept it and write an
+        # offer point no learner ever reaches.
+        bundle = ws.copy("optional-course", "b")
+        refusal(
+            "--offer-at names an OPTIONAL lesson",
+            bundle,
+            (
+                "--id", "d2", "--title", "D", "--optional",
+                "--offer-at", "lessons/vertex-winding-detour.md",
+                "--offer-because", BECAUSE,
+            ),
+            "is not a lesson on this course's main path",
+        )
+        check(
+            has_exactly(bundle / "lessons", "vertex-winding-detour.md"),
+            "--offer-at an optional lesson: the file really does exist, which is "
+            "why a disk check would have passed it",
+        )
+        ok = add(
+            bundle, "--id", "d2", "--title", "D", "--optional",
+            "--offer-at", "lessons/01-shapes.md", "--offer-because", BECAUSE,
+        )
+        check(
+            ok.returncode == 0,
+            "--offer-at control: a MAIN-PATH path at the same spelling is accepted",
+        )
+
+
+def case_optional_duplicate_and_inline() -> None:
+    with Workspace() as ws:
+        bundle = ws.copy("optional-course", "b")
+        refusal(
+            "an optional lesson that already exists",
+            bundle,
+            (
+                "--id", "vertex-winding-detour", "--title", "Again", "--optional",
+                "--offer-at", "01-shapes", "--offer-because", BECAUSE,
+            ),
+            "lessons/vertex-winding-detour already exists",
+        )
+
+    with Workspace() as ws:
+        # POSITIVE CONTROL FIRST: `optional_lessons: {}` is the one inline
+        # shape the editor rewrites rather than refuses, mirroring what
+        # add_supplies does for `supplies: []`.
+        empty = ws.copy("rust-automaton-db", "empty")
+        manifest = empty / "tutorial.yaml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8") + "\noptional_lessons: {}\n",
+            encoding="utf-8",
+        )
+        ok = optional_add(empty, "--offer-at", OFFER_AT, "--offer-because", BECAUSE)
+        check(ok.returncode == 0, f"empty inline map: accepted ({ok.output[-300:]})")
+        check(
+            list(manifest_optional(empty)) == ["lessons/borrow-detour.md"],
+            "empty inline map: rewritten in block form with the entry in it",
+        )
+        check(
+            "optional_lessons: {}" not in manifest.read_text(encoding="utf-8"),
+            "empty inline map: the inline spelling is gone",
+        )
+
+        # And the non-empty inline value is refused. This is also the
+        # three-writes-or-none case: the refusal is raised by the MANIFEST
+        # edit, after the lesson file has already been written to the staging
+        # copy, so a digest that matches proves the staged file went with it.
+        inline = ws.copy("rust-automaton-db", "inline")
+        inline_manifest = inline / "tutorial.yaml"
+        inline_manifest.write_text(
+            inline_manifest.read_text(encoding="utf-8")
+            + "\noptional_lessons: {lessons/other.md: x}\n",
+            encoding="utf-8",
+        )
+        refused = refusal(
+            "a non-empty inline optional_lessons",
+            inline,
+            (
+                "--id", "borrow-detour", "--title", "D", "--optional",
+                "--offer-at", OFFER_AT, "--offer-because", BECAUSE,
+            ),
+            "already carries an inline value",
+        )
+        check_in(
+            "block form",
+            refused.output,
+            "non-empty inline map: the message tells the author to use block form",
+        )
+        check(
+            not has_exactly(inline / "lessons", "borrow-detour.md"),
+            "non-empty inline map: the lesson file written to the staging copy "
+            "is not left behind",
+        )
+
+
+def case_optional_validator_failure_discards() -> None:
+    """All three writes are discarded together when the validator objects."""
+    with Workspace() as ws:
+        bundle = ws.copy("rust-automaton-db", "b")
+        stub = write_stub_validator(ws.root)
+        before = tree_digest(bundle)
+        result = optional_add(
+            bundle,
+            "--offer-at",
+            OFFER_AT,
+            "--offer-because",
+            BECAUSE,
+            env={"TUTORAIL_VALIDATOR": str(stub)},
+        )
+        check(result.returncode != 0, "optional discard: exits non-zero")
+        check(
+            tree_digest(bundle) == before,
+            "optional discard: the bundle is byte-identical afterwards",
+        )
+        check(
+            not has_exactly(bundle / "lessons", "borrow-detour.md"),
+            "optional discard: the lesson file is not left behind",
+        )
+        check(
+            manifest_optional(bundle) == {},
+            "optional discard: and no optional_lessons entry is left behind either",
+        )
+        # POSITIVE CONTROL: the identical command with the real validator
+        # writes both halves.
+        ok = optional_add(bundle, "--offer-at", OFFER_AT, "--offer-because", BECAUSE)
+        check(ok.returncode == 0, "optional discard control: the real validator accepts it")
+        check(
+            has_exactly(bundle / "lessons", "borrow-detour.md")
+            and list(manifest_optional(bundle)) == ["lessons/borrow-detour.md"],
+            "optional discard control: this time BOTH the file and the entry are there",
+        )
+
+
+def case_optional_check() -> None:
+    with Workspace() as ws:
+        bundle = ws.copy("rust-automaton-db", "b")
+        before = tree_digest(bundle)
+        result = optional_add(
+            bundle, "--offer-at", OFFER_AT, "--offer-because", BECAUSE, "--check"
+        )
+        check(result.returncode == 0, "optional --check: exit 0")
+        check(
+            tree_digest(bundle) == before,
+            "optional --check: the bundle is byte-identical afterwards",
+        )
+        check_in("nothing was written", result.output, "optional --check: says so")
+        check_in(
+            "offer_because   " + BECAUSE,
+            result.output,
+            "optional --check: the plan prints the offer metadata it would write",
+        )
+        # POSITIVE CONTROL for the digest oracle on this path.
+        real = optional_add(bundle, "--offer-at", OFFER_AT, "--offer-because", BECAUSE)
+        check(real.returncode == 0, "optional --check control: the same run without --check succeeds")
+        check(
+            tree_digest(bundle) != before,
+            "optional --check control: the digest DOES move for a real optional add",
+        )
+
+
+# --------------------------------------------------------------------------
 
 
 def main() -> int:
@@ -1008,6 +1576,23 @@ def main() -> int:
         case_flow_sequence()
     with case("D17 a validator failure discards the edit"):
         case_validator_failure_discards()
+
+    with case("E18 --optional creates the optional_lessons block"):
+        case_optional_creates_the_block()
+    with case("E19 --optional appends to a block that already exists"):
+        case_optional_appends_to_an_existing_block()
+    with case("E20 --optional --folder writes an un-numbered lesson folder"):
+        case_optional_folder()
+    with case("E21 --required-for prints the rubric's warning verbatim"):
+        case_required_for_quotes_the_rubric()
+    with case("E22 every --optional refusal fires, with one positive control"):
+        case_optional_refusals()
+    with case("E23 a duplicate lesson and an inline optional_lessons are refused"):
+        case_optional_duplicate_and_inline()
+    with case("E24 a validator failure discards all three optional writes"):
+        case_optional_validator_failure_discards()
+    with case("E25 --optional --check prints the plan and changes nothing"):
+        case_optional_check()
 
     return report("lesson.py add")
 

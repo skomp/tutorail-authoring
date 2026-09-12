@@ -5,7 +5,20 @@ Usage:
     lesson.py add <bundle> --id <slug> --title <text>
                            [--after <lesson-path> | --position <n>] [--folder]
                            [--check] [--force]
+    lesson.py add <bundle> --id <slug> --title <text> --optional
+                           --offer-at <lesson> --offer-because <text>
+                           [--anticipates <failure-mode-id>]
+                           [--repair-in <lesson>] [--required-for <lesson>]
+                           [--folder] [--check] [--force]
     lesson.py renumber <bundle> [--check] [--force]
+
+`--optional` creates a lesson the tutor OFFERS instead of sequencing. Such a
+lesson is listed under `optional_lessons` and never under `lessons`, so it
+has no position in the main path and therefore no number prefix and no
+renumber. The three writes it makes - the lesson file, its `optional: true`
+frontmatter and the `optional_lessons` entry - land together or not at all;
+check 20 of the runner's validator requires the frontmatter and the list to
+agree, so a half-applied run would leave a bundle the runner rejects.
 
 Both subcommands MUTATE the bundle, so both obey the design's three safety
 properties:
@@ -103,6 +116,74 @@ TODO: material available if the learner asks. Not required.
 """
 
 
+# --------------------------------------------------------------------------
+# The one opinion this tool carries
+#
+# `required_for` on an optional lesson scores -3 in the course-quality rubric
+# AND is raised for review, by the owner's decision of 2026-09-12. The flag
+# exists because the skill forbids hand-editing tutorial.yaml, so refusing it
+# would leave no legitimate way to declare a gate the format permits.
+#
+# THE TEXT BELOW IS QUOTED VERBATIM from
+# skills/course-quality/references/rubric.md, the section "`required_for`
+# scores and is raised, both". It is not paraphrased, and it must not be
+# edited here alone: tests/test_lesson_add.py reads the rubric and asserts
+# these exact lines are in it, so a drift in either direction fails the
+# suite rather than leaving the tool teaching something the rubric does not
+# say.
+# --------------------------------------------------------------------------
+
+RUBRIC_REL = "skills/course-quality/references/rubric.md"
+
+REQUIRED_FOR_WARNING = (
+    "This gate cost the course 3 points and may still be correct. If the lesson genuinely",
+    "cannot be completed while its failure stands, the gate is doing its job — say so and",
+    "keep it. Do not delete a gate to improve a score. A course that drops a justified gate",
+    "lets a learner finish a lesson whose failure is still standing, which is worse than the",
+    "toil this rubric hunts.",
+)
+
+
+def print_required_for_warning() -> None:
+    print()
+    print("     --required-for declares a GATE. The course-quality rubric scores it")
+    print(f"     -3 and raises it for review. In the rubric's own words ({RUBRIC_REL}):")
+    print()
+    for line in REQUIRED_FOR_WARNING:
+        print(f"       {line}")
+
+
+def resolve_main_path(bundle: bl.Bundle, value: str, flag: str) -> str:
+    """Resolve `value` to an entry of the manifest's `lessons` list.
+
+    An offer point, a repair site and a gate are all places on the MAIN PATH
+    (the runner's check 18 says so in those words), so each one must name a
+    lesson the runner actually walks. Both spellings an author has in front
+    of them are accepted - the manifest entry `lessons/03-x.md` and the bare
+    lesson id `03-x` - and anything else is refused rather than written and
+    left for the validator to explain in its own vocabulary.
+    """
+    value = value.strip()
+    if value in bundle.listed:
+        return value
+    index = bundle.by_rel
+    by_slug = {
+        index[rel].slug: rel for rel in bundle.listed if rel in index
+    }
+    if value in by_slug:
+        return by_slug[value]
+    near = [rel for rel in bundle.listed if rel.lower() == value.lower()]
+    near += [rel for slug, rel in by_slug.items() if slug.lower() == value.lower()]
+    hint = f" Did you mean {near[0]!r}?" if near else ""
+    raise bl.ToolError(
+        f"{flag} {value!r} is not a lesson on this course's main path, so it "
+        f"names no place in tutorial.yaml's lessons list.{hint}\n"
+        f"An offer point, a repair site and a gate are all places on the main "
+        f"path. Give a lessons entry (lessons/03-x.md) or its lesson id (03-x).\n"
+        f"Run  python3 index.py {bundle.root}  to see the list."
+    )
+
+
 def parse_position(bundle: bl.Bundle, after: str | None, position: int | None) -> int:
     listed = bundle.listed
     if after is not None:
@@ -138,14 +219,165 @@ def add(args: argparse.Namespace) -> int:
     bundle = bl.load_bundle(root)
     bl.require_clean_tree(root, args.force)
 
-    _, body = bl.split_number_prefix(args.id.strip())
+    given = args.id.strip()
+    prefix, body = bl.split_number_prefix(given)
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", body):
         raise bl.ToolError(
             f"--id {args.id!r} is not a usable slug. After any leading number "
             f"prefix it must match [a-z0-9]+(-[a-z0-9]+)* - lowercase letters, "
             f"digits and single hyphens."
         )
-    position = parse_position(bundle, args.after, args.position)
+
+    offer_flags = {
+        "--offer-at": args.offer_at,
+        "--offer-because": args.offer_because,
+        "--anticipates": args.anticipates,
+        "--repair-in": args.repair_in,
+        "--required-for": args.required_for,
+    }
+    if not args.optional:
+        used = [flag for flag, value in offer_flags.items() if value]
+        if used:
+            raise bl.ToolError(
+                f"{', '.join(used)} describes when the tutor OFFERS a lesson, "
+                f"which only an optional lesson has. Add --optional, or drop "
+                f"{'these flags' if len(used) > 1 else 'the flag'}."
+            )
+        position = parse_position(bundle, args.after, args.position)
+        return add_main_path(args, root, bundle, body, position)
+    return add_optional(args, root, bundle, given, prefix, body)
+
+
+def add_optional(
+    args: argparse.Namespace,
+    root: Path,
+    bundle: bl.Bundle,
+    given: str,
+    prefix: str | None,
+    body: str,
+) -> int:
+    """`add --optional`: a lesson the tutor offers instead of sequencing.
+
+    Three writes, one transaction. The refusals come first and every one of
+    them leaves the bundle byte-identical, because nothing is copied until
+    bl.Staged opens.
+    """
+    if args.after is not None or args.position is not None:
+        which = "--after" if args.after is not None else "--position"
+        raise bl.ToolError(
+            f"{which} cannot be combined with --optional. An optional lesson "
+            f"has no position: it is offered at the points --offer-at names, "
+            f"and it is never an entry in the lessons list."
+        )
+    missing = [
+        flag
+        for flag, value in (("--offer-at", args.offer_at), ("--offer-because", args.offer_because))
+        if not value
+    ]
+    if missing:
+        raise bl.ToolError(
+            f"--optional needs {' and '.join(missing)}, which "
+            f"{'are' if len(missing) > 1 else 'is'} missing.\n"
+            f"--offer-at names the lessons entry at which the tutor raises the "
+            f"offer, and --offer-because is the sentence it says to the learner. "
+            f"The format requires both, and nothing incomplete is written: a "
+            f"placeholder is safe for a person and invisible to an agent."
+        )
+    if prefix is not None:
+        raise bl.ToolError(
+            f"--id {given!r} carries the number prefix {prefix!r}, and an "
+            f"optional lesson has none. A number is a position in the main "
+            f"path's order, which an optional lesson does not have. Pass "
+            f"--id {body}."
+        )
+
+    slug = body
+    rel = f"lessons/{slug}/LESSON.md" if args.folder else f"lessons/{slug}.md"
+    existing = {lesson.slug for lesson in bundle.lessons}
+    if slug in existing:
+        raise bl.ToolError(
+            f"lessons/{slug} already exists. Choose a different --id."
+        )
+    twin = sorted(s for s in existing if bl.split_number_prefix(s)[1] == body)
+    if twin:
+        raise bl.ToolError(
+            f"a lesson whose slug ends in {body!r} already exists ({twin[0]}). "
+            f"Two lessons with the same name differing only in number is a "
+            f"rename waiting to collide."
+        )
+
+    entry: dict = {
+        "offer_at": [resolve_main_path(bundle, v, "--offer-at") for v in args.offer_at],
+        "offer_because": args.offer_because,
+    }
+    if args.anticipates:
+        entry["anticipates"] = list(args.anticipates)
+    if args.repair_in:
+        entry["repair_in"] = resolve_main_path(bundle, args.repair_in, "--repair-in")
+    if args.required_for:
+        entry["required_for"] = [
+            resolve_main_path(bundle, v, "--required-for") for v in args.required_for
+        ]
+
+    print(f"add: {rel}   OPTIONAL - offered, not sequenced")
+    print(f"     id      {slug}")
+    print(f"     title   {args.title}")
+    print(f"     form    {'folder' if args.folder else 'single file'}")
+    print(f"     offer_at        {', '.join(entry['offer_at'])}")
+    print(f"     offer_because   {entry['offer_because']}")
+    if "anticipates" in entry:
+        print(f"     anticipates     {', '.join(entry['anticipates'])}")
+    if "repair_in" in entry:
+        print(f"     repair_in       {entry['repair_in']}")
+    if "required_for" in entry:
+        print(f"     required_for    {', '.join(entry['required_for'])}")
+    print(
+        f"     note    an optional lesson has no position. It is NOT added to "
+        f"tutorial.yaml's\n"
+        f"             lessons list, its filename carries no number prefix, and "
+        f"no renumber\n"
+        f"             is needed or performed."
+    )
+    if "required_for" in entry:
+        print_required_for_warning()
+
+    with bl.Staged(root, check_only=args.check) as stage:
+        target = stage.root / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        text = TEMPLATE.format(slug=slug, title=args.title)
+        # Write 1 and 2 are one file write. Check 20 requires the frontmatter
+        # and the optional_lessons list to agree, so they are never apart.
+        text, changed = bl.set_frontmatter_field(text, "optional", "true")
+        if not changed:
+            raise bl.ToolError(
+                "the lesson template's frontmatter did not accept "
+                "'optional: true'. Nothing was written."
+            )
+        target.write_text(text, encoding="utf-8")
+        manifest_path = stage.root / "tutorial.yaml"
+        manifest_text = bl.read_text(manifest_path)
+        assert manifest_text is not None
+        manifest_path.write_text(
+            bl.add_optional_lesson(manifest_text, rel, entry), encoding="utf-8"
+        )
+        # The lessons list did not move, so this can only REPAIR a template
+        # that was already out of step. It is called anyway, for the same
+        # reason every other mutating operation calls it.
+        first = bundle.listed[0] if bundle.listed else ""
+        report_state_template(bl.reconcile_state_template(stage.root, first))
+        run = stage.commit()
+
+    _report_validator(run, args.check)
+    return 0
+
+
+def add_main_path(
+    args: argparse.Namespace,
+    root: Path,
+    bundle: bl.Bundle,
+    body: str,
+    position: int,
+) -> int:
     # The width the bundle will need AFTER this lesson joins it, so a later
     # renumber computes the same width and has nothing to repad.
     width = max(bundle.number_width, len(str(len(bundle.listed))))
@@ -440,6 +672,47 @@ def main(argv: list[str] | None = None) -> int:
         "--folder",
         action="store_true",
         help="create lessons/<slug>/LESSON.md instead of lessons/<slug>.md",
+    )
+    p_add.add_argument(
+        "--optional",
+        action="store_true",
+        help="create a lesson the tutor OFFERS instead of sequencing: listed "
+        "under optional_lessons, never in lessons, with no number prefix",
+    )
+    p_add.add_argument(
+        "--offer-at",
+        action="append",
+        default=[],
+        metavar="LESSON",
+        help="a lessons entry (or lesson id) at which the tutor raises the "
+        "offer. Required with --optional; repeat it for several points",
+    )
+    p_add.add_argument(
+        "--offer-because",
+        metavar="TEXT",
+        help="the sentence the tutor says when it offers the lesson. Required "
+        "with --optional",
+    )
+    p_add.add_argument(
+        "--anticipates",
+        action="append",
+        default=[],
+        metavar="FAILURE-MODE-ID",
+        help="a failure_modes id this lesson anticipates; repeatable",
+    )
+    p_add.add_argument(
+        "--repair-in",
+        metavar="LESSON",
+        help="the lessons entry whose work an anticipated failure damages",
+    )
+    p_add.add_argument(
+        "--required-for",
+        action="append",
+        default=[],
+        metavar="LESSON",
+        help="a lessons entry this lesson gates. The course-quality rubric "
+        "scores a gate -3 and raises it for review; using this flag prints "
+        "the rubric's warning",
     )
 
     sub.add_parser(

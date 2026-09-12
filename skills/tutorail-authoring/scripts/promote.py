@@ -3,6 +3,16 @@
 
 Usage:
     promote.py <instance> <generated-lesson-path> <bundle> [--check] [--force]
+    promote.py <instance> <generated-lesson-path> <bundle> --optional
+               [--confirm] [--check] [--force]
+
+`--optional` promotes into `optional_lessons` instead of onto the main path.
+The lesson then has no position, so step 7 becomes "no position", the file
+keeps a slug with no number prefix, and nothing is renumbered. The offer
+metadata is DERIVED - `offer_at` from the lesson's `after:`, `offer_because`
+from its `reason:` - printed, and written only when `--confirm` says the
+author has read and agreed with both. Without `--confirm` (and without
+`--check`) the run prints the two values and refuses, writing nothing.
 
 `<instance>` is the materialized tutorial directory - the one holding
 STATE.md, tutorial.yaml and lessons.generated/. `<generated-lesson-path>` may
@@ -215,6 +225,222 @@ def survey_for_generalisation(body: str) -> list[tuple[str, int, str]]:
 # --------------------------------------------------------------------------
 
 
+def body_slug_of(frontmatter: dict, source: Path, source_rel: str) -> str:
+    """Steps 1 and 2's input: the lesson's slug with any number prefix off."""
+    _, body_slug = bl.split_number_prefix(str(frontmatter.get("id", "")).strip())
+    if not body_slug:
+        body_slug = bl.split_number_prefix(source.stem)[1]
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", body_slug):
+        raise bl.ToolError(
+            f"{source_rel}: neither its id ({frontmatter.get('id')!r}) nor its "
+            f"filename gives a usable slug of lowercase words. Rename it first."
+        )
+    return body_slug
+
+
+def refuse_slug_clash(
+    bundle: bl.Bundle, bundle_root: Path, slug: str, body_slug: str, rel: str
+) -> None:
+    if slug in {lesson.slug for lesson in bundle.lessons}:
+        raise bl.ToolError(f"{bundle_root}/{rel} already exists; nothing was written.")
+    clash = [
+        lesson.slug
+        for lesson in bundle.lessons
+        if bl.split_number_prefix(lesson.slug)[1] == body_slug
+    ]
+    if clash:
+        raise bl.ToolError(
+            f"the bundle already has {clash[0]!r}, which is the same lesson under "
+            f"a different number. Promoting would give the course two lessons with "
+            f"one name. Nothing was written."
+        )
+
+
+def check_steps_5_and_6(
+    frontmatter: dict,
+    bundle: bl.Bundle,
+    bundle_root: Path,
+    instance: Path,
+    source_rel: str,
+) -> tuple[list[str], list[str]]:
+    """Steps 5 and 6, run before anything is copied. Returns (refs, validators)."""
+    refs = frontmatter.get("design_refs")
+    ref_names = [str(r).lstrip("#") for r in refs] if isinstance(refs, list) else []
+    check_design_refs(ref_names, bundle, instance, source_rel)
+
+    validators = frontmatter.get("validators")
+    validator_names = [str(v) for v in validators] if isinstance(validators, list) else []
+    undeclared = [v for v in validator_names if v not in bundle.declared_validators()]
+    if undeclared:
+        raise bl.ToolError(
+            f"step 6 of the promotion procedure fails: {source_rel} names "
+            f"validator(s) {', '.join(undeclared)}, which {bundle_root}/"
+            f"tutorial.yaml does not declare. Declare them in the manifest's "
+            f"'validators' map, or remove them from the lesson. Nothing was written."
+        )
+    return ref_names, validator_names
+
+
+def strip_provenance(source_text: str, frontmatter: dict, source_rel: str, slug: str) -> tuple[str, list[str]]:
+    """Step 3, plus step 2's id rewrite. Returns (text, fields removed)."""
+    text, removed = bl.strip_frontmatter_fields(source_text, bl.PROVENANCE_FIELDS)
+    text, _ = bl.set_frontmatter_field(text, "id", slug)
+    left_behind = [
+        field for field in bl.PROVENANCE_FIELDS if field in frontmatter and field not in removed
+    ]
+    if left_behind:
+        raise bl.ToolError(
+            f"the provenance field(s) {', '.join(left_behind)} could not be removed "
+            f"from the frontmatter of {source_rel}. Every one of the five describes "
+            f"one learner's run, so a promotion that left one behind would put "
+            f"progress into a bundle. Nothing was written."
+        )
+    return text, removed
+
+
+# --------------------------------------------------------------------------
+# --optional: promotion into the offered set
+#
+# The offer metadata is DERIVED from the lesson's own provenance and then
+# confirmed by the author:
+#
+#     offer_at      <- the generated lesson's `after`
+#     offer_because <- the generated lesson's `reason`
+#
+# Deriving judgement from data is normally the wrong move. It is right here
+# because the provenance is the best evidence anyone will ever have about
+# when this lesson is needed: a real learner needed it at exactly that point,
+# which is a stronger signal than an author's recollection. Confirmation is
+# what keeps the decision with the author, so the run REFUSES to write until
+# it is given --confirm, and prints both derived values first. That is the
+# same check-then-apply discipline as --check, with the plan reduced to the
+# two fields a person has to agree with.
+# --------------------------------------------------------------------------
+
+
+def derive_offer(frontmatter: dict, bundle: bl.Bundle, source_rel: str) -> dict:
+    after = frontmatter.get("after")
+    if not isinstance(after, str) or not after.strip():
+        raise bl.ToolError(
+            f"{source_rel} carries no usable 'after:' field, so there is "
+            f"nothing to derive 'offer_at' from. An optional lesson must say "
+            f"where the tutor offers it, and this promotion takes that from "
+            f"the point the learner needed the lesson. Nothing was written."
+        )
+    after = after.strip()
+    if after not in bundle.listed:
+        raise bl.ToolError(
+            f"{source_rel} names 'after: {after}', which is not an entry in "
+            f"this bundle's lessons list, so it cannot be an offer point. "
+            f"Every offer point is a place on the main path. Nothing was "
+            f"written."
+        )
+    reason = frontmatter.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        raise bl.ToolError(
+            f"{source_rel} carries no usable 'reason:' field, so there is "
+            f"nothing to derive 'offer_because' from. The tutor says that "
+            f"sentence to the learner when it raises the offer, and nothing "
+            f"incomplete is written. Nothing was written."
+        )
+    # A folded block scalar (`reason: >`) arrives with its newlines folded to
+    # spaces and a trailing one; the entry is a single-line scalar, so the
+    # whitespace is normalised and the result is PRINTED for confirmation
+    # rather than written unseen.
+    return {"offer_at": [after], "offer_because": " ".join(reason.split())}
+
+
+def promote_optional(
+    args: argparse.Namespace,
+    instance: Path,
+    bundle_root: Path,
+    bundle: bl.Bundle,
+    source: Path,
+    source_rel: str,
+    frontmatter: dict,
+    source_text: str,
+) -> int:
+    entry = derive_offer(frontmatter, bundle, source_rel)
+    slug = body_slug_of(frontmatter, source, source_rel)
+    rel = f"lessons/{slug}.md"
+    refuse_slug_clash(bundle, bundle_root, slug, slug, rel)
+    ref_names, validator_names = check_steps_5_and_6(
+        frontmatter, bundle, bundle_root, instance, source_rel
+    )
+    stripped_text, removed = strip_provenance(source_text, frontmatter, source_rel, slug)
+    stripped_text, changed = bl.set_frontmatter_field(stripped_text, "optional", "true")
+    if not changed:
+        raise bl.ToolError(
+            f"{source_rel}: 'optional: true' could not be written into the "
+            f"frontmatter, so the lesson file and the optional_lessons list "
+            f"would disagree (the runner's check 20). Nothing was written."
+        )
+
+    print(f"promote: {instance}/{source_rel}")
+    print(f"      -> {bundle_root}/{rel}   OPTIONAL - offered, not sequenced")
+    print()
+    print(f"  1  copy               kind={frontmatter.get('kind')!r}; the learner's copy is NOT touched")
+    print(f"  2  id                 {frontmatter.get('id')!r} -> {slug!r}")
+    print(
+        f"  3  provenance          stripped "
+        f"{', '.join(removed) if removed else '(none were present)'}"
+    )
+    print(f"  5  design_refs        {len(ref_names)} ref(s), all resolve in the bundle's DESIGN.md")
+    print(f"  6  validators         {len(validator_names)} name(s), all declared in tutorial.yaml")
+    print(f"  7  position           none. An optional lesson is offered, not sequenced:")
+    print(f"                        it joins optional_lessons, not lessons, and no")
+    print(f"                        renumber is needed or performed.")
+    print()
+    print("  THE OFFER METADATA IS DERIVED FROM THIS LEARNER'S RUN. Read both")
+    print("  values and agree with them before they become part of the course:")
+    print()
+    print(f"      offer_at       {entry['offer_at'][0]}")
+    print(f"                     (from the lesson's 'after:', where the learner needed it)")
+    print(f"      offer_because  {entry['offer_because']}")
+    print(f"                     (from the lesson's 'reason:', why the tutor wrote it)")
+
+    if not args.confirm and not args.check:
+        raise bl.ToolError(
+            "nothing was written, because --optional writes judgement the author "
+            "must agree with first. Read the two derived values above.\n"
+            "  * to see the whole plan validated on a copy:  add --check\n"
+            "  * to apply it:                                add --confirm\n"
+            "If either value is wrong, fix the generated lesson's 'after:' or "
+            "'reason:' and run this again."
+        )
+
+    with bl.Staged(bundle_root, check_only=args.check) as stage:
+        target = stage.root / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(stripped_text, encoding="utf-8")
+        manifest_path = stage.root / "tutorial.yaml"
+        manifest_text = bl.read_text(manifest_path)
+        assert manifest_text is not None
+        manifest_path.write_text(
+            bl.add_optional_lesson(manifest_text, rel, entry), encoding="utf-8"
+        )
+        # The lessons list did not move, so this can only REPAIR a template
+        # that was already out of step.
+        changes = bl.reconcile_state_template(
+            stage.root, bundle.listed[0] if bundle.listed else ""
+        )
+        run = stage.commit()
+
+    if changes:
+        print()
+        print("STATE.template.md brought back in step with tutorial.yaml:")
+        for change in changes:
+            print(f"    {change}")
+
+    print()
+    print(f"validator: {run.validator}  ({run.how})")
+    print(f"           {run.summary()}")
+
+    _, promoted_body = bl.split_frontmatter(stripped_text)
+    report_manual_steps(promoted_body, bundle_root, rel, instance, source_rel, args.check)
+    return 0
+
+
 def promote(args: argparse.Namespace) -> int:
     # The runner is a hard prerequisite, so establish it BEFORE anything else
     # - before reading the bundle, before the dirty-tree check, and before any
@@ -229,10 +455,23 @@ def promote(args: argparse.Namespace) -> int:
     if not instance.is_dir():
         raise bl.ToolError(f"{instance}: not a directory.")
 
+    if args.confirm and not args.optional:
+        raise bl.ToolError(
+            "--confirm is only meaningful with --optional, which is the one "
+            "mode that derives judgement - offer_at and offer_because - and "
+            "needs the author to agree with it before writing."
+        )
+
     source, source_rel = resolve_generated(instance, args.generated)
     frontmatter, source_text = read_lesson(source)
     bundle = bl.load_bundle(bundle_root)
     bl.require_clean_tree(bundle_root, args.force)
+
+    if args.optional:
+        return promote_optional(
+            args, instance, bundle_root, bundle, source, source_rel,
+            frontmatter, source_text,
+        )
 
     # -- step 7's input: where does it go?
     after = frontmatter.get("after")
@@ -251,64 +490,24 @@ def promote(args: argparse.Namespace) -> int:
         placement = "appended: it carries no usable 'after:' field"
 
     # -- step 1 and 2: the new slug
-    _, body_slug = bl.split_number_prefix(str(frontmatter.get("id", "")).strip())
-    if not body_slug:
-        body_slug = bl.split_number_prefix(source.stem)[1]
-    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", body_slug):
-        raise bl.ToolError(
-            f"{source_rel}: neither its id ({frontmatter.get('id')!r}) nor its "
-            f"filename gives a usable slug of lowercase words. Rename it first."
-        )
+    body_slug = body_slug_of(frontmatter, source, source_rel)
     # The width the bundle will need AFTER this lesson joins it, so a later
     # renumber computes the same width and has nothing to repad.
     width = max(bundle.number_width, len(str(len(bundle.listed))))
     slug = f"{position:0{width}d}-{body_slug}"
     rel = f"lessons/{slug}.md"
 
-    if slug in {lesson.slug for lesson in bundle.lessons}:
-        raise bl.ToolError(f"{bundle_root}/{rel} already exists; nothing was written.")
-    clash = [
-        lesson.slug
-        for lesson in bundle.lessons
-        if bl.split_number_prefix(lesson.slug)[1] == body_slug
-    ]
-    if clash:
-        raise bl.ToolError(
-            f"the bundle already has {clash[0]!r}, which is the same lesson under "
-            f"a different number. Promoting would give the course two lessons with "
-            f"one name. Nothing was written."
-        )
+    refuse_slug_clash(bundle, bundle_root, slug, body_slug, rel)
 
-    # -- step 5, before anything is copied
-    refs = frontmatter.get("design_refs")
-    ref_names = [str(r).lstrip("#") for r in refs] if isinstance(refs, list) else []
-    check_design_refs(ref_names, bundle, instance, source_rel)
-
-    # -- step 6
-    validators = frontmatter.get("validators")
-    validator_names = [str(v) for v in validators] if isinstance(validators, list) else []
-    undeclared = [v for v in validator_names if v not in bundle.declared_validators()]
-    if undeclared:
-        raise bl.ToolError(
-            f"step 6 of the promotion procedure fails: {source_rel} names "
-            f"validator(s) {', '.join(undeclared)}, which {bundle_root}/"
-            f"tutorial.yaml does not declare. Declare them in the manifest's "
-            f"'validators' map, or remove them from the lesson. Nothing was written."
-        )
+    # -- steps 5 and 6, before anything is copied
+    ref_names, validator_names = check_steps_5_and_6(
+        frontmatter, bundle, bundle_root, instance, source_rel
+    )
 
     # -- step 3
-    stripped_text, removed = bl.strip_frontmatter_fields(source_text, bl.PROVENANCE_FIELDS)
-    stripped_text, id_changed = bl.set_frontmatter_field(stripped_text, "id", slug)
-    left_behind = [
-        field for field in bl.PROVENANCE_FIELDS if field in frontmatter and field not in removed
-    ]
-    if left_behind:
-        raise bl.ToolError(
-            f"the provenance field(s) {', '.join(left_behind)} could not be removed "
-            f"from the frontmatter of {source_rel}. Every one of the five describes "
-            f"one learner's run, so a promotion that left one behind would put "
-            f"progress into a bundle. Nothing was written."
-        )
+    stripped_text, removed = strip_provenance(
+        source_text, frontmatter, source_rel, slug
+    )
 
     new_listed = list(bundle.listed)
     new_listed.insert(position, rel)
@@ -434,6 +633,19 @@ def main(argv: list[str] | None = None) -> int:
         "--force",
         action="store_true",
         help="run even though the working tree under the bundle is dirty",
+    )
+    parser.add_argument(
+        "--optional",
+        action="store_true",
+        help="promote into optional_lessons instead of onto the main path. "
+        "offer_at and offer_because are derived from the lesson's 'after:' "
+        "and 'reason:', printed, and written only with --confirm",
+    )
+    parser.add_argument(
+        "--confirm",
+        action="store_true",
+        help="with --optional: the derived offer metadata has been read and "
+        "agreed. Without it, --optional prints and writes nothing",
     )
     return promote(parser.parse_args(argv))
 

@@ -990,6 +990,311 @@ def main() -> int:
                 f"{ {k: v[:12] for k, v in digests.items()} })",
             )
 
+    # ------------------------------------------------------------------
+    # C. --optional: promotion into the offered set
+    #
+    # The offer metadata is DERIVED from the learner's run and confirmed by
+    # the author, so the two things worth testing hardest are that the
+    # derived values are the ones the provenance carries, and that NOTHING
+    # is written until --confirm says the author has read them.
+    # ------------------------------------------------------------------
+
+    DERIVED_AT = "lessons/03-first-refactor.md"
+    DERIVED_BECAUSE = (
+        "The learner could not get the borrow checker to accept their RowRef, "
+        "and nothing on the main path teaches lifetime elision."
+    )
+    OPTIONAL_REL = "lessons/lifetimes-and-borrows.md"
+
+    def optional_map(bundle: Path) -> dict:
+        manifest, _ = bl.load_manifest(bundle)
+        raw = manifest.get("optional_lessons")
+        return raw if isinstance(raw, dict) else {}
+
+    with case("C1  --optional derives the offer, prints it, and writes nothing without --confirm"):
+        with Workspace() as ws:
+            bundle, instance = pair(ws)
+            learner = Learner(instance)
+            before = tree_digest(bundle)
+            done = promote(instance, "lifetimes-and-borrows", bundle, "--optional")
+            check(done.returncode != 0, f"exit is non-zero without --confirm (got {done.returncode})")
+            check_in(
+                f"offer_at       {DERIVED_AT}",
+                done.output,
+                "the derived offer_at is printed, and it is the lesson's 'after:'",
+            )
+            check_in(
+                f"offer_because  {DERIVED_BECAUSE}",
+                done.output,
+                "the derived offer_because is printed, and it is the lesson's "
+                "'reason:' folded to one line",
+            )
+            check_in(
+                "--confirm",
+                done.output,
+                "the refusal names the flag that applies it",
+            )
+            check_in(
+                "nothing was written",
+                done.output,
+                "the refusal says nothing was written",
+            )
+            check(
+                tree_digest(bundle) == before,
+                "and the bundle really is byte-identical afterwards",
+            )
+            check(
+                optional_map(bundle) == {},
+                "no optional_lessons entry was written",
+            )
+            check(
+                not has_exactly(bundle / "lessons", "lifetimes-and-borrows.md"),
+                "and no lesson file was written",
+            )
+            learner.still_there("C1")
+
+            # POSITIVE CONTROL: the identical command WITH --confirm writes.
+            # Without it, "it refused" is equally consistent with a mode that
+            # can never write at all.
+            ok = promote(
+                instance, "lifetimes-and-borrows", bundle, "--optional", "--confirm"
+            )
+            check(
+                ok.returncode == 0,
+                f"positive control: the same command with --confirm succeeds "
+                f"(got {ok.returncode}: {ok.output.strip()[-300:]})",
+            )
+            check(
+                tree_digest(bundle) != before,
+                "positive control: and the bundle DID change this time",
+            )
+
+    with case("C2  --optional --confirm writes all of it, and none of the main path"):
+        with Workspace() as ws:
+            bundle, instance = pair(ws)
+            learner = Learner(instance)
+            listed_before, _ = bl.load_manifest(bundle)
+            done = promote(
+                instance, "lifetimes-and-borrows", bundle, "--optional", "--confirm"
+            )
+            check(done.returncode == 0, f"exit 0 (got {done.returncode}: {done.output.strip()[-300:]})")
+
+            # An optional lesson has no position, so no number prefix. The
+            # main-path promotion of this same lesson (case A1) names it
+            # 04-lifetimes-and-borrows.md, which is the control for this.
+            check(
+                has_exactly(bundle / "lessons", "lifetimes-and-borrows.md"),
+                f"lessons/ holds the UN-numbered lifetimes-and-borrows.md",
+            )
+            check(
+                not has_exactly(bundle / "lessons", PROMOTED),
+                f"and NOT the numbered name {PROMOTED} the main-path mode gives it",
+            )
+            raw, fields = frontmatter_of(bundle / "lessons" / "lifetimes-and-borrows.md")
+            check(
+                fields.get("id") == "lifetimes-and-borrows",
+                f"id is the un-numbered slug (got {fields.get('id')!r})",
+            )
+            check(
+                fields.get("optional") is True,
+                f"the frontmatter declares optional: true as a BOOLEAN, not "
+                f"{fields.get('optional')!r} - check 20 compares against True",
+            )
+            for field in bl.PROVENANCE_FIELDS:
+                check(
+                    field not in fields,
+                    f"the provenance field {field!r} was stripped (keys: {sorted(fields)})",
+                )
+            check_not_in(
+                REASON_CONTINUATION,
+                raw,
+                "and the folded reason left no orphan continuation line behind",
+            )
+
+            manifest, _ = bl.load_manifest(bundle)
+            check(
+                manifest["lessons"] == listed_before["lessons"],
+                "the lessons list is untouched: an optional lesson is never on "
+                "the main path",
+            )
+            entry = optional_map(bundle).get(OPTIONAL_REL, {})
+            check(
+                entry.get("offer_at") == [DERIVED_AT],
+                f"offer_at is a list holding the lesson's 'after:' (got "
+                f"{entry.get('offer_at')!r})",
+            )
+            check(
+                entry.get("offer_because") == DERIVED_BECAUSE,
+                f"offer_because is the lesson's 'reason:' (got "
+                f"{entry.get('offer_because')!r})",
+            )
+            check_in(
+                "OPTIONAL",
+                done.output,
+                "the plan says out loud that this is an optional promotion",
+            )
+            check_in(
+                "7  position           none.",
+                done.output,
+                "step 7 of the plan says the lesson has no position",
+            )
+            check_not_in(
+                "run  lesson.py renumber",
+                done.output,
+                "no renumber is advised: an optional lesson displaces nothing",
+            )
+            check_in("PASS", done.output, "the validator PASSED afterwards")
+            learner.still_there("C2")
+
+    with case("C3  --optional --check validates the plan and writes nothing"):
+        with Workspace() as ws:
+            bundle, instance = pair(ws)
+            learner = Learner(instance)
+            before = tree_digest(bundle)
+            done = promote(
+                instance, "lifetimes-and-borrows", bundle, "--optional", "--check"
+            )
+            check(done.returncode == 0, f"--check exits 0 (got {done.returncode}: {done.output.strip()[-300:]})")
+            check_in("PASS", done.output, "--check reports the validator PASSED on the copy")
+            check_in("nothing was written", done.output, "--check says nothing was written")
+            check(
+                tree_digest(bundle) == before,
+                "--check leaves the bundle byte-identical",
+            )
+            learner.still_there("C3")
+
+    with case("C4  an 'after:' or 'reason:' the offer cannot be derived from is refused"):
+        with Workspace() as ws:
+            bundle, instance = pair(ws)
+            source = (instance / GEN / LIFE).read_text(encoding="utf-8")
+
+            # No `after:` at all - nothing to derive offer_at from.
+            no_after = instance / GEN / "no-after.md"
+            no_after.write_text(
+                source.replace("id: lifetimes-and-borrows", "id: no-after").replace(
+                    "after: lessons/03-first-refactor.md\n", ""
+                ),
+                encoding="utf-8",
+            )
+            check(
+                "after:" not in frontmatter_of(no_after)[0],
+                "fixture: the copy really has no after: field",
+            )
+            before = tree_digest(bundle)
+            done = promote(instance, "no-after", bundle, "--optional", "--confirm")
+            check(done.returncode != 0, "a lesson with no 'after:' is refused")
+            check_in("no usable 'after:'", done.output, "and the message names the field")
+            check(tree_digest(bundle) == before, "the bundle is byte-identical afterwards")
+
+            # An `after:` naming a lesson this bundle does not list. The
+            # main-path mode APPENDS in that case; the optional mode cannot,
+            # because every offer point is a place on the main path.
+            foreign = instance / GEN / "foreign-after.md"
+            foreign.write_text(
+                source.replace("id: lifetimes-and-borrows", "id: foreign-after").replace(
+                    "after: lessons/03-first-refactor.md",
+                    "after: lessons/91-not-in-this-bundle.md",
+                ),
+                encoding="utf-8",
+            )
+            done = promote(instance, "foreign-after", bundle, "--optional", "--confirm")
+            check(done.returncode != 0, "an 'after:' outside the lessons list is refused")
+            check_in(
+                "not an entry in this bundle's lessons list",
+                done.output,
+                "and the message says why an offer point has to be on the main path",
+            )
+            check(tree_digest(bundle) == before, "the bundle is byte-identical afterwards")
+
+            # No `reason:` - nothing to derive offer_because from.
+            no_reason = instance / GEN / "no-reason.md"
+            no_reason.write_text(
+                source.replace("id: lifetimes-and-borrows", "id: no-reason").replace(
+                    "reason: >\n"
+                    "  The learner could not get the borrow checker to accept their RowRef, and\n"
+                    "  nothing on the main path teaches lifetime elision.\n",
+                    "",
+                ),
+                encoding="utf-8",
+            )
+            check(
+                "reason" not in frontmatter_of(no_reason)[1],
+                "fixture: the copy really has no reason: field",
+            )
+            # The snapshot is taken HERE, after this case's own three variant
+            # lessons are in place, so still_there() below measures what the
+            # promotions did and not what this test wrote.
+            learner = Learner(instance)
+            done = promote(instance, "no-reason", bundle, "--optional", "--confirm")
+            check(done.returncode != 0, "a lesson with no 'reason:' is refused")
+            check_in("no usable 'reason:'", done.output, "and the message names the field")
+            check(tree_digest(bundle) == before, "the bundle is byte-identical afterwards")
+
+            # --confirm without --optional means nothing and is refused.
+            done = promote(instance, "lifetimes-and-borrows", bundle, "--confirm")
+            check(done.returncode != 0, "--confirm without --optional is refused")
+            check_in(
+                "only meaningful with --optional",
+                done.output,
+                "and the message says which mode it belongs to",
+            )
+            check(tree_digest(bundle) == before, "the bundle is byte-identical afterwards")
+
+            # POSITIVE CONTROL for all four: the unmodified lesson, whose
+            # after: and reason: are both usable, promotes.
+            ok = promote(
+                instance, "lifetimes-and-borrows", bundle, "--optional", "--confirm"
+            )
+            check(
+                ok.returncode == 0,
+                f"positive control: the lesson with both fields promotes "
+                f"(got {ok.returncode}: {ok.output.strip()[-300:]})",
+            )
+            check(
+                list(optional_map(bundle)) == [OPTIONAL_REL],
+                "positive control: and the entry the four refused runs did not write is there",
+            )
+            learner.still_there("C4")
+
+    with case("C5  a validator failure discards both optional writes"):
+        with Workspace() as ws:
+            bundle, instance = pair(ws)
+            learner = Learner(instance)
+            stub = write_stub_validator(ws.root)
+            before = tree_digest(bundle)
+            done = promote(
+                instance,
+                "lifetimes-and-borrows",
+                bundle,
+                "--optional",
+                "--confirm",
+                env={"TUTORAIL_VALIDATOR": str(stub)},
+            )
+            check(done.returncode != 0, "the stub validator's findings refuse the promotion")
+            check(
+                tree_digest(bundle) == before,
+                "the bundle is byte-identical - both writes were discarded",
+            )
+            check(
+                not has_exactly(bundle / "lessons", "lifetimes-and-borrows.md"),
+                "the lesson file is not left behind",
+            )
+            check(
+                optional_map(bundle) == {},
+                "and no half-written optional_lessons entry is left behind either",
+            )
+            learner.still_there("C5")
+            # POSITIVE CONTROL: the same command with the real validator.
+            ok = promote(
+                instance, "lifetimes-and-borrows", bundle, "--optional", "--confirm"
+            )
+            check(ok.returncode == 0, "positive control: the real validator accepts it")
+            check(
+                has_exactly(bundle / "lessons", "lifetimes-and-borrows.md")
+                and list(optional_map(bundle)) == [OPTIONAL_REL],
+                "positive control: this time BOTH the file and the entry are written",
+            )
+
     return report("test_promote.py")
 
 

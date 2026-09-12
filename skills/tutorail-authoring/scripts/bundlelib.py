@@ -72,6 +72,10 @@ __all__ = [
     "emit_scalar",
     "render_supplies_item",
     "add_supplies",
+    "OPTIONAL_KEY",
+    "render_optional_entry",
+    "read_optional_lessons",
+    "add_optional_lesson",
     "strip_frontmatter_fields",
     "reconcile_state_template",
     "find_runner_root",
@@ -315,19 +319,28 @@ class Bundle:
     def optional(self) -> set[str]:
         """Lesson paths named by a top-level `optional_lessons:` mapping.
 
-        DEFENSIVE ONLY, and deliberately shallow. The runner is growing a
-        format extension in which an authored lesson may sit off the main
-        path: it is listed under `optional_lessons` instead of `lessons`, and
-        is offered to the learner rather than sequenced. This toolkit does
-        not author, edit or renumber such a lesson - that is a moving target
-        in a repository this project does not own, and half-implementing it
-        would be worse than not implementing it.
+        An authored lesson may sit off the main path: it is listed under
+        `optional_lessons` instead of `lessons`, and is offered to the
+        learner rather than sequenced.
 
-        What this property buys is that the toolkit does not CRY WOLF about
-        one. Without it, index.py reports every optional lesson as UNLISTED
-        and exits 1 on a bundle the runner considers valid, which is the
-        "validator that gets ignored" failure the runner's own check 5
-        comments warn about.
+        CORRECTION, 2026-09-12. This docstring used to say the toolkit "does
+        not author, edit or renumber such a lesson". Two thirds of that is
+        no longer true and the last third never was:
+
+          * `lesson.py add --optional` and `promote.py --optional` now
+            author one, writing the entry through add_optional_lesson below;
+          * `renumber` has always been correct here and needed no change. It
+            iterates the manifest's `lessons` list, which an optional lesson
+            is not in, so it never renames one - while its prose rewrite
+            walks every readable file, so a reference INSIDE an optional
+            lesson does follow a rename. tests/test_lesson_renumber.py locks
+            both halves in.
+
+        What this property buys the READING scripts is that the toolkit does
+        not CRY WOLF about an optional lesson. Without it, index.py reports
+        every one as UNLISTED and exits 1 on a bundle the runner considers
+        valid, which is the "validator that gets ignored" failure the
+        runner's own check 5 comments warn about.
 
         An absent key gives an empty set, so nothing changes for a bundle
         that has none.
@@ -1018,9 +1031,9 @@ def _indent_of(line: str) -> int:
     return len(line) - len(line.lstrip(" \t"))
 
 
-def _supplies_block_end(lines: list[str], key_index: int) -> int:
-    """Index of the first line, after the `supplies:` key, that is no longer
-    part of its value.
+def _top_level_block_end(lines: list[str], key_index: int) -> int:
+    """Index of the first line, after a top-level key, that is no longer part
+    of its value.
 
     A line belongs to the block if it is blank, a comment, or indented
     (indent > 0) - the ordinary rule for what a YAML block-level key owns.
@@ -1028,7 +1041,8 @@ def _supplies_block_end(lines: list[str], key_index: int) -> int:
     the end of the text. This is deliberately not a sequence-item counter
     like replace_lessons_list's: a supplies entry is a multi-line mapping,
     not a one-line scalar, so "the next item" cannot be found by counting
-    `- ` lines alone.
+    `- ` lines alone. `optional_lessons` needs the same walk, for the same
+    reason, so the function is named after the shape and not after one key.
     """
     end = key_index + 1
     while end < len(lines):
@@ -1129,7 +1143,7 @@ def add_supplies(text: str, entry: dict, *, frontmatter: bool) -> str:
             lines[:key_index] + [rewritten_key] + rendered + lines[key_index + 1 :]
         )
     else:
-        block_end = _supplies_block_end(lines, key_index)
+        block_end = _top_level_block_end(lines, key_index)
         new_lines = lines[:block_end] + rendered + lines[block_end:]
 
     new_text = text[:start] + "\n".join(new_lines) + text[end:]
@@ -1164,6 +1178,225 @@ def add_supplies(text: str, entry: dict, *, frontmatter: bool) -> str:
             f"add_supplies wrote an entry that reads back differently from "
             f"what was given.\n  given:     {entry!r}\n  read back: "
             f"{supplies[-1]!r}"
+        )
+    return new_text
+
+
+# --------------------------------------------------------------------------
+# optional_lessons entries
+#
+# `optional_lessons` is a MAPPING of lesson path to offer metadata - a map
+# and not a list because the tutor looks a lesson up by path. One entry is
+# the same block surgery as a `supplies:` item, one level deeper, so it is
+# built on the same two pieces: emit_scalar for every scalar, and a
+# round-trip guard that parses the written bytes back and refuses to return
+# text the loader reads differently from the entry it was given.
+#
+# Do NOT reach for a second quoting rule here. emit_scalar's is measured
+# (see the long note above it): 2082 of a 20455-value corpus were values
+# this project's own reader accepted and a conforming parser rejected, and
+# the guard that catches them is the one emit_scalar already carries.
+#
+# The field set and the shapes come from the runner's check 18:
+#
+#   offer_at       required, a non-empty LIST of `lessons` entries
+#   offer_because  required, a non-empty string
+#   anticipates    optional, a list of failure-mode ids
+#   repair_in      optional, ONE `lessons` entry (a scalar, not a list)
+#   required_for   optional, a list of `lessons` entries
+#
+# An empty list is never written: check 18 reads an empty `offer_at` as "no
+# learner can reach this lesson", and an absent optional key is the way to
+# say nothing, so an omitted field and an empty one are not the same thing.
+# --------------------------------------------------------------------------
+
+OPTIONAL_KEY = "optional_lessons"
+
+# The order fields are written in. offer_at and offer_because first because
+# they are the two the format requires; the rest in the order check 18 reads
+# them, so a reviewer comparing the file against the check reads top to top.
+_OPTIONAL_LIST_KEYS = ("offer_at", "anticipates", "required_for")
+_OPTIONAL_SCALAR_KEYS = ("offer_because", "repair_in")
+_OPTIONAL_ITEM_KEYS = (
+    "offer_at",
+    "offer_because",
+    "anticipates",
+    "repair_in",
+    "required_for",
+)
+_OPTIONAL_REQUIRED_KEYS = ("offer_at", "offer_because")
+
+_OPTIONAL_KEY_RE = re.compile(
+    rf"^(?P<indent>[ \t]*){OPTIONAL_KEY}[ \t]*:(?P<rest>.*)$"
+)
+
+
+def render_optional_entry(rel: str, entry: dict) -> list[str]:
+    """The block-mapping lines for one `optional_lessons` entry.
+
+    The lesson path is the key, indented two spaces; its fields four; a list
+    item six. Raises ToolError rather than writing a manifest the runner
+    would then reject: an unknown field, a missing required one, a list where
+    a scalar belongs (or the reverse), an empty list, or a non-string value.
+    """
+    if not isinstance(rel, str) or not rel.strip():
+        raise ToolError(
+            f"an optional_lessons key must be the lesson's path, got {rel!r}"
+        )
+    unknown = [key for key in entry if key not in _OPTIONAL_ITEM_KEYS]
+    if unknown:
+        raise ToolError(
+            f"optional_lessons entry for {rel}: unknown field(s) "
+            f"{', '.join(sorted(unknown))}. The format declares "
+            f"{', '.join(_OPTIONAL_ITEM_KEYS)}."
+        )
+    missing = [key for key in _OPTIONAL_REQUIRED_KEYS if not entry.get(key)]
+    if missing:
+        raise ToolError(
+            f"optional_lessons entry for {rel} is missing "
+            f"{', '.join(missing)}; every entry needs "
+            f"{' and '.join(_OPTIONAL_REQUIRED_KEYS)}."
+        )
+    lines = [f"  {emit_scalar(rel)}:"]
+    for key in _OPTIONAL_ITEM_KEYS:
+        if key not in entry or entry[key] is None:
+            continue
+        value = entry[key]
+        if key in _OPTIONAL_LIST_KEYS:
+            if not isinstance(value, list) or not value:
+                raise ToolError(
+                    f"optional_lessons entry for {rel}: {key!r} must be a "
+                    f"non-empty list, got {value!r}"
+                )
+            if not all(isinstance(item, str) and item.strip() for item in value):
+                raise ToolError(
+                    f"optional_lessons entry for {rel}: every {key!r} item must "
+                    f"be a non-empty string, got {value!r}"
+                )
+            lines.append(f"    {key}:")
+            lines.extend(f"      - {emit_scalar(item)}" for item in value)
+            continue
+        if not isinstance(value, str) or not value.strip():
+            raise ToolError(
+                f"optional_lessons entry for {rel}: {key!r} must be a non-empty "
+                f"string, got {value!r}"
+            )
+        lines.append(f"    {key}: {emit_scalar(value)}")
+    return lines
+
+
+def read_optional_lessons(text: str) -> dict:
+    """The `optional_lessons` mapping as the loader sees it, or {}."""
+    try:
+        parsed = load_yaml(text, "tutorial.yaml")
+    except YamlError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    raw = parsed.get(OPTIONAL_KEY)
+    return raw if isinstance(raw, dict) else {}
+
+
+def add_optional_lesson(text: str, rel: str, entry: dict) -> str:
+    """Add `rel` to tutorial.yaml's `optional_lessons:` map, creating it when
+    absent.
+
+    The three starting shapes, mirroring add_supplies:
+
+        optional_lessons:       a block mapping, with or without entries
+          lessons/x.md:
+            ...
+        optional_lessons:       the key with nothing under it
+        optional_lessons: {}    an empty flow mapping
+
+    A NON-empty inline value is refused with ManifestEditError rather than
+    reformatted into a shape the author did not choose. A path already
+    declared is refused too: the loader rejects a duplicate key, so writing
+    one would produce a manifest nothing can read.
+
+    Ends by parsing its own output back through `load_yaml` and comparing the
+    entry it wrote to the entry it was given. Raises ToolError when they
+    differ - the only honest proof that this function and the loader agree
+    about what the written bytes mean.
+    """
+    existing = read_optional_lessons(text)
+    if rel in existing:
+        raise ToolError(
+            f"tutorial.yaml already declares {rel} under {OPTIONAL_KEY}. Two "
+            f"entries for one lesson is a duplicate key, which the loader "
+            f"rejects. Nothing was written."
+        )
+
+    lines = text.split("\n")
+    key_index = None
+    empty_flow = False
+    for index, line in enumerate(lines):
+        match = _OPTIONAL_KEY_RE.match(line)
+        if match and match.group("indent") == "":
+            key_index = index
+            rest = _strip_trailing_comment(match.group("rest")).strip()
+            if rest == "{}":
+                empty_flow = True
+            elif rest:
+                raise ManifestEditError(
+                    f"the {OPTIONAL_KEY}: key already carries an inline value "
+                    f"({rest[:40]!r}). This toolkit only appends to the block "
+                    f"form:\n"
+                    f"    {OPTIONAL_KEY}:\n"
+                    f"      lessons/a-detour.md:\n"
+                    f"        offer_at:\n"
+                    f"          - lessons/03-x.md\n"
+                    f"        offer_because: ...\n"
+                    f"Rewrite it in block form and run the command again."
+                )
+            break
+
+    rendered = render_optional_entry(rel, entry)
+
+    if key_index is None:
+        if lines and lines[-1] == "":
+            insert_at = len(lines) - 1
+        else:
+            insert_at = len(lines)
+        new_lines = (
+            lines[:insert_at] + [f"{OPTIONAL_KEY}:"] + rendered + lines[insert_at:]
+        )
+    elif empty_flow:
+        comment = _trailing_comment(lines[key_index])
+        rewritten_key = f"{OPTIONAL_KEY}:" + (f"  {comment}" if comment else "")
+        new_lines = (
+            lines[:key_index] + [rewritten_key] + rendered + lines[key_index + 1 :]
+        )
+    else:
+        block_end = _top_level_block_end(lines, key_index)
+        new_lines = lines[:block_end] + rendered + lines[block_end:]
+
+    new_text = "\n".join(new_lines)
+
+    try:
+        parsed = load_yaml(new_text, "tutorial.yaml (post-edit)")
+    except YamlError as exc:
+        raise ToolError(
+            f"add_optional_lesson produced text that does not parse: {exc}. "
+            f"This is a bug in add_optional_lesson itself, not in the caller's "
+            f"entry."
+        ) from exc
+    written = parsed.get(OPTIONAL_KEY) if isinstance(parsed, dict) else None
+    if not isinstance(written, dict) or rel not in written:
+        raise ToolError(
+            f"add_optional_lesson wrote a block that does not read back as an "
+            f"{OPTIONAL_KEY} mapping carrying {rel!r} (got {written!r})"
+        )
+    given = {
+        key: value
+        for key, value in entry.items()
+        if key in _OPTIONAL_ITEM_KEYS and value is not None
+    }
+    if written[rel] != given:
+        raise ToolError(
+            f"add_optional_lesson wrote an entry that reads back differently "
+            f"from what was given.\n  given:     {given!r}\n  read back: "
+            f"{written[rel]!r}"
         )
     return new_text
 

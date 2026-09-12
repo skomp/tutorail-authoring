@@ -1,0 +1,41 @@
+bundle_format: 1
+id: optional-course
+title: A Course With One Optional Lesson
+description: >
+  A three-lesson fixture that already declares an optional lesson, so the
+  toolkit can be exercised against a bundle whose optional_lessons block
+  exists before the run.
+subjects: [fixtures, testing]
+aliases: [optional-demo]
+level: beginner
+style: [exercise-based]
+
+lessons:
+  - lessons/00-start.md
+  - lessons/01-shapes.md
+  - lessons/02-finish.md
+
+optional_lessons:
+  lessons/vertex-winding-detour.md:
+    offer_at:
+      - lessons/01-shapes.md
+    offer_because: The learner may want to know why winding order matters.
+    anticipates:
+      - inverted-winding
+
+failure_modes:
+  inverted-winding:
+    summary: The learner's shapes render inside out because the winding is reversed.
+    signals: [diagnosis]
+
+workspace_kind: none
+tutor_owned: [tutorial/STATE.md, tutorial/DESIGN.md]
+learner_owned: []
+ownership_policy: tutor-must-not-edit-learner-owned
+
+validators:
+  manual: { kind: manual }
+
+one_task_at_a_time: true
+solution_code: on-request-only
+advance_on: validated-evidence-only
