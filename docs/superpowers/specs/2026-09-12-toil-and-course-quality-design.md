@@ -247,11 +247,23 @@ holding ordinary prose must not. A scanner nobody has seen fire is not a scanner
 | **evidence** | 0 | run a validator, read output, report what happened |
 | **toil** | −2 | deterministic and unambiguous; no decision; a mistake teaches nothing |
 | **unserved objective** | −3 | a stated objective or `DESIGN.md` anchor that no task exercises — counted once per course, not per lesson |
-| **`required_for` on an optional lesson** | −3 | the author declared something load-bearing and then made it skippable. The format permits it and the runner copes, but the material usually belongs on the main path (course-level) |
 
-Three further rows a reader answers, because none is mechanically decidable: a `design_refs`
-entry that does not answer the question its lesson raises; a lesson that introduces a type
-or concept nothing later uses; and a lesson far outside the course's usual size.
+Four further rows a reader answers, because none is mechanically decidable — they are
+raised for review and never scored by the script:
+
+- **`required_for` on an optional lesson.** The heuristic is that an author who writes it
+  declared something load-bearing and then made it skippable, and the material usually
+  belongs on the main path. But the format deliberately permits the case where it is
+  correct: a lesson that genuinely cannot be completed while the anticipated failure
+  stands. The runner's settled semantics are that **the gate is on the failure** — it binds
+  only once the failure is observed, and is lifted by the repair, not by taking the lesson.
+  So only the *unjustified* case is a defect, a script cannot tell the two apart, and **a
+  row that scored it down unconditionally would teach authors to delete a gate that is
+  doing its job** — after which the course silently lets a learner finish a lesson whose
+  failure is still standing. That is a worse outcome than the toil this rubric hunts.
+- a `design_refs` entry that does not answer the question its lesson raises;
+- a lesson that introduces a type or concept nothing later uses;
+- a lesson far outside the course's usual size.
 
 A lesson's score is the sum of its elements. The course score is the sum of the lessons
 minus the gap penalties. The numbers are a way to make a judgement legible and comparable
