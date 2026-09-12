@@ -262,7 +262,7 @@ holding ordinary prose must not. A scanner nobody has seen fire is not a scanner
 | **practice** | +1 | applies something already taught; no new decision, but the repetition is the point |
 | **evidence** | 0 | run a validator, read output, report what happened |
 | **toil** | −2 | deterministic and unambiguous; no decision; a mistake teaches nothing |
-| **unserved objective** | −3 | a stated objective or `DESIGN.md` anchor that no task exercises — counted once per course, not per lesson |
+| **unserved objective** | −3 **each** | a stated objective or `DESIGN.md` anchor that no task exercises. Course-level rather than per-lesson, but counted once PER UNSERVED OBJECTIVE — a course owing twelve topics is not the same course as one owing a single topic, and a rubric whose purpose is comparability must not score them alike |
 | **`required_for` on an optional lesson** | −3 | the author declared something load-bearing and then made it skippable. Scored **and** raised — see below (course-level) |
 
 ### `required_for` scores and is raised, both
@@ -301,7 +301,7 @@ scored:
 - a lesson far outside the course's usual size.
 
 A lesson's score is the sum of its elements. The course score is the sum of the lessons
-minus the gap penalties. The numbers are a way to make a judgement legible and comparable
+minus the gap penalties, one penalty per unserved objective. The numbers are a way to make a judgement legible and comparable
 across a long course; the rubric is printed with the report so a reader can disagree with
 the scoring rather than with a bare number.
 
