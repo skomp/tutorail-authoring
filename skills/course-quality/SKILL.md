@@ -34,7 +34,8 @@ never an answer to anything in this report.
 1. Establish which bundle is under audit and confirm the path with the author.
 2. Collect the evidence: `python3 scripts/audit.py <bundle>`.
 3. Open the lessons — all of them. This is the part that produces the score.
-4. Load `references/rubric.md` before scoring anything, and print its table in the report.
+4. Load `references/rubric.md` before scoring anything, and print it in the report — the
+   scored table **and** the rows it does not score.
 5. Report in the five sections below. Propose. Stop.
 
 Do not change a file at any point in that sequence.
@@ -58,15 +59,28 @@ score and changes nothing.
 
 What each `lessons` entry carries: `rel`, `id`, `title`, `optional`, `form`, `design_refs`,
 `validators`, `learning_objectives`. Each `candidates` entry carries `rel`, `line`, `text`
-(the whole raw line, so you can quote the sentence) and `pattern` (which verb fired).
+and `pattern` (which verb fired).
+
+`text` is **one physical line, not one sentence.** Lesson prose is hard-wrapped, and both
+of the real toil sites in the corpus are: `00-project-setup/LESSON.md:34` ends in a comma,
+mid-clause. The report asks for the exact sentence, so open the lesson and take the
+sentence — the `text` field tells you where it starts, not where it ends.
 
 ### What the script does not give you, and you must fetch yourself
 
 - **`required_for`, `anticipates` and `repair_in` are not in its output.** The `−3` row of
-  the rubric needs them, so open `tutorial.yaml` and the `optional_lessons` block yourself
-  for any course whose `optional_lesson_count` is above zero.
+  the rubric needs them, so open `tutorial.yaml` and work through its `optional_lessons`
+  block yourself. Key that off **the presence of an `optional_lessons:` key in the
+  manifest**, never off `optional_lesson_count`: that count is of optional lessons found
+  **on disk**, so an `optional_lessons` entry naming a file that does not exist counts
+  zero. Trusting the count there would tell you not to look at precisely the manifest most
+  likely to be wrong, and the `required_for` row could never fire.
 - **`--json` reports `optional` per lesson, and nothing about why.** A lesson being
   optional is not a finding. An optional lesson carrying a gate is.
+- **The lesson rows do not sum to `lesson_count`.** `lesson_count` counts the main path
+  only; the rows cover main-path and optional lessons together, each flagged. On
+  `durable-event-broker` the header reads "15 lesson(s), 3 optional" above a table of 18
+  rows. The script dropped nothing. The toil scan covers all 18.
 - **The coverage list may be absent.** The script returns `coverage_list: null` and says so
   in prose, and that absence is itself a finding: the course has declared no boundary.
 
@@ -88,23 +102,33 @@ The script says this about itself in its own output, and the report must repeat 
 
 ## Scoring
 
-The rubric is in `references/rubric.md`. Load it, apply it per element, and print the
-table in the report so the author can argue with the scoring rather than with a number.
+The rubric is in `references/rubric.md`. Load it, apply it per element, and print it in
+the report so the author can argue with the scoring rather than with a number.
+
+**The rubric is more than its scored table.** It also carries three rows a reader answers
+and a scored table cannot reach, and one course-level invariant no structural check can
+reach. Those are not optional reading and they are not footnotes: section 6 of the report
+is where each of them is answered in writing.
 
 Work lesson by lesson, and within a lesson, element by element: each task, each step, each
 completion condition. Give every element its own score, its `file:line` and the sentence
 it scored. A lesson's figure is the visible sum of its own elements.
 
-The two course-level gap penalties — an unserved objective or anchor, and a `required_for`
-gate on an optional lesson — are counted once per course and shown separately. They are
-not folded into any lesson's figure.
+The course-level penalties are counted and shown separately, never folded into a lesson's
+figure. **An unserved objective or anchor costs −3 each**, not −3 for the fact of having
+gaps: a course owing twelve topics is not the same course as one owing one, and a rubric
+for comparing courses must not score them alike. A `required_for` gate on an optional
+lesson costs −3 per gate.
 
 **Never report the total alone.** A report that prints the number without the inventory
 underneath it is defective; the rubric explains why at length.
 
 ## The report
 
-Five sections, in this order.
+Six sections, in this order. The first five are the ones the design spec names. The sixth
+exists because the two obligations that only a reader can discharge belong to none of the
+other five, and an obligation with no home in the template is an obligation nobody
+performs.
 
 **1. The course and its total.** Bundle id, title, lesson count, optional lesson count,
 and the total with its arithmetic visible: the sum of the lessons, then each course-level
@@ -115,8 +139,9 @@ found. Below the table, the element breakdown for any lesson whose figure is not
 from its row — and for every lesson scoring at or below zero, without exception.
 
 **3. Goal gaps.** Every stated learning objective and every `DESIGN.md` anchor that no
-lesson exercises. State how you decided each one, because `topic_candidates` does not
-decide it. Count the penalty once per course.
+lesson exercises, listed one per line with its −3. State how you decided each one, because
+`topic_candidates` does not decide it. The penalty is per gap, so this list and the
+arithmetic in section 1 must agree: *n* gaps listed, −3*n* subtracted.
 
 **4. The toil inventory.** Every confirmed site with its `file:line` and **the exact
 sentence**, quoted. Separately and briefly: which script candidates you examined and
@@ -124,6 +149,34 @@ rejected, so the next reader does not re-litigate them. Then state plainly that 
 scanner is a candidate generator and that this inventory came from the lessons.
 
 **5. Proposals.** See below.
+
+**6. The questions only a reader can answer.** Every one of them answered in writing.
+Silence is not an answer here, and neither is "nothing found" with nothing underneath it.
+None of these is scored; all of them change what the author does next.
+
+- **Each of the rubric's three reader-answered rows**, answered explicitly, with a
+  `file:line` for every instance found and an explicit "none found" where none was:
+  - a `design_refs` entry that does not answer the question its lesson raises;
+  - a lesson that introduces a type or concept nothing later uses;
+  - a lesson far outside the course's usual size, in either direction.
+- **The completability invariant, asked out loud**, for any course that declares
+  `optional_lessons`:
+
+  > Can a learner who declines every offer still finish this course?
+
+  Answer it from the main-path lessons: does any main-path completion condition depend on
+  something only an optional lesson builds or explains, and does any main-path lesson's
+  prose assume the learner took an offer? `bundle-format.md` section 13 states this as an
+  authoring obligation precisely because **no mechanical check can reach it** — a
+  validator walking the main path sees nothing wrong, and a runner too old to know about
+  `optional_lessons` never makes the offer at all. A rubric a person reads is the only
+  place it is ever asked.
+
+  For a course with no optional lessons, "not applicable — no optional lessons declared"
+  is a complete and acceptable written answer. Leaving the question out is not.
+
+A proposal in section 5 may answer one of these, in which case say so and cite it. What is
+not allowed is a report with five tidy sections that never asked.
 
 Where a dry-run harness has walked the course and reports a stalled lesson, cite the stall
 as evidence and label it as evidence. It cannot distinguish an unsatisfiable completion
@@ -137,8 +190,13 @@ is not a proposal.
 **A toil span** becomes the command that declares the files plus the prose to delete:
 
 ```
-python3 scripts/supplies.py add <bundle> --from <path> --to <path> --describe <text> [--lesson <lesson-id>] --check
+python3 scripts/supplies.py add <bundle> --from <bundle-relative-path> --to <workspace-relative-path> --describe <text> [--lesson <lesson-id>] --check
 ```
+
+The two paths have **different roots**. `--from` is relative to the bundle root — where the
+files live in the course. `--to` is relative to the learner's workspace root, and `.` is
+that root itself. Quoting a workspace path as `--from` is the easiest way to get this
+wrong.
 
 `supplies.py` belongs to the `tutorail-authoring` toolkit, not to this skill, so that
 path is relative to **that** skill's directory and running it is that skill's job. Quote

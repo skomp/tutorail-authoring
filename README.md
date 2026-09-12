@@ -48,7 +48,11 @@ its validator rather than shipping a second, weaker copy. Install that first:
 git clone git@github.com:skomp/tutorail-authoring.git ~/src/tutorail-authoring
 mkdir -p ~/.agents/skills
 ln -s ~/src/tutorail-authoring/skills/tutorail-authoring ~/.agents/skills/tutorail-authoring
+ln -s ~/src/tutorail-authoring/skills/course-quality ~/.agents/skills/course-quality
 ```
+
+Both symlinks. This plugin ships two skills, and this install path never reads a manifest,
+so a missing symlink is a missing skill with nothing to warn you.
 
 Not `codex plugin add` — see the runner's README for why that path does not work yet.
 

@@ -24,12 +24,18 @@ Two failure modes this rubric is shaped against:
 | **practice** | +1 | applies something already taught; no new decision, but the repetition is the point |
 | **evidence** | 0 | run a validator, read output, report what happened |
 | **toil** | −2 | deterministic and unambiguous; no decision; a mistake teaches nothing |
-| **unserved objective** | −3 | a stated objective or `DESIGN.md` anchor that no task exercises — counted once per course, not per lesson |
+| **unserved objective** | −3 **each** | a stated objective or `DESIGN.md` anchor that no task exercises. Course-level rather than per-lesson, but counted once PER UNSERVED OBJECTIVE — a course owing twelve topics is not the same course as one owing a single topic, and a rubric whose purpose is comparability must not score them alike |
 | **`required_for` on an optional lesson** | −3 | the author declared something load-bearing and then made it skippable. Scored **and** raised — see below (course-level) |
 
 A lesson's score is the sum of its own elements. The course score is the sum of the
-lessons minus the two course-level gap penalties. The gap penalties are counted
+lessons minus the course-level gap penalties — **one penalty per unserved objective or
+anchor**, plus one per `required_for` gate on an optional lesson. They are counted
 separately and shown separately; they are never folded into a lesson's figure.
+
+Scoring the *fact* of having gaps once, rather than each gap, would make a course owing
+twelve topics score identically to one owing a single topic. That fights the whole purpose
+of the rubric, and it fights the decomposition rule below: twelve gaps folded into one −3
+is exactly the hidden aggregate that rule exists to forbid.
 
 ## The decomposition is mandatory, not a nicety
 

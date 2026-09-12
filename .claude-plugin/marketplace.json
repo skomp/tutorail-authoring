@@ -9,7 +9,7 @@
       "name": "tutorail-authoring",
       "source": "./",
       "version": "0.2.0",
-      "description": "Interviews you about a course, then builds or changes a tutorAIl bundle correctly.",
+      "description": "Two skills: tutorail-authoring interviews you about a course, then builds or changes a tutorAIl bundle correctly; course-quality audits one for what it teaches and where its toil is.",
       "author": {
         "name": "skomp",
         "url": "https://github.com/skomp"
