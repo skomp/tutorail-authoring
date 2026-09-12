@@ -69,6 +69,9 @@ __all__ = [
     "rewrite_tokens",
     "LOOKALIKE_RE",
     "set_frontmatter_field",
+    "emit_scalar",
+    "render_supplies_item",
+    "add_supplies",
     "strip_frontmatter_fields",
     "reconcile_state_template",
     "find_runner_root",
@@ -845,6 +848,236 @@ def set_frontmatter_field(text: str, key: str, value: str) -> tuple[str, bool]:
     else:
         new_block = block + f"\n{key}: {value}"
     return text[:start] + new_block + text[end:], True
+
+
+# --------------------------------------------------------------------------
+# Supplies entries
+#
+# A `supplies:` block is a block sequence of mappings, each with `from`,
+# `to` and `describe`. It can live at the top of tutorial.yaml (materialized
+# once, at bundle setup) or in a lesson's frontmatter (materialized when that
+# lesson opens). Both are plain text this project owns, so both are edited
+# by the same surgical append rather than by re-emitting the document from a
+# parse tree - exactly the reasoning behind replace_lessons_list above.
+#
+# emit_scalar does NOT guess which characters are safe to leave unquoted. An
+# earlier version of this design proposed a character-class regex
+# (`[A-Za-z0-9][A-Za-z0-9 ._/-]*`), reasoning that anything outside it needed
+# quoting. Measured against this project's own loader, that regex was wrong
+# in a way none of its own examples would have caught: "123", "true",
+# "TRUE", "null", "Null", "0" and "3.14" all satisfy it, and all of them
+# round-trip through yamlite as an int, a bool or None instead of the string
+# they started as - the quiet corruption this function exists to prevent.
+# So emit_scalar asks the loader directly: it renders the value unquoted,
+# parses that rendering back through THIS PROJECT'S OWN `load_yaml`, and
+# keeps the unquoted form only if the parsed value is the identical string.
+# Anything else - a mismatch or a parse error - is quoted instead. This
+# tracks whichever backend `load_yaml` is actually using (the restricted
+# reader here, PyYAML if it is ever installed) rather than encoding one
+# YAML dialect's rules by hand.
+# --------------------------------------------------------------------------
+
+
+def emit_scalar(value: str) -> str:
+    """A single-line YAML scalar that yamlite reads back as `value`.
+
+    The plain (unquoted) form is tried first, and kept only if parsing it
+    back through `load_yaml` returns the exact string `value` again. Any
+    other outcome - a different value, a different type (int/float/bool/
+    None), or a parse error - falls back to a double-quoted scalar, with
+    backslashes, double quotes and the whitespace that would otherwise break
+    single-line-ness (`\\n`, `\\r`, `\\t`) escaped. Every other character is
+    copied through unescaped; yamlite's quoted-scalar reader only treats a
+    backslash and the closing quote specially, so nothing else needs it.
+    """
+    probe = f"value: {value}\n"
+    try:
+        parsed = load_yaml(probe, "emit_scalar probe")
+    except YamlError:
+        parsed = None
+    if (
+        isinstance(parsed, dict)
+        and isinstance(parsed.get("value"), str)
+        and parsed["value"] == value
+    ):
+        return value
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+    )
+    return '"' + escaped + '"'
+
+
+_SUPPLIES_ITEM_KEYS = ("from", "to", "describe")
+
+
+def render_supplies_item(entry: dict) -> list[str]:
+    """The block-sequence item lines for one supplies entry.
+
+    Two-space indented, keys in the fixed order `from`, `to`, `describe` -
+    the order the design and B2 both rely on. Raises ToolError if `entry` is
+    missing one of the three keys, or if a value is not a string, rather
+    than writing a manifest that reads back with the wrong shape.
+    """
+    missing = [key for key in _SUPPLIES_ITEM_KEYS if key not in entry]
+    if missing:
+        raise ToolError(
+            f"a supplies entry is missing {', '.join(missing)}; every entry "
+            f"needs from, to and describe"
+        )
+    lines: list[str] = []
+    for index, key in enumerate(_SUPPLIES_ITEM_KEYS):
+        value = entry[key]
+        if not isinstance(value, str):
+            raise ToolError(
+                f"a supplies entry's {key!r} must be a string, got "
+                f"{type(value).__name__}"
+            )
+        prefix = "  - " if index == 0 else "    "
+        lines.append(f"{prefix}{key}: {emit_scalar(value)}")
+    return lines
+
+
+_SUPPLIES_KEY_RE = re.compile(r"^(?P<indent>[ \t]*)supplies[ \t]*:(?P<rest>.*)$")
+
+
+def _indent_of(line: str) -> int:
+    return len(line) - len(line.lstrip(" \t"))
+
+
+def _supplies_block_end(lines: list[str], key_index: int) -> int:
+    """Index of the first line, after the `supplies:` key, that is no longer
+    part of its value.
+
+    A line belongs to the block if it is blank, a comment, or indented
+    (indent > 0) - the ordinary rule for what a YAML block-level key owns.
+    The block ends at the first line back at indent 0 with content, or at
+    the end of the text. This is deliberately not a sequence-item counter
+    like replace_lessons_list's: a supplies entry is a multi-line mapping,
+    not a one-line scalar, so "the next item" cannot be found by counting
+    `- ` lines alone.
+    """
+    end = key_index + 1
+    while end < len(lines):
+        line = lines[end]
+        if line.strip() == "" or line.lstrip().startswith("#"):
+            lookahead = end + 1
+            while lookahead < len(lines) and (
+                lines[lookahead].strip() == "" or lines[lookahead].lstrip().startswith("#")
+            ):
+                lookahead += 1
+            if lookahead < len(lines) and _indent_of(lines[lookahead]) > 0:
+                end = lookahead
+                continue
+            break
+        if _indent_of(line) == 0:
+            break
+        end += 1
+    return end
+
+
+def add_supplies(text: str, entry: dict, *, frontmatter: bool) -> str:
+    """Append `entry` to `text`'s `supplies:` block, creating it when absent.
+
+    `frontmatter=True` edits the frontmatter span (`frontmatter_span`);
+    `frontmatter=False` edits the whole of `text`, which is how this is used
+    against tutorial.yaml. When no `supplies:` key exists yet, the new block
+    is appended at the very end of whichever span is being edited - key order
+    does not matter to the loader, and a predictable position is worth more
+    than a clever one. When the key already exists in block form, the entry
+    is appended after its last existing item. A `supplies:` key already
+    carrying an inline value (`supplies: []` and similar) is refused with
+    ManifestEditError rather than guessed at, the same choice
+    replace_lessons_list makes for a non-empty inline `lessons:`.
+
+    Ends by parsing its own output back through `load_yaml` and comparing the
+    appended entry to `entry`. Raises ToolError when they differ - the only
+    honest proof that this function and the loader agree about what the
+    written bytes mean.
+    """
+    if frontmatter:
+        span = frontmatter_span(text)
+        if span is None:
+            raise ToolError(
+                "add_supplies: frontmatter=True but the text has no "
+                "frontmatter block to edit"
+            )
+        start, end = span
+    else:
+        start, end = 0, len(text)
+
+    block = text[start:end]
+    lines = block.split("\n")
+
+    key_index = None
+    for index, line in enumerate(lines):
+        match = _SUPPLIES_KEY_RE.match(line)
+        if match and match.group("indent") == "":
+            key_index = index
+            rest = _strip_trailing_comment(match.group("rest")).strip()
+            if rest:
+                raise ManifestEditError(
+                    f"the supplies: key already carries an inline value "
+                    f"({rest[:40]!r}). This toolkit only appends to the "
+                    f"block form:\n"
+                    f"    supplies:\n"
+                    f"      - from: ...\n"
+                    f"        to: ...\n"
+                    f"        describe: ...\n"
+                    f"Rewrite it in block form and run the command again."
+                )
+            break
+
+    rendered = render_supplies_item(entry)
+
+    if key_index is None:
+        # No supplies: key yet - append a fresh block at the end of the span.
+        if lines and lines[-1] == "":
+            insert_at = len(lines) - 1
+        else:
+            insert_at = len(lines)
+        new_lines = lines[:insert_at] + ["supplies:"] + rendered + lines[insert_at:]
+    else:
+        block_end = _supplies_block_end(lines, key_index)
+        new_lines = lines[:block_end] + rendered + lines[block_end:]
+
+    new_text = text[:start] + "\n".join(new_lines) + text[end:]
+
+    if frontmatter:
+        source, _ = split_frontmatter(new_text)
+        if source is None:
+            raise ToolError(
+                "add_supplies produced text whose frontmatter no longer "
+                "parses as frontmatter at all; nothing was written to disk, "
+                "but this call's output is not usable"
+            )
+        where = "frontmatter (post-edit)"
+    else:
+        source = new_text
+        where = "tutorial.yaml (post-edit)"
+    try:
+        parsed = load_yaml(source, where)
+    except YamlError as exc:
+        raise ToolError(
+            f"add_supplies produced text that does not parse: {exc}. This is "
+            f"a bug in add_supplies itself, not in the caller's entry."
+        ) from exc
+    supplies = parsed.get("supplies") if isinstance(parsed, dict) else None
+    if not isinstance(supplies, list) or not supplies:
+        raise ToolError(
+            f"add_supplies wrote a block that does not read back as a "
+            f"non-empty supplies: list (got {supplies!r})"
+        )
+    if supplies[-1] != entry:
+        raise ToolError(
+            f"add_supplies wrote an entry that reads back differently from "
+            f"what was given.\n  given:     {entry!r}\n  read back: "
+            f"{supplies[-1]!r}"
+        )
+    return new_text
 
 
 def reconcile_state_template(root: Path, first_lesson: str) -> list[str]:
