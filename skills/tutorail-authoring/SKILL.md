@@ -28,6 +28,18 @@ stops matching its slug and how a `lessons` list loses an entry. Both have alrea
 happened in this project. The toolkit exists because judgement is not the failing part;
 bookkeeping is.
 
+**Toil is declared, not taught.** Before any step becomes a task in a lesson, apply the
+test: *what can the learner get wrong here, and does getting it wrong teach anything? If
+nothing, it is not a task — it is `supplies:`.* Copying files, installing dependencies,
+downloading assets, unzipping an archive and pasting supplied code verbatim all fail that
+test, every time, in every course. A bundle declares such files in its `supplies:` key and
+the runner places them; a lesson never assigns them. The scar: a generated course opened
+its very first lesson by having the learner copy five files out of `starter/` into the
+root of the workspace, preserving `src/`. The author was not careless — the format had no
+way to hand a file over, and the manifest forbade the tutor to place it, so a task was the
+only channel left. The learner learned nothing from the five copies. `supplies:` is that
+missing channel, and it is the only place this kind of work belongs.
+
 ## This plugin depends on the tutorAIl runner
 
 `validate_bundle.py` lives in the **tutorAIl runner plugin** and is not duplicated here.
@@ -99,6 +111,8 @@ corrupted.
 | `python3 scripts/index.py <bundle>` | the compact map of a course: id, title, form, `design_refs`, `validators`, purpose |
 | `python3 scripts/lesson.py add <bundle> --id <slug> --title <text> [--after <lesson-path> \| --position <n>] [--folder]` | a new lesson, in the right position, with `id` equal to its slug |
 | `python3 scripts/lesson.py renumber <bundle> [--check] [--force]` | consistent numbering after inserting or moving lessons |
+| `python3 scripts/supplies.py list <bundle>` | what the bundle already hands the learner, in which scope, and when each entry is placed |
+| `python3 scripts/supplies.py add <bundle> --from <path> --to <path> --describe <text> [--lesson <lesson-id>] [--check] [--force]` | declaring a file the bundle hands over, instead of a lesson step that tells the learner to copy it |
 | `python3 scripts/promote.py <instance> <generated-lesson-path> <bundle> [--check] [--force]` | a generated lesson becoming a course lesson |
 | `python3 scripts/catalog.py <bundles-repo> [-o <path>]` | `catalog.yaml` for a bundles repository |
 
@@ -126,6 +140,7 @@ You write judgement. The toolkit writes bookkeeping.
 | `COURSE.md`, `DESIGN.md`, lesson bodies and frontmatter prose | lesson filenames and numbering |
 | the skeleton of a new bundle: `tutorial.yaml`, `COURSE.md`, `DESIGN.md`, `STATE.template.md`, an empty `lessons/` | every `id`, and every prose cross-reference a rename invalidates |
 | the validator definitions and ownership globs in a new manifest | `catalog.yaml` |
+| which files the course hands over, and the one line that describes each | every `supplies:` entry, in the manifest or in a lesson's frontmatter |
 
 A freshly created skeleton has no lessons and is **not yet a valid bundle** — the format
 requires at least one. That is expected, and it is a state you must not leave: add the
@@ -137,6 +152,11 @@ Before delivering anything, work through the self-check in the runner's
 `references/bundle-format.md` section 10, by looking rather than by remembering, and run
 the validator. Green means structurally well-formed. It says nothing about whether the
 course teaches.
+
+For that second question, run the course audit before delivering: the `course-quality`
+skill scores every lesson on what a learner gets wrong in it, and lists the steps that
+look like toil. A green validator on a course whose first lesson is five file copies is
+exactly what this project has already shipped once.
 
 ## Reference files, and when to load each
 

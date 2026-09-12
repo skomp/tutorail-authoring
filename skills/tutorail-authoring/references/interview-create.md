@@ -58,7 +58,7 @@ Each phase ends in something concrete, and every concrete thing feeds named bund
 |---|---|---|
 | 1. Subject and learner | one sentence on what the learner builds, one on what they already know | `title`, `description`, `subjects`, `level`, prerequisites |
 | 2. The arc | the end state, the first task, and the ordered steps between | the `COURSE.md` chapter map, the `lessons` order |
-| 3. Teaching stance | who writes the code, whether software gets built, how work is checked | `workspace_kind`, `ownership_policy`, `validators`, `solution_code` |
+| 3. Teaching stance | who writes the code, whether software gets built, how work is checked, what the course hands over | `workspace_kind`, `ownership_policy`, `validators`, `solution_code`, `supplies` |
 | 4. Durable decisions | the decisions later lessons depend on, and the ones left open | `DESIGN.md` and its anchors |
 | 5. Coverage | topics the course owes a learner even if the project never forces them | the `COURSE.md` coverage list |
 
@@ -93,9 +93,26 @@ You end with an ordered list of lessons, each with a one-line purpose and a one-
 completion condition. That list is the spine of the spec, and the thing the self-check in
 section 4 is run against.
 
+**A step that is only setup is not a lesson.** Test every entry the author proposes: what
+can the learner get wrong here, and does getting it wrong teach anything? A "project
+setup" lesson whose whole content is a scaffold arriving on disk fails that test — nothing
+in it can be got wrong in an instructive way. Say so, in as many words, and fold it into
+`supplies:` rather than accepting it into the arc:
+
+> "Lesson 00 there is a handover, not a lesson — the learner cannot get any of it wrong in
+> a way that teaches them something. I will declare those files as supplies, so they are
+> in place before lesson 01, and the course starts where the teaching starts. Is anything
+> in that setup worth a learner's attention on its own?"
+
+Sometimes the answer is yes and a real lesson survives — a learner who must understand the
+build configuration because lesson 09 changes it is being taught, not set up. Then the
+lesson keeps the part that can be got wrong, and the files still arrive through
+`supplies:`. First lessons attract this defect more than any other position, so the arc's
+first entry is worth the extra minute.
+
 ### Phase 3 — teaching stance
 
-Three questions at most, and two of them usually answer themselves.
+Four questions at most, and two of them usually answer themselves.
 
 - **Does the course build software?** `existing-or-new-repository`, `new-repository`, or
   `none`. If nothing is built, `workspace_kind: none` and `learner_owned` is empty.
@@ -107,6 +124,24 @@ Three questions at most, and two of them usually answer themselves.
 - **May the tutor ever write the learner's code?** The default,
   `tutor-must-not-edit-learner-owned` with `solution_code: on-request-only`, is right for
   nearly every course. Propose it as a default and only explore if the author hesitates.
+- **What must the learner's workspace already contain before lesson 1, and what does each
+  later lesson hand over?** A scaffolded project, a config file the course never teaches, a
+  sample asset, a fixture dataset. Ask it plainly, because an author who is not asked
+  writes the handover into lesson 1 as a task. Every answer belongs in the spec's *Supplied
+  files* section, and none of them is a lesson.
+
+**What `supplies:` is, exactly**, because the narrowness is the whole point. An entry names
+a path inside the bundle, a path in the learner's workspace, and one line describing what
+the file is for. An entry in `tutorial.yaml` is placed once, right after materialization;
+an entry in a lesson's frontmatter is placed when that lesson opens, which is what you want
+for an asset a learner should not meet early. The runner places the files, never overwrites
+one that is already there, names anything it left alone, and reports the lot as setup
+rather than as work the learner did. Under `tutor-must-not-edit-learner-owned` the tutor may
+**create** a declared target that does not exist, and may **never modify** one that does; a
+path nobody declared gets no exemption at all. That is what lets the default ownership
+policy stay on. A course that answers one bootstrap by setting `ownership_policy:
+unrestricted` has traded the guarantee that the tutor will not write the learner's code for
+a handful of file copies, and that is the trade `supplies:` exists to avoid.
 
 ### Phase 4 — durable decisions
 
@@ -179,6 +214,13 @@ course would find hours later.
 - [ ] **No lesson introduces a type or concept that nothing later uses.** Either something
       later needs it, or the lesson is teaching for its own sake and should go.
 - [ ] **Every validator a lesson names is in the proposed `validators` map.**
+- [ ] **Every lesson contains something the learner can get wrong instructively**, and the
+      spec says what it is. A lesson that fails this is toil: it moves to *Supplied files*
+      and leaves the arc. No lesson asks the learner to copy, download, unzip, install or
+      paste anything.
+- [ ] **Every file the course hands the learner is in *Supplied files***, with its
+      destination and the line that describes it. A course that supplies nothing says so
+      explicitly; an absent section and a deliberate "none" are different claims.
 - [ ] **No placeholder survives.** No "TBD", no lesson whose purpose line is its title.
 - [ ] **Nothing in the spec describes a learner's progress.** You are designing a course,
       and the course has no learner in it yet.
@@ -217,15 +259,23 @@ Order matters, because the format's invariants are easier to keep than to repair
    `python3 scripts/lesson.py add <bundle> --id <slug> --title <text> --position <n>`, with
    `--folder` for a lesson that ships material. This is what keeps `id` equal to the slug
    and the `lessons` list complete. Never create a lesson file yourself.
-3. **Fill each lesson body** — purpose, prerequisites, objectives, theory, concepts,
+3. **Put the supplied files in the bundle and declare every one of them.** The files the
+   course hands over go inside the bundle first — by convention `supplies/` at the bundle
+   root for a manifest-scope entry, and the lesson's own folder for a lesson-scope one,
+   which is also where the format's material checks expect them. Then declare each with
+   `python3 scripts/supplies.py add <bundle> --from <path> --to <path> --describe <text>`,
+   adding `--lesson <lesson-id>` when the files arrive with a lesson rather than at the
+   start. Do this before you fill any lesson body, because a body written while the
+   handover is still undeclared is a body that assigns it.
+4. **Fill each lesson body** — purpose, prerequisites, objectives, theory, concepts,
    constraints, suggested progression, completion conditions, what to persist. Give it
    objectives, never dialogue; the tutor generates the conversation.
-4. **Set `design_refs` and `validators`** in each lesson's frontmatter from the spec.
-5. **Confirm the two links by hand**: `STATE.template.md`'s `tutorial_id` equals
+5. **Set `design_refs` and `validators`** in each lesson's frontmatter from the spec.
+6. **Confirm the two links by hand**: `STATE.template.md`'s `tutorial_id` equals
    `tutorial.yaml`'s `id`, and its `active_lesson` equals the first entry of `lessons`.
-6. **Validate**, and work through the runner's `bundle-format.md` section 10 self-check by
+7. **Validate**, and work through the runner's `bundle-format.md` section 10 self-check by
    looking at the files.
-7. **Rebuild the catalogue**: `python3 scripts/catalog.py <bundles-repo>`, because a new
+8. **Rebuild the catalogue**: `python3 scripts/catalog.py <bundles-repo>`, because a new
    bundle that no catalogue lists is a bundle no learner can find.
 
 A skeleton with no lessons is not a valid bundle — the format requires at least one. Do

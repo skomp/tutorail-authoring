@@ -70,6 +70,35 @@ Two follow-ups earn their place:
   for is different from one that quietly widens its audience — which is a scale change,
   not a fix.
 
+### One symptom with a known repair: "the tutor made me copy files"
+
+Authors and learners report this as a tone problem, a lesson-01 problem, or a tutor
+problem. It is none of those. It means a lesson assigns toil: prose telling the learner to
+copy, download, unzip, install or paste something that the course could simply hand over.
+The repair is mechanical, and it is the same every time.
+
+1. Open the lesson the learner names and find the prose. It is usually in *Constraints* or
+   *Suggested progression*, and it usually names a `starter/` directory.
+2. Put the files inside the bundle if they are not there already — `supplies/` at the
+   bundle root, or the lesson's own folder when they arrive with one lesson — and declare
+   them:
+   `python3 scripts/supplies.py add <bundle> --from <path> --to <path> --describe <text>`,
+   with `--lesson <lesson-id>` when they should arrive with that lesson rather than at the
+   start. Show the `--check` run first.
+3. Remove the prose from the lesson. The step is gone, not softened: the runner places the
+   files and reports them as setup, so a lesson that still describes the copying is now
+   describing work nobody does.
+4. Ask what the lesson is left teaching. A lesson whose only content was the handover is
+   not a shorter lesson now; it is not a lesson, and retiring it is the repair.
+
+**Two repairs that look right and are not.** Rewriting the instruction more kindly leaves
+the learner doing the same uninstructive work. Relaxing `ownership_policy` to
+`unrestricted` so the tutor may place the files itself is worse: a regenerated course did
+exactly that across all eighteen of its lessons, trading the guarantee that the tutor will
+never write the learner's code for one bootstrap. `supplies:` exists so that trade is never
+needed — it lets the tutor **create** a declared target that does not exist, and nothing
+else.
+
 ---
 
 ## 3. Classify the change, and say so out loud
@@ -85,6 +114,14 @@ Same ratchet as the create interview, one-way, heavier when in doubt.
 A change that turns out to be structural mid-way upgrades. Say so and go back to the spec;
 do not finish it as a local change because you have started.
 
+**Every lesson you add, split or rewrite gets the toil test before it gets written:** *what
+can the learner get wrong here, and does getting it wrong teach anything? If nothing, it is
+not a task — it is `supplies:`.* A modify is where toil enters a course that did not have
+any, because a change arrives as a fix for one learner's confusion and the quickest fix is
+to hand the learner a step to perform. State the instructive failure of every lesson you
+touch, in the spec, in one line. A lesson you cannot write that line for is toil, and the
+handover it needs goes through `supplies.py add`.
+
 ---
 
 ## 4. The knock-on tables
@@ -97,10 +134,10 @@ applying anything.
 
 | Change | Ask the index | Raise with the author |
 |---|---|---|
-| **Add a lesson** | what is at that position now; which validators exist; which anchors exist | Does any later lesson's prerequisites now sit after it? Does it need a new anchor, or does it cite one that exists? Does the new topic belong in the coverage list? |
+| **Add a lesson** | what is at that position now; which validators exist; which anchors exist | Does any later lesson's prerequisites now sit after it? Does it need a new anchor, or does it cite one that exists? Does the new topic belong in the coverage list? Does it hand the learner any file — if so, that is a `supplies:` entry, never its first task. |
 | **Reorder or move a lesson** | the current order; the `design_refs` of everything between old and new position | Does the moved lesson's completion now depend on something that comes after it? Do the lessons it passes still have their prerequisites met? |
 | **Split a lesson** | its `design_refs` and `validators` | Which half keeps which anchors, and which keeps the prose prerequisites other lessons name? A split changes one id into two, so every lesson naming the old id in prose needs a decision. |
-| **Retire a lesson** | which anchors and validators only it used; where it sits | Which later lessons name it as a prerequisite in prose? Which anchors are now cited by nothing — remove them, or leave them as context? Does the coverage list still hold? |
+| **Retire a lesson** | which anchors and validators only it used; where it sits | Which later lessons name it as a prerequisite in prose? Which anchors are now cited by nothing — remove them, or leave them as context? Does the coverage list still hold? Did it declare `supplies:` that later lessons need — those entries move to the manifest scope or to the lesson that needs them, or the files stop arriving. |
 | **Renumber** | nothing; `renumber --check` reports it all | Show the `--check` output. It names every prose reference it would rewrite **and everything that looked like a reference and will be left alone** — that second list is where a break will be. |
 
 ### Design and validators
@@ -191,7 +228,9 @@ detour rather than to add one after it.
 - **Update the course spec.** `specs/<bundle-id>.md` is the reviewable record of the
   course's design. A local change adds a line to it; a structural change revised it before
   any file moved. A spec that no longer describes the bundle is worse than no spec, because
-  the next author believes it.
+  the next author believes it. A change that added, moved or removed a supplied file
+  updates the spec's *Supplied files* section in the same sitting; `python3
+  scripts/supplies.py list <bundle>` prints what the bundle now declares.
 - **Update `COURSE.md`** when the chapter map or coverage list moved.
 - **Validate**, and work the runner's `bundle-format.md` section 10 self-check by looking.
 - **Rebuild the catalogue** with `python3 scripts/catalog.py <bundles-repo>` if a bundle

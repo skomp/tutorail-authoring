@@ -57,17 +57,44 @@ they cannot do now. The end state in one sentence, in the learner's terms.
 | position | its place in the order |
 | slug | the lesson `id`, which is also its filename stem |
 | purpose | one line: what pressure this lesson answers |
+| objective | the learning objective it serves, named as the coverage list names topics |
+| instructive failure | one line: what the learner can get wrong here, and what getting it wrong teaches them |
 | completion | one line: the checkable condition for leaving it |
 | `design_refs` | the `DESIGN.md` anchors it needs, by name |
 | validators | by name |
 
-A table is enough and reads better than prose. The completion and `design_refs` columns
-are not decoration: the self-check in section 4 is run against them, and an arc without
-them cannot be checked at all.
+A table is enough and reads better than prose. If eight columns stop being readable, give
+each lesson a short block instead; the fields are required, the table is not.
+
+The completion and `design_refs` columns are not decoration: the self-check in section 4 is
+run against them, and an arc without them cannot be checked at all. Neither is the
+instructive-failure column. **A row you cannot fill that column in for is not a lesson.** It is
+either toil, which belongs in *Supplied files* and not in the arc at all, or a lesson with
+no reason to exist. Writing "the learner copies the starter files into place" in that
+column is the defect announcing itself; the correct response is to move the files to
+*Supplied files* and delete the row.
 
 **Teaching stance.** `workspace_kind`, `ownership_policy`, `solution_code`, `advance_on`,
 `one_task_at_a_time`, and the validator definitions — the actual map, not a description of
 it, because this is what the manifest is generated from.
+
+**Supplied files.** Every file the bundle hands the learner, one row each:
+
+| Column | Content |
+|---|---|
+| from | the path inside the bundle that holds the file, or the directory, with a trailing `/` |
+| to | where it lands in the learner's workspace, relative to the workspace root |
+| describe | the one line a learner is shown when it is placed — what the file is for, not what it is |
+| scope | `tutorial.yaml`, placed right after materialization, or a lesson `id`, placed when that lesson opens |
+
+This section is what stops a handover becoming a first task. It is also the section an
+author forgets, so ask for it in the interview rather than waiting for it. A course that
+supplies nothing writes **none** here: an absent section says the author never considered
+the question, and a deliberate "none" says they did.
+
+Each row becomes one `supplies:` entry after approval, declared with `supplies.py add` and
+never typed into `tutorial.yaml` by hand. Keep the rows honest about scope: files that a
+learner should not meet until lesson 09 belong to lesson 09, not to the manifest.
 
 **Durable decisions.** One entry per `DESIGN.md` section: the anchor name, what the
 decision is, and what would break if a later lesson contradicted it. Mark the deliberately
@@ -120,8 +147,8 @@ chapter separately, differently.
 Who this is for, what they already know, what they can do at the end.
 
 ## The arc
-| # | slug | purpose | completion | design_refs | validators |
-|---|---|---|---|---|---|
+| # | slug | purpose | objective | instructive failure | completion | design_refs | validators |
+|---|---|---|---|---|---|---|---|
 
 ## Chapters and milestones
 (standard and long courses)
@@ -129,6 +156,11 @@ Who this is for, what they already know, what they can do at the end.
 ## Teaching stance
 workspace_kind, ownership_policy, solution_code, advance_on, one_task_at_a_time,
 and the validators map as it will appear in tutorial.yaml.
+
+## Supplied files
+| from | to | describe | scope |
+|---|---|---|---|
+(or the single word `none`)
 
 ## Durable decisions
 ### <anchor-name>
@@ -164,6 +196,11 @@ hours later. It is a first filter, not a proof — say so when you present.
       decisions*.
 - [ ] Every validator named in the arc is defined in *Teaching stance*.
 - [ ] No lesson introduces a type or concept that nothing later uses.
+- [ ] Every arc row names an instructive failure, and none of them is a file being put in
+      place. A row without one is toil: move the files to *Supplied files* and drop the row.
+- [ ] Every file the course hands the learner appears in *Supplied files*, with a scope and
+      a describe line, and no arc row tells the learner to copy, download, unzip, install or
+      paste one. A course that supplies nothing says `none`, in the section, on purpose.
 - [ ] Every slug is unique, lowercase, and in the form a filename can take.
 - [ ] The coverage list names topics, not lessons, and says what is out of scope.
 - [ ] No placeholder survives: no "TBD", no purpose line that restates the title.
