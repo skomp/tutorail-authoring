@@ -121,7 +121,9 @@ def wrap_description(text: str, indent: str) -> list[str]:
     return lines
 
 
-def entry_lines(manifest: dict, relative: str, lesson_count: int) -> list[str]:
+def entry_lines(
+    manifest: dict, relative: str, lesson_count: int, optional_lesson_count: int
+) -> list[str]:
     out = [f"  - id: {yaml_scalar(manifest['id'])}"]
     out.append(f"    title: {yaml_scalar(manifest.get('title', ''))}")
     out.append("    description: >")
@@ -139,6 +141,16 @@ def entry_lines(manifest: dict, relative: str, lesson_count: int) -> list[str]:
     # scope is always quoted: it is a phrase with a semicolon in it, and the
     # two examples the runner ships quote it.
     out.append('    scope: "{}"'.format(scope_for(lesson_count).replace('"', '\\"')))
+    # optional_lesson_count is ALWAYS written, including 0. Deliberate: if 0
+    # were omitted, an absent field would mean either "no optional lessons"
+    # or "generated before this field existed", and a reader could not tell
+    # which. Always writing it makes an absent field mean exactly the
+    # second thing - a signal a consumer can act on. It is a bare integer,
+    # never quoted, and is NOT the same key as tutorial.yaml's own
+    # `optional_lessons` mapping of lesson path to offer metadata - one name
+    # for two shapes in two files is a collision this project has already
+    # paid for twice.
+    out.append(f"    optional_lesson_count: {optional_lesson_count}")
     out.append(f"    workspace_kind: {yaml_scalar(manifest.get('workspace_kind', ''))}")
     out.append("    source:")
     out.append("      type: local")
@@ -158,6 +170,9 @@ HEADER = """# Catalogue of the bundles in this repository.
 #
 # `scope` has no field in a bundle's tutorial.yaml. It is derived from the
 # length of that bundle's lessons list.
+#
+# `optional_lesson_count` is derived from that bundle's `optional_lessons`
+# mapping (a lesson path to offer metadata) and is written even when it is 0.
 """
 
 
@@ -168,7 +183,7 @@ def build(repo: Path, catalog_path: Path) -> tuple[str, list[str]]:
     seen: dict[str, str] = {}
     for directory in bundles:
         try:
-            manifest, _ = bl.load_manifest(directory)
+            manifest, manifest_text = bl.load_manifest(directory)
         except bl.ToolError as exc:
             notes.append(f"skipped {directory}: {exc}")
             continue
@@ -199,10 +214,17 @@ def build(repo: Path, catalog_path: Path) -> tuple[str, list[str]]:
             )
             continue
         seen[identifier] = str(directory)
-        blocks.append(entry_lines(manifest, relative, len(lessons)))
+        # bundlelib.Bundle.optional is the one place `optional_lessons` is
+        # read, so the same lesson-path set index.py and the toolkit's other
+        # readers use is what gets counted here, rather than a second,
+        # possibly-diverging read of the manifest.
+        bundle = bl.Bundle(directory, manifest, manifest_text, [], lessons, [])
+        optional_count = len(bundle.optional)
+        blocks.append(entry_lines(manifest, relative, len(lessons), optional_count))
         notes.append(
             f"{identifier}: {len(lessons)} lessons -> scope "
-            f"{scope_for(len(lessons))!r}, path {relative!r}"
+            f"{scope_for(len(lessons))!r}, {optional_count} optional lesson(s), "
+            f"path {relative!r}"
         )
 
     body = [HEADER, f"catalog_version: {CATALOG_VERSION}", "tutorials:"]

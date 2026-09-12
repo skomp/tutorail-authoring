@@ -479,6 +479,95 @@ def case_empty_lessons_list_fires() -> None:
         )
 
 
+def case_optional_lesson_count() -> None:
+    """optional_lesson_count: the size of Bundle.optional, ALWAYS written.
+
+    Three bundles, three counts: zero (no `optional_lessons` key at all),
+    one (the real optional-course fixture), and several (a synthetic bundle
+    edited to declare three) - so a hardcoded 1 or a hardcoded 0 could not
+    pass all three.
+    """
+    with Workspace() as ws:
+        repo = ws.path("repo")
+        repo.mkdir()
+        ws_copy(repo, "foldered-bundle")  # zero: no optional_lessons key at all
+        ws_copy(repo, "optional-course")  # one: a real fixture with one entry
+        many = make_bundle(repo, "many-optional", 4)
+        edit(
+            many / "tutorial.yaml",
+            "\nworkspace_kind: none",
+            "\noptional_lessons:\n"
+            "  lessons/extra-a.md:\n"
+            "    offer_at: [lessons/00-a.md]\n"
+            "    offer_because: Fixture entry one.\n"
+            "  lessons/extra-b.md:\n"
+            "    offer_at: [lessons/00-a.md]\n"
+            "    offer_because: Fixture entry two.\n"
+            "  lessons/extra-c.md:\n"
+            "    offer_at: [lessons/00-a.md]\n"
+            "    offer_because: Fixture entry three.\n"
+            "\nworkspace_kind: none",
+        )
+        check(
+            "optional_lessons:" in (many / "tutorial.yaml").read_text(encoding="utf-8"),
+            "the synthetic bundle really declares an optional_lessons block",
+        )
+
+        done = run(CATALOG, repo)
+        check(done.returncode == 0, f"a repo mixing zero/one/several optional lessons exits 0 (got {done.returncode})")
+        check_in("PASS", done.output, "the generated catalogue still validates")
+        check_not_in("FAIL -", done.output, "no finding was reported against the catalogue it wrote")
+
+        text = (repo / "catalog.yaml").read_text(encoding="utf-8")
+        found = entries(text)
+        check(
+            sorted(found) == ["foldered-demo", "many-optional", "optional-course"],
+            f"all three bundles are catalogued (got {sorted(found)})",
+        )
+
+        # The exact KEY NAME, not just a value that happens to match - the
+        # validator accepts any unknown field in an entry (issue #8's own
+        # verification), so a misspelling would validate clean and this is
+        # the one place that would catch it.
+        check(
+            found.get("foldered-demo", {}).get("optional_lesson_count") == "0",
+            f"zero optional lessons emits optional_lesson_count: 0, ALWAYS written, "
+            f"not omitted (got {found.get('foldered-demo', {}).get('optional_lesson_count')!r})",
+        )
+        check(
+            found.get("optional-course", {}).get("optional_lesson_count") == "1",
+            f"one optional lesson emits optional_lesson_count: 1 "
+            f"(got {found.get('optional-demo', {}).get('optional_lesson_count')!r})",
+        )
+        check(
+            found.get("many-optional", {}).get("optional_lesson_count") == "3",
+            f"three optional lessons emit optional_lesson_count: 3 "
+            f"(got {found.get('many-optional', {}).get('optional_lesson_count')!r})",
+        )
+
+        check_in("optional_lesson_count: 0", text, "the literal zero form appears in the written catalogue")
+        check_in("optional_lesson_count: 3", text, "the literal three form appears in the written catalogue")
+        check_not_in(
+            "optional_lessons_count",
+            text,
+            "the near-miss misspelling (plural 'lessons') never appears",
+        )
+        check_not_in(
+            "optional_lesson_counts",
+            text,
+            "the near-miss misspelling (plural 'counts') never appears",
+        )
+
+        # This field is not the same key, and not the same shape, as
+        # tutorial.yaml's own `optional_lessons:` mapping - assert the two
+        # never collide inside one catalogue entry.
+        check_not_in(
+            "    optional_lessons:",
+            text,
+            "the catalogue entry itself carries no top-level optional_lessons mapping",
+        )
+
+
 def case_output_destinations() -> None:
     with Workspace() as ws:
         repo = ws.path("stdout-repo")
@@ -549,6 +638,8 @@ def main() -> int:
         case_instance_is_not_a_bundle_fires()
     with case("FIRING: a bundle whose lessons list is empty"):
         case_empty_lessons_list_fires()
+    with case("optional_lesson_count: zero, one, and several, always written"):
+        case_optional_lesson_count()
     with case("-o - and -o <path>"):
         case_output_destinations()
     return report("catalog.py")
