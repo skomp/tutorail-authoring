@@ -36,7 +36,7 @@ never an answer to anything in this report.
 3. Open the lessons — all of them. This is the part that produces the score.
 4. Load `references/rubric.md` before scoring anything, and print it in the report — the
    scored table **and** the rows it does not score.
-5. Report in the five sections below. Propose. Stop.
+5. Report in the six sections below. Propose. Stop.
 
 Do not change a file at any point in that sequence.
 
