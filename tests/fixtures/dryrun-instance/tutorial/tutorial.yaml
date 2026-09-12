@@ -1,0 +1,35 @@
+bundle_format: 1
+id: dryrun-fixture
+title: A two-lesson instance for the dry-run harness
+description: >
+  A materialized instance, not a bundle: the course sits under tutorial/ and
+  the learner's own files sit beside it. Small enough to drive every turn of
+  the harness against a stub and cheap enough to copy per test case.
+subjects: [testing]
+aliases: [dryrun-fixture]
+level: beginner
+style: [project-driven]
+
+lessons:
+  - lessons/00-first-steps.md
+  - lessons/01-second-steps.md
+
+workspace_kind: existing-or-new-repository
+tutor_owned: [tutorial/STATE.md, tutorial/DESIGN.md]
+learner_owned: [src/**]
+ownership_policy: tutor-must-not-edit-learner-owned
+
+validators:
+  has-answer: { kind: file-exists, path: src/answer.txt }
+  has-second: { kind: file-exists, path: src/second.txt }
+  reads-back: { kind: command, command: [test, -s, src/answer.txt] }
+  by-hand: { kind: manual }
+
+one_task_at_a_time: true
+solution_code: on-request-only
+advance_on: validated-evidence-only
+
+instance:
+  materialized_from: local:../dryrun-fixture
+  materialized_at: 2026-09-12
+  runner_version: 1

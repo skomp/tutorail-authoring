@@ -1,0 +1,16 @@
+#!/bin/sh
+# A tripwire that stands in for the real `claude` on $PATH.
+#
+# It exists so tests/test_dryrun.py can prove a NEGATIVE honestly: "the
+# stubbed run never reached the real binary". A test that only asserted "no
+# tokens were spent" would be measuring nothing, because nothing it can see
+# says whether a process ran. This shim records that it ran, in a file the
+# test names, and the same test runs a POSITIVE control that makes it fire.
+#
+# It prints nothing on stdout on purpose, so a caller that does reach it gets
+# an accounting error rather than a plausible-looking turn.
+if [ -n "$DRYRUN_TRIPWIRE_SENTINEL" ]; then
+  echo "claude was invoked: $*" >> "$DRYRUN_TRIPWIRE_SENTINEL"
+fi
+echo "tripwire: the real claude binary must not be reached by the test suite" >&2
+exit 97

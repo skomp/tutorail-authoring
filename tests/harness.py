@@ -56,6 +56,7 @@ SUPPLIES = SCRIPTS / "supplies.py"
 QUALITY_SCRIPTS = REPO / "skills" / "course-quality" / "scripts"
 
 AUDIT = QUALITY_SCRIPTS / "audit.py"
+DRYRUN = QUALITY_SCRIPTS / "dryrun.py"
 
 sys.path.insert(0, str(SCRIPTS))
 
