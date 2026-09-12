@@ -852,7 +852,7 @@ git commit -m "Forbid authored toil: declare it, do not teach it"
 - Produces, relied on by the skill in B5:
 
 ```
-python3 scripts/audit.py <bundle> [--json]
+python3 skills/course-quality/scripts/audit.py <bundle> [--json]
 ```
 
 Default output is a Markdown skeleton for a reader to fill in. `--json` is the same data as

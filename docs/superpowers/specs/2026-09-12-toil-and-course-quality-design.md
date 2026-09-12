@@ -308,7 +308,8 @@ An unpinned red suite during this work proves nothing about the code under test.
    prose fallback, `SKILL.md`, `README.md`, version bump.
 3. This repository: `scripts/supplies.py` and its tests.
 4. This repository: the anti-toil rules in `SKILL.md` and the three references.
-5. This repository: the `course-quality` skill, `scripts/audit.py`, `references/rubric.md`,
+5. This repository: the `course-quality` skill, its `scripts/audit.py` and
+   `references/rubric.md`,
    tests, and registration in the plugin manifest.
 6. Run the audit against `webgl-typescript-scene` and present the report.
 
