@@ -154,3 +154,54 @@ No course was changed. The author decides what to act on.
 - `durable-event-broker` `COURSE.md` line 77 says the course is complete when a learner
   declines every offer. Line 87 lists three topics that only optional lessons teach. The two
   statements disagree.
+
+---
+
+## Finish the supplies and course-quality work — 2026-09-12
+
+Ten tasks are complete and reviewed. A final whole-branch review and one fix wave are done.
+Only the steps below remain. A fresh session can do them without the original transcript.
+
+### Step 1. Read the last re-review
+
+A scoped re-review of the fix wave was running when the session ended. Its package is at
+`.superpowers/sdd/2026-09-12-supplies-and-course-quality/rereview-final.md`. If the directory
+is gone, re-create the package from the commit ranges below.
+
+### Step 2. Push this repository
+
+Robert asked for the plugin installs to be updated when the quality checker is done.
+
+1. Run `python3 tests/run_all.py` with the whole runner scripts directory pinned. Expect 10
+   suites.
+2. Push `main`.
+3. Run `claude plugin update tutorail-authoring@tutorail-authoring`, then restart.
+4. **Verify by content, not by version.** Confirm the updated copy holds
+   `skills/course-quality/SKILL.md` and `skills/course-quality/scripts/audit.py`. An install
+   compares the version number, so a green "updated" line is not evidence.
+
+### Step 3. Hand over the runner branch
+
+Branch `supplies` in the worktree `../tutorAIl-supplies` holds 13 commits. It is rebased onto
+`origin/main` and both suites are green: `test_validate_bundle.py` 310, `test_catalogs.py` 158.
+
+**Do not merge it.** Merging is Robert's action. Tell him it is ready.
+
+Send ONE line to the session named `runner` when it lands on main. Say also that this branch
+does not correct the "deliberately shallow, one level at most" sentence in `bundle-format.md`,
+which is stale because `optional_lessons` nests to three levels. That session will correct it
+in its own change.
+
+### Step 4. Hand over two items that belong to the runner repository
+
+1. `docs/superpowers/specs/2026-09-11-tutorial-runner-design.md` states the material-naming
+   rule with no exception, and says the validator enforces it. Check 6 now clears a file that
+   a `supplies` entry covers. The exact correction is in the entry above this one.
+2. `tests/test_validate_bundle.py` has a weak `run_case`. It checks that the expected message
+   appears in ANY finding of that check number. A case can pass while the wrong file produces
+   the finding. This is why one check-6 test passed against unfixed code.
+
+### Step 5. Close the plan
+
+Delete `.superpowers/sdd/2026-09-12-supplies-and-course-quality/` only after steps 1 to 4.
+It holds the ledger and every review package.
