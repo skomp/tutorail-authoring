@@ -1041,7 +1041,10 @@ git commit -m "Add audit.py: the evidence a course-quality review starts from"
 
 - [ ] **Step 1: `references/rubric.md`**
 
-The five-row table from the spec, each row with its test, plus three paragraphs the numbers
+The scored table from the spec, each row with its test — **six rows, not the five this
+plan originally said**: teaching, practice, evidence, toil, unserved objective, and
+`required_for` on an optional lesson, which was added after this plan was written and
+which scores AND is raised. Plus three paragraphs the numbers
 need to survive contact with a reader:
 
 - what a score is for — making a judgement legible and comparable across a long course, not
