@@ -261,7 +261,7 @@ holding ordinary prose must not. A scanner nobody has seen fire is not a scanner
 | **teaching** | +2 | the learner decides or constructs; a wrong answer is instructive; it serves a stated objective |
 | **practice** | +1 | applies something already taught; no new decision, but the repetition is the point |
 | **evidence** | 0 | run a validator, read output, report what happened |
-| **toil** | −2 | deterministic and unambiguous; no decision; a mistake teaches nothing |
+| **toil** | −2 | deterministic and unambiguous; no decision; a mistake teaches nothing — **and the bundle could have handed the result over instead of assigning it** |
 | **unserved objective** | −3 **each** | a stated objective or `DESIGN.md` anchor that no task exercises. Course-level rather than per-lesson, but counted once PER UNSERVED OBJECTIVE — a course owing twelve topics is not the same course as one owing a single topic, and a rubric whose purpose is comparability must not score them alike |
 | **`required_for` on an optional lesson** | −3 | the author declared something load-bearing and then made it skippable. Scored **and** raised — see below (course-level) |
 
@@ -292,6 +292,46 @@ Without that sentence the score teaches exactly the behaviour the objection warn
 The author may record the gate as justified; the score stands anyway, and the justification
 stands beside it, because a rubric that let a reader argue a signal down to zero would stop
 being comparable across courses.
+
+### Rulings from the first real audit, 2026-09-12
+
+Three courses, 55 lesson files. Five gaps; four closed here, one closed as a decline. The
+rubric was corrected first and this section brings the spec into line with it — the reverse of
+the usual order, recorded as such so neither document reads as the stale one.
+
+**The toil row needed its last clause.** As written it literally caught `npm install`, and no
+`supplies:` entry can create `node_modules` — so it charged a course for something the author
+had no way to remove. The operative question is *could this bundle have shipped the result?*
+If it could and did not, that is toil; if it could not, the work is the learner's. This aligns
+the rubric with the format, which already says supplies reach only as far as the bundle itself.
+
+**Two element kinds had no row and were being scored by elimination.** A **branch point**,
+where a lesson offers a choice of paths, scores **evidence, 0** — the teaching lives in
+whichever branch is taken. A **tutor-addressed element**, an instruction written to the tutor
+that is nonetheless load-bearing teaching, scores **teaching, +2 when the learner must decide
+or construct in response**; who the sentence addresses does not change what the learner does.
+
+**Scores compare within one course's house style, not across courses.** A lesson's figure
+tracks how finely its `## Suggested progression` enumerates clauses. Comparing a course against
+itself, lesson by lesson, is what the report is for.
+
+**An anchor is served when lessons do what it describes, not when they cite it.** The obvious
+mechanical proxy — "does some `design_refs` name it?" — was wrong on the first course audited:
+`#unresolved-decisions` appears in no `design_refs` and is served by four lessons.
+
+**Declined: a scored row for a must-cover topic served only by an optional lesson.** It would
+have cost one real course −6. The bundle format is explicit that a topic an optional lesson
+teaches IS in the course, and that it belongs in the coverage list precisely so the tutor
+offers the authored lesson rather than improvising a replacement. A row penalising that would
+push authors toward the outcome the format calls worse. It becomes a reader-answered row:
+*is that acceptable for this course, given that a learner who declines every offer never meets
+it?* — which makes four such rows, not three.
+
+**Prose optionality is not optionality.** In the catalogue's webgl bundle, lesson 14 is called
+optional in three separate places of prose while sitting in `lessons:`, with no
+`optional_lessons` key in the manifest at all. The tooling reports "0 optional", the
+completability machinery never engages, and the rubric banks that lesson's 11 points into a
+total a skipping learner never earns — 194 reported against 183 actually available.
 
 Three further rows a reader answers, because none is mechanically decidable and none is
 scored:
