@@ -43,8 +43,10 @@ The test that separates them, and the sentence the authoring skills must carry:
 
 ## 3. Measured facts — do not re-derive
 
-Verified on this machine, 2026-09-12, against `skomp/tutorAIl` at `0b1c422` and
-`skomp/tutorail-bundles` at `76dcdce`.
+Verified on this machine, 2026-09-12, against `skomp/tutorAIl` at `1697874` and
+`skomp/tutorail-bundles` at `76dcdce`. First measured at tutorAIl `0b1c422` and
+**re-verified at `1697874`** after three commits landed there mid-session: every line
+number below still holds, and the only change to `bundle-format.md` was wording.
 
 | Fact | Where |
 |---|---|
@@ -95,8 +97,11 @@ One word, one meaning. Where it is declared is the only thing that decides when 
    entry is already applied. Say nothing about it. This is what makes re-opening a lesson
    idempotent with **no new state**: nothing is written to `STATE.md` and nothing is
    written to the instance's `instance:` block.
-3. **Report what was placed, precisely.** When some targets were missing, place those and
-   name them. Partial application is reported as partial.
+3. **Report what was placed, precisely — and what was left alone.** When some targets were
+   missing, place those, name them, and name the ones that already existed and were
+   skipped. Partial application is reported as partial. This is the sharpest edge in the
+   feature: a lesson-scope entry can land on a `learner_owned` path, and a learner must
+   never be left wondering whether their own file was replaced.
 4. **Name it as setup.** The report says these files are setup, not a lesson, so the
    learner is not left wondering what they were supposed to have learned.
 5. Placement never reaches inside `tutorial/`. The instance is not the workspace.
@@ -307,6 +312,16 @@ An unpinned red suite during this work proves nothing about the code under test.
 6. Run the audit against `webgl-typescript-scene` and present the report.
 
 Step 1 is the contract every later step cites, so it lands first.
+
+## 11b. Interaction with bundle revision
+
+Supplied files are author-supplied content sitting in the learner's workspace, so they
+drift when a bundle is revised, exactly as a lesson does. The runner's design spec records
+the approved answer for that whole class: **detect and report, never auto-apply.** This
+design implements no drift detection, and nothing here should be read as though it does.
+Placement rule 1 — never overwrite — is what keeps the two compatible: a revised supply
+lands only where nothing is present, so drift detection can be added later without having
+to undo anything this feature did.
 
 ## 12. Out of scope, deliberately
 
