@@ -1,0 +1,38 @@
+bundle_format: 1
+id: toil-course
+title: A Toil-Scanning Fixture Course
+description: >
+  A minimal course whose lessons carry the toil scanner's positive and
+  negative controls, and whose coverage list has one topic no lesson
+  teaches.
+subjects: [fixtures, testing]
+level: beginner
+style: [exercise-based]
+
+lessons:
+  - lessons/00-shader-basics.md
+  - lessons/01-texture-work.md
+
+optional_lessons:
+  lessons/debug-overlay.md:
+    offer_at: [lessons/01-texture-work.md]
+    offer_because: >
+      A learner who wants visible performance numbers while iterating can
+      add a lightweight overlay without touching the render path.
+
+supplies:
+  - from: starter/vertex.glsl
+    to: src/vertex.glsl
+    describe: a working vertex shader to diff against
+
+workspace_kind: none
+tutor_owned: [tutorial/STATE.md, tutorial/DESIGN.md]
+learner_owned: []
+ownership_policy: tutor-must-not-edit-learner-owned
+
+validators:
+  manual: { kind: manual }
+
+one_task_at_a_time: true
+solution_code: on-request-only
+advance_on: validated-evidence-only

@@ -47,6 +47,16 @@ CATALOG = SCRIPTS / "catalog.py"
 RUNNER = SCRIPTS / "runner.py"
 SUPPLIES = SCRIPTS / "supplies.py"
 
+# course-quality is a separate skill from tutorail-authoring, with its own
+# scripts directory. Its scripts are run as subprocesses, like every other
+# script here - never imported - so there is no second sys.path.insert for
+# it below, and none should be added: a second entry would put two script
+# directories on one path, and any module name they share would then
+# resolve by insert order.
+QUALITY_SCRIPTS = REPO / "skills" / "course-quality" / "scripts"
+
+AUDIT = QUALITY_SCRIPTS / "audit.py"
+
 sys.path.insert(0, str(SCRIPTS))
 
 
