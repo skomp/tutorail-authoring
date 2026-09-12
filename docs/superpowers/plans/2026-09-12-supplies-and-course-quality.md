@@ -69,8 +69,15 @@ project's own restricted loader `yamlite.py` and written as text.
   the runner's live validator through `~/.agents/skills/tutorail`, which is a **symlink**
   into the tutorAIl checkout that Part A edits. Export `TUTORAIL_VALIDATOR` at a pinned
   copy for any run quoted as verification:
+  **Pin the whole scripts directory, not the one file.** `validate_bundle.py` imports
+  `yamlite` and `catalogs` from beside itself, so a single-file pin produces a validator
+  that cannot run — and the failure does not look like a broken pin, it looks like six
+  product defects. **The tell is `FAIL - 0 finding(s)`: a validator that fails while
+  reporting nothing did not run at all.**
+
   ```bash
-  git -C ~/src/github.com/skomp/tutorAIl show HEAD:skills/tutorail/scripts/validate_bundle.py > /tmp/pin/validate_bundle.py
+  mkdir -p /tmp/pin
+  cp ~/src/github.com/skomp/tutorAIl-supplies/skills/tutorail/scripts/*.py /tmp/pin/
   TUTORAIL_VALIDATOR=/tmp/pin/validate_bundle.py python3 tests/run_all.py
   ```
 - **Tickets and issue text use ASD-STE100 Simplified Technical English.** Code comments,
@@ -743,10 +750,14 @@ symlink.
 
 ```bash
 mkdir -p /tmp/pin
-cp ~/src/github.com/skomp/tutorAIl-supplies/skills/tutorail/scripts/validate_bundle.py /tmp/pin/validate_bundle.py
+cp ~/src/github.com/skomp/tutorAIl-supplies/skills/tutorail/scripts/*.py /tmp/pin/
 cd ~/src/github.com/skomp/tutorail-authoring
 TUTORAIL_VALIDATOR=/tmp/pin/validate_bundle.py python3 tests/test_supplies.py
 ```
+
+Copy the whole directory. `validate_bundle.py` imports `yamlite` and `catalogs` from beside
+itself, and a single-file pin fails in a way that reads like product defects rather than
+like a broken instrument. `FAIL - 0 finding(s)` is the tell.
 
 Expected: PASS. Say in your report which validator you pinned and at which commit. A run
 whose validator you cannot name is a run that proves nothing.
