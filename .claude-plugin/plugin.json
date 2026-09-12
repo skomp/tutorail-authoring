@@ -1,6 +1,6 @@
 {
   "name": "tutorail-authoring",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Interviews you about a course, then builds or changes a tutorAIl bundle correctly. Ends the interview with a spec you approve before any lesson file is written.",
   "author": {
     "name": "skomp",
