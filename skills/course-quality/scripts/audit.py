@@ -78,11 +78,12 @@ TOPIC_DISCLAIMER = (
 #
 # A candidate generator (see the module docstring). It requires the verb at
 # an imperative "lead" position - the start of a line, of a markdown bullet,
-# of a sentence, of an introductory clause set off by a comma, or right
-# after "must"/"should"/"then" - so that a noun phrase like "a direct-copy
-# composition shader" does not fire just because it contains the word
-# "copy", and so that "Do not copy X" (an instruction NOT to do something)
-# does not fire either, since "copy" there follows "not ", not a lead.
+# of a sentence, of an introductory clause set off by a comma or semicolon,
+# or right after "must"/"should"/"then" - so that a noun phrase like
+# "a direct-copy composition shader" does not fire just because it contains
+# the word "copy", and so that "Do not copy X" (an instruction NOT to do
+# something) does not fire either, since "copy" there follows "not ", not a
+# lead.
 #
 # The comma alternative is load-bearing. Real toil in the corpus reads
 # "Before starting, copy every file under `model/` ..." - an introductory
@@ -90,6 +91,15 @@ TOPIC_DISCLAIMER = (
 # stop. Without it the scanner misses
 # webgl-typescript-scene/lessons/13-load-gltf-model/LESSON.md:40, which is
 # one of the two sites this script is required to find.
+#
+# The semicolon alternative (fix round 2) is load-bearing the same way.
+# The regenerated webgl catalogue still carries the five-file copy
+# instruction that started this whole change, now at
+# lessons/01-canvas-and-context/LESSON.md:42: "... the tutor MUST read
+# `starter/README.md`; copy `starter/package.json`, ...". Without
+# `(?<=;\s)` the scanner produced ZERO candidates for the exact sentence
+# whose presence in lesson 00 is why this tool exists - a scanner that
+# misses it in a bundle where it is still present is not doing its job.
 # --------------------------------------------------------------------------
 
 TOIL_VERBS = {
@@ -105,7 +115,7 @@ TOIL_VERBS = {
 }
 
 _LEAD = (
-    r"(?:^|^[-*]\s+|(?<=[.!?]\s)|(?<=,\s)|"
+    r"(?:^|^[-*]\s+|(?<=[.!?]\s)|(?<=,\s)|(?<=;\s)|"
     r"(?<=\bmust\s)|(?<=\bshould\s)|(?<=\bthen\s))"
 )
 
@@ -164,34 +174,123 @@ def _has_file_token(line: str) -> bool:
     return _FILE_TOKEN_RE.search(line) is not None
 
 
-def scan_toil(rel: str, text: str) -> list[dict]:
-    """Candidate toil sites in `text`, scanned one physical line at a time.
+# --------------------------------------------------------------------------
+# The unit of scanning: a PARAGRAPH, not a physical line (fix round 2).
+#
+# Prose in this corpus is hard-wrapped, so a physical line routinely begins
+# mid-sentence. `_LEAD` starting with `^` cannot tell "a fresh sentence
+# happens to start at column 0" from "a hard-wrap happens to land here",
+# and durable-event-broker/lessons/14-asynchronous-follower.md:30 is a real
+# false positive from exactly that confusion: the sentence is "... Therefore
+# the\ncopy is neither a quorum ...", so the NOUN "copy" (its article "the"
+# sits on the PREVIOUS physical line) lands at a physical line's start and
+# reads, to a per-line scan, exactly like an imperative "Copy ...".
+#
+# The fix is to decide the MATCH against the joined paragraph, while still
+# reporting the single physical line a reader would open their editor to -
+# `_paragraph_blocks` groups physical line indices into the units scan_toil
+# treats as one piece of prose, `_join_block` reassembles a block's lines
+# into one string (word-unwrapped) plus a map back to physical lines, and
+# `_line_for_offset` uses that map to attribute a match position to its
+# real line.
+#
+# A blank line always ends a block. A heading or a markdown bullet always
+# STARTS a fresh block of its own, even with no blank line before it - each
+# bullet is a complete, self-contained unit, and joining two consecutive
+# bullets into one string would let the FIRST bullet's marker satisfy
+# `_LEAD` for a word in a LATER bullet that never had one.
+# --------------------------------------------------------------------------
 
-    Each hit carries the whole raw line as `text`, not just the matched
-    span, so a reader (or a test) can see the sentence the verb sits in.
 
-    `move` and `unzip`/`extract` additionally require a file-or-path token
-    on the same line - see `_REQUIRES_FILE_TOKEN` above for why.
+def _paragraph_blocks(lines: list[str]) -> list[list[int]]:
+    """Group physical line indices (0-based) into scan_toil's match units."""
+    blocks: list[list[int]] = []
+    current: list[int] = []
+    for i, line in enumerate(lines):
+        if not line.strip():
+            if current:
+                blocks.append(current)
+                current = []
+            continue
+        if _HEADING_RE.match(line) or _BULLET_RE.match(line):
+            if current:
+                blocks.append(current)
+            current = [i]
+            continue
+        current.append(i)
+    if current:
+        blocks.append(current)
+    return blocks
+
+
+def _join_block(lines: list[str], indices: list[int]) -> tuple[str, list[tuple[int, int, int]]]:
+    """Word-unwrap the given physical lines into one string.
+
+    Returns (joined_text, spans), where spans is a list of
+    (start_offset, end_offset, line_index) covering joined_text in order,
+    so a regex match position in joined_text can be mapped back to the
+    physical line it came from.
     """
+    parts: list[str] = []
+    spans: list[tuple[int, int, int]] = []
+    pos = 0
+    for idx in indices:
+        segment = lines[idx].strip()
+        start = pos
+        end = start + len(segment)
+        spans.append((start, end, idx))
+        parts.append(segment)
+        pos = end + 1  # +1 for the single joining space
+    return " ".join(parts), spans
+
+
+def _line_for_offset(spans: list[tuple[int, int, int]], offset: int) -> int:
+    """The physical line index whose span contains `offset` in the joined text."""
+    line = spans[0][2]
+    for start, _end, idx in spans:
+        if start > offset:
+            break
+        line = idx
+    return line
+
+
+def scan_toil(rel: str, text: str) -> list[dict]:
+    """Candidate toil sites in `text`.
+
+    The MATCH is decided against each paragraph, joined back into one
+    word-unwrapped string (see the block comment above `_paragraph_blocks`).
+    Each hit still reports a single physical LINE - `line` and `text` - since
+    that is what a reader opens their editor to; only the lead-position
+    decision uses the joined text.
+
+    `move` and `unzip`/`extract` additionally require a file-or-path token -
+    see `_REQUIRES_FILE_TOKEN` above for why they are narrowed at all. The
+    token check is scoped to the SAME PHYSICAL LINE as the match, not the
+    whole paragraph: a paragraph can easily mention an unrelated backticked
+    identifier or path elsewhere in the same block, several sentences away
+    from a `move`/`extract` that has nothing to do with it, and widening the
+    check to the whole paragraph would let that launder an unrelated match
+    into a hit - the same shape of mistake `_FILE_TOKEN_RE` already avoids
+    for a bare `/`.
+    """
+    lines = text.splitlines()
     candidates: list[dict] = []
-    for lineno, line in enumerate(text.splitlines(), start=1):
-        has_token: bool | None = None
+    for indices in _paragraph_blocks(lines):
+        joined, spans = _join_block(lines, indices)
         for name, pattern in _TOIL_PATTERNS.items():
-            if not pattern.search(line):
-                continue
-            if name in _REQUIRES_FILE_TOKEN:
-                if has_token is None:
-                    has_token = _has_file_token(line)
-                if not has_token:
+            for m in pattern.finditer(joined):
+                line_idx = _line_for_offset(spans, m.start())
+                if name in _REQUIRES_FILE_TOKEN and not _has_file_token(lines[line_idx]):
                     continue
-            candidates.append(
-                {
-                    "rel": rel,
-                    "line": lineno,
-                    "text": line.strip(),
-                    "pattern": name,
-                }
-            )
+                candidates.append(
+                    {
+                        "rel": rel,
+                        "line": line_idx + 1,
+                        "text": lines[line_idx].strip(),
+                        "pattern": name,
+                    }
+                )
+    candidates.sort(key=lambda c: (c["line"], c["pattern"]))
     return candidates
 
 
@@ -269,6 +368,22 @@ def learning_objectives(lesson_text: str) -> list[str]:
         if heading.strip().lower() == "learning objectives":
             return _bullets(section_body)
     return []
+
+
+def _section_text(lesson_text: str, heading_name: str) -> str:
+    """The raw body text under a heading matched by exact (lowercased) name.
+
+    Unlike `learning_objectives`, this does not assume the section is a
+    bullet list - `## Concepts to teach` is prose in some lessons ("Compilation,
+    linking, program status.") and a bullet list in others, and both forms
+    need to reach the word-overlap tokenizer, which does not care about
+    punctuation either way.
+    """
+    _, body = bl.split_frontmatter(lesson_text)
+    for heading, section_body in _sections(body):
+        if heading.strip().lower() == heading_name.lower():
+            return section_body
+    return ""
 
 
 # --------------------------------------------------------------------------
@@ -363,12 +478,41 @@ def _tokenize(text: str) -> set[str]:
     }
 
 
+def _stem(word: str) -> str:
+    """A crude suffix-strip - not a real stemmer, and deliberately not one.
+
+    Exists so a coverage-list topic named in the plural ("checksums") still
+    matches a lesson that only ever says the word in the singular
+    ("checksum"), and the reverse, without adding a dependency. Round 1
+    missed `checksums` in `durable-event-broker` against `02-record-framing`
+    for exactly this reason - the topic and the lesson never happened to
+    use the identical inflected form.
+    """
+    if len(word) > 4 and word.endswith("ies"):
+        return word[:-3] + "y"
+    if len(word) > 4 and word.endswith("es"):
+        return word[:-2]
+    if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
+
+
+def _stemmed(tokens: set[str]) -> set[str]:
+    return {_stem(word) for word in tokens}
+
+
 def _lesson_tokens(lesson: bl.Lesson, fm: dict) -> set[str]:
     parts = [str(fm.get("title", "")), lesson.slug]
     parts.extend(as_names(fm.get("design_refs")))
     text = bl.read_text(lesson.path)
     if text is not None:
         parts.extend(learning_objectives(text))
+        # Round 1 read only title/slug/design_refs/objectives, and missed
+        # `## Concepts to teach`, which is often where the coverage-list
+        # topic's own vocabulary actually lives (durable-event-broker's
+        # `02-record-framing` names "Checksums and their limits" here, not
+        # in its objectives).
+        parts.append(_section_text(text, "Concepts to teach"))
     return _tokenize(" ".join(parts))
 
 
@@ -379,15 +523,21 @@ def topic_candidates_for(
 
     Never claims a topic is covered (see TOPIC_DISCLAIMER). An empty hit
     list for a topic is itself worth a human's attention - it says no
-    lesson's title, slug, design_refs or learning objectives share a
-    meaningful word with it - but it is not proof the topic goes untaught;
-    a lesson may teach it under different words entirely.
+    lesson's title, slug, design_refs, learning objectives or concepts
+    share a meaningful (stemmed) word with it - but it is not proof the
+    topic goes untaught; a lesson may teach it under different words
+    entirely.
+
+    Matching is done on STEMMED tokens (see `_stem`), so a coverage-list
+    topic and a lesson's own vocabulary need only share a word up to a
+    crude plural/singular difference, not an identical spelling.
     """
     out: dict[str, list[dict]] = {}
+    stemmed_lessons = [(lesson, _stemmed(tokens)) for lesson, tokens in lesson_tokens]
     for topic in topics:
-        topic_tokens = _tokenize(topic)
+        topic_tokens = _stemmed(_tokenize(topic))
         hits = []
-        for lesson, tokens in lesson_tokens:
+        for lesson, tokens in stemmed_lessons:
             overlap = topic_tokens & tokens
             if overlap:
                 hits.append({"rel": lesson.rel, "shared": sorted(overlap)})
@@ -496,11 +646,13 @@ def render_markdown(data: dict) -> str:
         for topic, hits in data["topic_candidates"].items():
             if hits:
                 names = ", ".join(h["rel"] for h in hits[:3])
-                out.append(f"  - {topic}: candidate lesson(s) -> {names}")
+                out.append(f"  - {topic}: word-overlap candidate(s), unconfirmed -> {names}")
             else:
                 out.append(
-                    f"  - {topic}: no candidate lesson found "
-                    f"(a possible gap - read the course before concluding that)"
+                    f"  - {topic}: this word-overlap search found NO candidate - "
+                    f"that is NOT a verdict that the topic is untaught, only that "
+                    f"no lesson's words overlapped with it; read the lessons "
+                    f"before concluding anything"
                 )
     out.append("")
 

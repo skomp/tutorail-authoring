@@ -111,6 +111,60 @@ def case_negative_control_silent() -> None:
     )
 
 
+def case_semicolon_lead_fires() -> None:
+    """FIRING (fix round 2, DEFECT 1): a verb after a semicolon-space.
+
+    The regenerated webgl-typescript-scene catalogue still carries, at
+    lessons/01-canvas-and-context/LESSON.md:42, the exact five-file copy
+    instruction whose presence in lesson 00 is what started this whole
+    change: "... the tutor MUST read `starter/README.md`; copy
+    `starter/package.json`, ...". Round 1's `_LEAD` had no semicolon
+    alternative, so this produced ZERO candidates - a scanner that misses
+    the sentence that started the work, in a bundle where it is still
+    present, is not doing its job. Reproduced verbatim in its own fixture,
+    `toil-course-semicolon`, per the review's explicit instruction.
+    """
+    data = audit_json(FIXTURES / "toil-course-semicolon")
+    hits = [c for c in data["candidates"] if "starter/README.md" in c["text"]]
+    check(len(hits) >= 1, f"the semicolon-led 'copy' fires (got {data['candidates']})")
+    if hits:
+        check(hits[0]["pattern"] == "copy", f"pattern is 'copy' (got {hits[0]['pattern']!r})")
+
+    lesson_text = (FIXTURES / "toil-course-semicolon" / "lessons" / "00-bootstrap.md").read_text(
+        encoding="utf-8"
+    )
+    check(
+        "starter/README.md`; copy" in lesson_text,
+        "control: the real semicolon-led sentence is actually in the fixture",
+    )
+
+
+def case_wrapped_noun_stays_silent() -> None:
+    """NEGATIVE CONTROL (fix round 2, DEFECT 2): a hard-wrapped NOUN is not
+    an imperative just because it lands at a physical line's start.
+
+    Reproduces, verbatim and with the real line wrap, the false positive at
+    durable-event-broker/lessons/14-asynchronous-follower.md:30: "... the
+    leader acknowledges without waiting for it. Therefore the\ncopy is
+    neither a quorum ...". The article "the" that makes "copy" a NOUN sits
+    on the PREVIOUS physical line; a per-line scan cannot see that, which is
+    why the unit of scanning had to become the paragraph, not the line.
+    """
+    data = audit_json(FIXTURES / "toil-course-semicolon")
+    hits = [c for c in data["candidates"] if "neither a quorum" in c["text"]]
+    check(not hits, f"the wrapped noun 'copy' does not fire (got {hits})")
+    hits2 = [c for c in data["candidates"] if "create another copy" in c["text"]]
+    check(not hits2, f"the other 'copy' in the same paragraph does not fire either (got {hits2})")
+
+    lesson_text = (FIXTURES / "toil-course-semicolon" / "lessons" / "00-bootstrap.md").read_text(
+        encoding="utf-8"
+    )
+    check(
+        "copy is neither a quorum nor a failover protocol." in lesson_text,
+        "control: the real noun-copy sentence, with its real line wrap, is actually in the fixture",
+    )
+
+
 def case_move_and_extract_require_a_path_token() -> None:
     """`move` and `unzip`/`extract` are narrowed: they need a file-or-path
     token (a backticked path, or a recognisable file extension) on the same
@@ -362,6 +416,46 @@ def case_topic_candidates_show_the_gap() -> None:
     check(gap_hits == [], f"'depth testing' - taught by no lesson - has no candidate (got {gap_hits})")
 
 
+def case_topic_candidates_stem_and_read_concepts() -> None:
+    """FIRING (fix round 2, DEFECT 3): a plural topic matches a lesson that
+    only ever uses the singular, and only in `## Concepts to teach`.
+
+    The real miss was durable-event-broker's coverage-list topic
+    "checksums" against `02-record-framing`, which teaches it by name four
+    times but never as the exact plural, and mostly under `## Concepts to
+    teach`, which round 1 never read. Reproduced here: the coverage list's
+    only topic is "checksums" (plural); the fixture's only lesson never
+    uses that word anywhere except "frame checksum verification" (singular)
+    in `## Concepts to teach` - not in its title, slug, design_refs or
+    learning objectives. Both the stemming fix and the concepts-to-teach fix
+    are needed together for this to match; either alone is not enough.
+    """
+    data = audit_json(FIXTURES / "toil-course-semicolon")
+    cov = data["coverage_list"]
+    check(cov is not None and cov["topics"] == ["checksums"], f"fixture sanity: the topic is 'checksums' (got {cov!r})")
+
+    hits = data["topic_candidates"].get("checksums", [])
+    check(
+        any(h["rel"] == "lessons/00-bootstrap.md" for h in hits),
+        f"'checksums' (plural, coverage list) matches the lesson that only ever says "
+        f"'checksum' (singular), and only in Concepts to teach (got {hits})",
+    )
+
+    lesson_text = (FIXTURES / "toil-course-semicolon" / "lessons" / "00-bootstrap.md").read_text(
+        encoding="utf-8"
+    )
+    check(
+        "checksum" in lesson_text.lower() and "checksums" not in lesson_text.lower(),
+        "control: the fixture really uses only the singular form, nowhere the plural",
+    )
+    check(
+        "frame checksum verification" in lesson_text
+        and lesson_text.index("## Concepts to teach") < lesson_text.index("frame checksum verification")
+        < lesson_text.index("## Constraints"),
+        "control: the singular form really lives only in Concepts to teach",
+    )
+
+
 def case_json_and_markdown_agree_on_shape() -> None:
     """--json is well-formed and the default Markdown mode does not crash."""
     done = run(AUDIT, FIXTURES / "toil-course")
@@ -383,6 +477,10 @@ def main() -> int:
         case_positive_control_fires()
     with case("NEGATIVE CONTROL: it does not fire on 'a direct-copy composition shader'"):
         case_negative_control_silent()
+    with case("FIRING (round 2, DEFECT 1): a verb after a semicolon-space"):
+        case_semicolon_lead_fires()
+    with case("NEGATIVE CONTROL (round 2, DEFECT 2): a hard-wrapped noun is not an imperative"):
+        case_wrapped_noun_stays_silent()
     with case("NARROWED: 'move'/'unzip' need a path token; both real negatives stay silent"):
         case_move_and_extract_require_a_path_token()
     with case("'copy' is deliberately NOT narrowed: it still fires with no path token"):
@@ -403,6 +501,8 @@ def main() -> int:
         case_supplies_reported()
     with case("topic_candidates finds two topics and stays honestly empty for the gap"):
         case_topic_candidates_show_the_gap()
+    with case("FIRING (round 2, DEFECT 3): stemming + Concepts to teach match 'checksums'"):
+        case_topic_candidates_stem_and_read_concepts()
     with case("--json is well-formed and the default Markdown mode states its own caveat"):
         case_json_and_markdown_agree_on_shape()
     return report("audit.py")

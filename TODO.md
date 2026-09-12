@@ -70,3 +70,38 @@ reader-answered row:
 - a lesson that introduces a type or concept nothing later uses
 - an optional lesson anticipating a failure mode no lesson repairs
 - lessons far outside the course's usual size
+
+---
+
+## The catalogue scope line ignores optional lessons — 2026-09-12
+
+`scripts/catalog.py` derives the `scope` line from the length of the `lessons` list. A course
+that also ships optional lessons gives no signal that they exist. A reader of `catalog.yaml`
+sees "15 lessons" for a course that carries three more.
+
+To derive the count from the main path alone is correct. A learner can decline every offer.
+The gap is that the catalogue says nothing about the optional lessons.
+
+Change `scripts/catalog.py` and `catalogue-format.md` together. The runner does not change.
+
+Reported by the session that regenerated `tutorail-bundles/catalog.yaml`.
+
+---
+
+## Course findings from the first audit — 2026-09-12
+
+The first run of `skills/course-quality/` audited three courses. The full report is at
+`docs/audits/2026-09-12-course-quality-first-run.md`.
+
+The findings below are about the courses in `tutorail-bundles`, not about this repository.
+No course was changed. The author decides what to act on.
+
+- `webgl-typescript-scene` calls lesson 14 optional in three places of prose. The lesson sits
+  in `lessons:`. The manifest has no `optional_lessons` key. A learner who skips the lesson
+  earns 183 points, not the 194 the report shows.
+- `webgl-typescript-scene` lesson 13 states the objective "Carry asset licence and attribution
+  into the repository". Only the copy instruction serves that objective. Move the instruction
+  into `supplies:` and the objective loses its only step.
+- `durable-event-broker` `COURSE.md` line 77 says the course is complete when a learner
+  declines every offer. Line 87 lists three topics that only optional lessons teach. The two
+  statements disagree.
