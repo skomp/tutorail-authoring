@@ -45,6 +45,7 @@ LESSON = SCRIPTS / "lesson.py"
 PROMOTE = SCRIPTS / "promote.py"
 CATALOG = SCRIPTS / "catalog.py"
 RUNNER = SCRIPTS / "runner.py"
+SUPPLIES = SCRIPTS / "supplies.py"
 
 sys.path.insert(0, str(SCRIPTS))
 

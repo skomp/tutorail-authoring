@@ -988,10 +988,16 @@ def add_supplies(text: str, entry: dict, *, frontmatter: bool) -> str:
     is appended at the very end of whichever span is being edited - key order
     does not matter to the loader, and a predictable position is worth more
     than a clever one. When the key already exists in block form, the entry
-    is appended after its last existing item. A `supplies:` key already
-    carrying an inline value (`supplies: []` and similar) is refused with
-    ManifestEditError rather than guessed at, the same choice
-    replace_lessons_list makes for a non-empty inline `lessons:`.
+    is appended after its last existing item.
+
+    An empty inline `supplies: []` is the one inline shape this function does
+    not refuse: it is what a freshly scaffolded bundle carries (mirroring
+    `replace_lessons_list`'s handling of an empty `lessons: []`), and it is
+    rewritten in block form with the new entry appended - no formatting is
+    lost, because an empty list has none. A NON-empty inline value
+    (`supplies: [x]` and similar) is still refused with ManifestEditError
+    rather than guessed at, the same choice replace_lessons_list makes for a
+    non-empty inline `lessons:`.
 
     Ends by parsing its own output back through `load_yaml` and comparing the
     appended entry to `entry`. Raises ToolError when they differ - the only
@@ -1013,12 +1019,15 @@ def add_supplies(text: str, entry: dict, *, frontmatter: bool) -> str:
     lines = block.split("\n")
 
     key_index = None
+    empty_flow = False
     for index, line in enumerate(lines):
         match = _SUPPLIES_KEY_RE.match(line)
         if match and match.group("indent") == "":
             key_index = index
             rest = _strip_trailing_comment(match.group("rest")).strip()
-            if rest:
+            if rest == "[]":
+                empty_flow = True
+            elif rest:
                 raise ManifestEditError(
                     f"the supplies: key already carries an inline value "
                     f"({rest[:40]!r}). This toolkit only appends to the "
@@ -1040,6 +1049,15 @@ def add_supplies(text: str, entry: dict, *, frontmatter: bool) -> str:
         else:
             insert_at = len(lines)
         new_lines = lines[:insert_at] + ["supplies:"] + rendered + lines[insert_at:]
+    elif empty_flow:
+        # `supplies: []` - rewrite the key in block form (preserving any
+        # trailing comment) and insert the new entry right after it, the
+        # same treatment replace_lessons_list gives an empty `lessons: []`.
+        comment = _trailing_comment(lines[key_index])
+        rewritten_key = "supplies:" + (f"  {comment}" if comment else "")
+        new_lines = (
+            lines[:key_index] + [rewritten_key] + rendered + lines[key_index + 1 :]
+        )
     else:
         block_end = _supplies_block_end(lines, key_index)
         new_lines = lines[:block_end] + rendered + lines[block_end:]
