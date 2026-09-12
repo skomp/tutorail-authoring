@@ -116,6 +116,69 @@ def test_emit_scalar_does_not_confuse_a_string_for_the_thing_it_looks_like() -> 
     )
 
 
+def test_emit_scalar_quotes_what_a_conforming_parser_would_reject() -> None:
+    """The false oracle found by the final review.
+
+    emit_scalar kept the unquoted form whenever `load_yaml` round-tripped
+    it - and `load_yaml` is yamlite, this project's own LENIENT reader. It
+    reads `value: a: b` back as the scalar 'a: b', so it is the one parser
+    that cannot fail this check, and the emitter wrote manifests and lesson
+    frontmatter that js-yaml@4 REJECTS with "bad indentation of a mapping
+    entry". The contract's own example at bundle-format.md is written
+    QUOTED, and this emitter could not produce that form.
+
+    Every value below is one yamlite accepts unquoted and a conforming
+    parser does not. Each must now come back QUOTED, and must still
+    round-trip through yamlite unchanged.
+    """
+    for value, why in [
+        ("a: b", "a colon-space opens a mapping entry"),
+        ("Duck.glb: the sample model", "the contract's own example"),
+        ("x: y: z", "two colon-spaces"),
+        ("trailing:", "a trailing colon reads as a key"),
+        ("- item", "a leading '- ' opens a block sequence"),
+        ("-", "a lone dash is the block-sequence indicator"),
+        ("? x", "a leading '? ' opens a complex mapping key"),
+        (", a", "an opening flow indicator"),
+        ("{x", "an opening flow indicator"),
+        ("a\tb", "a tab"),
+    ]:
+        emitted = bl.emit_scalar(value)
+        check(
+            emitted.startswith('"') and emitted.endswith('"'),
+            f"emit_scalar quotes {value!r} ({why}); got {emitted!r}",
+        )
+        back = load_yaml(f"describe: {emitted}\n", "probe")
+        check(
+            back["describe"] == value,
+            f"the quoted form of {value!r} still round-trips (got "
+            f"{back['describe']!r})",
+        )
+
+    # POSITIVE CONTROL: without it, every assertion above would pass
+    # identically if emit_scalar quoted everything, which would prove
+    # nothing about the shapes under test. These three are the values the
+    # toolkit writes most often, and all three must stay unquoted.
+    for value in ["npm workspace", "supplies/workspace/", "."]:
+        emitted = bl.emit_scalar(value)
+        check(
+            emitted == value,
+            f"positive control: {value!r} is still emitted unquoted (got "
+            f"{emitted!r})",
+        )
+
+    # The guard on its own, so a failure says which half broke.
+    check(
+        not bl.plain_scalar_is_portable("a: b"),
+        "plain_scalar_is_portable refuses 'a: b'",
+    )
+    check(
+        bl.plain_scalar_is_portable("the model, which is a duck"),
+        "plain_scalar_is_portable accepts a comma INSIDE the value - a flow "
+        "indicator is syntax only when the scalar opens with it",
+    )
+
+
 # --------------------------------------------------------------------------
 # render_supplies_item
 # --------------------------------------------------------------------------
@@ -498,15 +561,18 @@ def cli_case_duplicate_entry() -> None:
 def cli_case_lesson_unknown() -> None:
     with Workspace() as ws:
         bundle = ws.copy("rust-automaton-db")
-        (bundle / "supplies").mkdir()
-        (bundle / "supplies" / "model.txt").write_text("m\n", encoding="utf-8")
+        # A LESSON-scope 'from' must resolve inside lessons/, so the sample
+        # lives in the lesson's own folder rather than in supplies/ at the
+        # bundle root. supplies/ is for MANIFEST-scope entries, which are
+        # placed while the bundle source is still in reach.
+        lesson_from = folder_a_lesson(bundle, "00-foundations", "model.txt")
         h.git_init(bundle)
 
         refusal(
             "--lesson naming a lesson that does not exist",
             bundle,
             (
-                "--from", "supplies/model.txt", "--to", "model.txt",
+                "--from", lesson_from, "--to", "model.txt",
                 "--describe", "the sample model", "--lesson", "nope-not-a-lesson",
             ),
             "does not name a lesson",
@@ -514,11 +580,13 @@ def cli_case_lesson_unknown() -> None:
         # POSITIVE CONTROL: the same command with a real lesson id succeeds,
         # and lands in that lesson's frontmatter, not the manifest.
         ok = add_cmd(
-            bundle, "--from", "supplies/model.txt", "--to", "model.txt",
+            bundle, "--from", lesson_from, "--to", "model.txt",
             "--describe", "the sample model", "--lesson", "00-foundations",
         )
         check(ok.returncode == 0, "--lesson control: a real lesson id is accepted")
-        fm_text = (bundle / "lessons" / "00-foundations.md").read_text(encoding="utf-8")
+        fm_text = (bundle / "lessons" / "00-foundations" / "LESSON.md").read_text(
+            encoding="utf-8"
+        )
         check("supplies:" in fm_text, "--lesson control: the entry lands in the lesson's frontmatter")
         manifest_text = (bundle / "tutorial.yaml").read_text(encoding="utf-8")
         check("supplies:" not in manifest_text, "--lesson control: and NOT in the manifest")
@@ -543,14 +611,16 @@ def cli_case_lesson_optional() -> None:
     """
     with Workspace() as ws:
         bundle = ws.copy("durable-event-broker-mini")
-        (bundle / "supplies").mkdir()
-        (bundle / "supplies" / "cert.pem").write_text("cert\n", encoding="utf-8")
+        # The certificate lives in the optional lesson's OWN folder: a
+        # lesson-scope 'from' is placed from the instance, which carries only
+        # lessons/.
+        lesson_from = folder_a_lesson(bundle, "tcp-transport", "cert.pem")
         h.git_init(bundle)
 
         # ACCEPTED: the id names a lesson that is listed ONLY in
         # optional_lessons, not in lessons:.
         ok = add_cmd(
-            bundle, "--from", "supplies/cert.pem", "--to", "tls/cert.pem",
+            bundle, "--from", lesson_from, "--to", "tls/cert.pem",
             "--describe", "the TLS certificate the TCP transport lesson uses",
             "--lesson", "tcp-transport",
         )
@@ -564,7 +634,9 @@ def cli_case_lesson_optional() -> None:
             ok.output,
             "--lesson (optional_lessons only): the plan names the lesson scope",
         )
-        fm_text = (bundle / "lessons" / "tcp-transport.md").read_text(encoding="utf-8")
+        fm_text = (bundle / "lessons" / "tcp-transport" / "LESSON.md").read_text(
+            encoding="utf-8"
+        )
         check(
             "supplies:" in fm_text,
             "--lesson (optional_lessons only): the entry lands in that "
@@ -676,12 +748,62 @@ def cli_case_check() -> None:
         check(h.tree_digest(bundle) != before, "--check control: the digest DOES change for a real add")
 
 
+def folder_a_lesson(bundle: Path, slug: str, material: str) -> str:
+    """Turn a single-file lesson into a FOLDERED one carrying `material`.
+
+    A lesson-scope supplies entry's `from` must resolve inside `lessons/`,
+    because the entry is placed when that lesson opens - from the instance,
+    which carries only `lessons/`. The one place under `lessons/` that may
+    hold a non-lesson file is a lesson's own folder: a bare directory under
+    `lessons/` with no LESSON.md is refused by check 4. So a lesson that
+    supplies files of its own is a lesson with material, which is what a
+    lesson folder is for.
+
+    Returns the bundle-relative `from` for the material file. The LESSON.md
+    body names the file as well, so the fixture is valid BEFORE the supplies
+    entry is added and not only after it - otherwise this helper would be
+    leaning on the very exemption the case under test is about to create.
+    """
+    lessons = bundle / "lessons"
+    single = lessons / f"{slug}.md"
+    assert single.is_file(), f"{single} is not a single-file lesson"
+    folder = lessons / slug
+    folder.mkdir()
+    body = single.read_text(encoding="utf-8")
+    single.unlink()
+    (folder / "LESSON.md").write_text(
+        body
+        + f"\n## Material\n\nThe file `{material}` in this folder is the sample "
+        f"this lesson reads.\n",
+        encoding="utf-8",
+    )
+    (folder / material).write_text("sample\n", encoding="utf-8")
+    repointed = 0
+    for name in ("tutorial.yaml", "STATE.template.md"):
+        path = bundle / name
+        text = path.read_text(encoding="utf-8")
+        if f"lessons/{slug}.md" not in text:
+            # STATE.template.md names only lessons[0], so an optional lesson
+            # is legitimately absent from it. tutorial.yaml is not optional.
+            continue
+        repointed += 1
+        path.write_text(
+            text.replace(f"lessons/{slug}.md", f"lessons/{slug}/LESSON.md"),
+            encoding="utf-8",
+        )
+    assert repointed, f"{slug}: tutorial.yaml never named lessons/{slug}.md"
+    return f"lessons/{slug}/{material}"
+
+
 def cli_case_list() -> None:
     with Workspace() as ws:
         bundle = ws.copy("rust-automaton-db")
+        # One entry per scope, each taking its 'from' from the only place
+        # that scope may: supplies/ at the bundle root for the manifest, the
+        # lesson's own folder for the lesson.
         (bundle / "supplies").mkdir()
         (bundle / "supplies" / "a.txt").write_text("a\n", encoding="utf-8")
-        (bundle / "supplies" / "b.txt").write_text("b\n", encoding="utf-8")
+        lesson_from = folder_a_lesson(bundle, "00-foundations", "b.txt")
         h.git_init(bundle)
 
         manifest_add = add_cmd(
@@ -692,7 +814,7 @@ def cli_case_list() -> None:
         commit_all(bundle)
 
         lesson_add = add_cmd(
-            bundle, "--from", "supplies/b.txt", "--to", "model.txt",
+            bundle, "--from", lesson_from, "--to", "model.txt",
             "--describe", "the sample model this lesson uses", "--lesson", "00-foundations",
         )
         check(lesson_add.returncode == 0, "list fixture: the lesson-scope add succeeds")
@@ -704,7 +826,7 @@ def cli_case_list() -> None:
         check_in("[lesson 00-foundations]", result.output, "list: names the lesson scope with its id")
         check_in("when that lesson opens", result.output, "list: says when the lesson entry is placed")
         check_in("supplies/a.txt", result.output, "list: names the manifest entry's from")
-        check_in("supplies/b.txt", result.output, "list: names the lesson entry's from")
+        check_in(lesson_from, result.output, "list: names the lesson entry's from")
 
 
 # --------------------------------------------------------------------------
@@ -717,6 +839,8 @@ def main() -> int:
         test_emit_scalar_round_trips_the_hard_cases()
     with case("emit_scalar does not confuse a string for the thing it looks like"):
         test_emit_scalar_does_not_confuse_a_string_for_the_thing_it_looks_like()
+    with case("emit_scalar quotes what a conforming parser would reject"):
+        test_emit_scalar_quotes_what_a_conforming_parser_would_reject()
     with case("render_supplies_item orders keys and indents two spaces"):
         test_render_supplies_item_orders_keys_and_indents_two_spaces()
     with case("render_supplies_item refuses a missing key"):

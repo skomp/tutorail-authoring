@@ -1,5 +1,44 @@
 # Task B6 — the `course-quality` skill run against the real courses
 
+> ## CORRECTION, 2026-09-12 — the totals below are superseded
+>
+> **What changed.** Section 0 of this report says constraints "addressed to the **tutor**
+> rather than the learner are not scored either", and section T5 records that exclusion as
+> a gap for the owner to settle. It was settled, the other way:
+> `skills/course-quality/references/rubric.md` now reads **"A tutor-addressed element
+> scores `teaching`, +2, when the learner must decide or construct in response"**, and adds
+> that the grammatical person the author wrote in does not change what the learner does.
+>
+> **Why the totals move.** This report scored those elements at `0` by exclusion. Under the
+> settled rule they score `+2` wherever the learner must decide or construct. So **194 /
+> 193 / 211 are not reproducible under the current rubric.** They are superseded, not wrong:
+> the arithmetic as published was re-checked and is correct under the rubric in force when
+> the run was made. Every lesson figure here is still the visible sum of its own elements.
+>
+> **Which figures the settled rule moves.** Two, both named in T5:
+>
+> - **`webgl 11`** — `11-secondary-demo-scene/LESSON.md:31`–`:34`, the whole "the tutor MUST
+>   explicitly ask" block. T5 already says it is "load-bearing teaching content — it is what
+>   makes the learner's choice a real choice", which is exactly the condition the settled
+>   rule scores `+2`. The rubric's own statement of the rule cites this lesson.
+> - **The regenerated `01-canvas-and-context/LESSON.md:42`–`:48`** bootstrap paragraph, in
+>   audit 2. This one matters most, because **audit 2's whole comparison turns on it**: the
+>   193-versus-194 gap is a one-point difference between two versions of the same course,
+>   and this block is scored `0` in the candidate and has no counterpart in the catalogue
+>   version. Re-score it `+2` and the direction of that comparison is no longer settled by
+>   this report.
+>
+> `00-project-setup/LESSON.md:38` ("Read `starter/README.md` before giving the first task")
+> is the control: it is tutor-addressed too, and the learner decides and constructs nothing
+> in response, so the settled rule leaves it at `0`. The rule is not "score every sentence
+> that addresses the tutor".
+>
+> **The totals are deliberately not recomputed here.** A re-score is a fresh audit run
+> against the current rubric, with every element re-read and re-quoted; patching three
+> numbers into a report whose method section describes the old rule would produce a document
+> that disagrees with itself. Treat the per-element evidence below as sound and the three
+> totals as belonging to the rubric of 2026-09-12 before this rule was settled.
+
 First real run of `skills/course-quality/SKILL.md` and `skills/course-quality/references/rubric.md`.
 Three audits, in this order:
 

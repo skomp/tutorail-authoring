@@ -190,7 +190,9 @@ called optional in three separate places of prose — its title, its own text, i
 — and sits in `lessons:`, not in `optional_lessons:`. Everything downstream follows the
 manifest: the tooling reports "0 optional", the completability machinery never engages, and
 the rubric banks that lesson's 11 points into a course total of 194 when a learner who takes
-the course at its word and skips it earns 183.
+the course at its word and skips it earns 183. (Both totals are the ones that first run
+published; its correction note supersedes them. The 11-point gap is the point here, and it
+holds whatever the totals become.)
 
 So a course whose prose offers a lesson while its manifest requires one is **both** scored
 wrongly and unchecked for the invariant above, and neither failure announces itself. When

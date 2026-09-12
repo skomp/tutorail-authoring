@@ -136,9 +136,21 @@ the file is for. An entry in `tutorial.yaml` is placed once, right after materia
 an entry in a lesson's frontmatter is placed when that lesson opens, which is what you want
 for an asset a learner should not meet early. The runner places the files, never overwrites
 one that is already there, names anything it left alone, and reports the lot as setup
-rather than as work the learner did. Under `tutor-must-not-edit-learner-owned` the tutor may
-**create** a declared target that does not exist, and may **never modify** one that does; a
-path nobody declared gets no exemption at all. That is what lets the default ownership
+rather than as work the learner did.
+
+**Where the file lives in the bundle follows the scope**, and the timing is the reason. A
+manifest-scope entry is placed during materialization, while the bundle source is still in
+reach, so its file may sit anywhere in the bundle — `supplies/` at the bundle root by
+convention. A lesson-scope entry is placed when that lesson opens, from the instance, and
+the instance carries only `lessons/` — so a lesson-scope `from` **MUST** be inside
+`lessons/`, which in practice means the lesson's own folder. Put a lesson's supplied files
+beside its `LESSON.md`, and give the lesson a folder if it does not have one.
+
+Under `tutor-must-not-edit-learner-owned` **and under `on-request`** the tutor may
+**create** a declared target that does not exist; under `on-request` it does not ask first,
+because placing a declared supply is not the tutor being asked for a change. Under **every**
+policy, `unrestricted` included, it may **never modify** a target that already exists. A
+path nobody declared gets no part of that exemption. That is what lets the default ownership
 policy stay on. A course that answers one bootstrap by setting `ownership_policy:
 unrestricted` has traded the guarantee that the tutor will not write the learner's code for
 a handful of file copies, and that is the trade `supplies:` exists to avoid.
@@ -261,9 +273,12 @@ Order matters, because the format's invariants are easier to keep than to repair
    `--folder` for a lesson that ships material. This is what keeps `id` equal to the slug
    and the `lessons` list complete. Never create a lesson file yourself.
 3. **Put the supplied files in the bundle and declare every one of them.** The files the
-   course hands over go inside the bundle first — by convention `supplies/` at the bundle
-   root for a manifest-scope entry, and the lesson's own folder for a lesson-scope one,
-   which is also where the format's material checks expect them. Then declare each with
+   course hands over go inside the bundle first. A manifest-scope file may sit anywhere in
+   the bundle, and `supplies/` at the bundle root is the convention. A lesson-scope file
+   **MUST** be inside `lessons/` — put it in that lesson's own folder, and add `--folder`
+   to the lesson if it does not have one. Materialization copies only `lessons/` into the
+   instance, so a lesson-scope file kept in `supplies/` is not there when the lesson opens,
+   and the validator reports it. Then declare each with
    `python3 scripts/supplies.py add <bundle> --from <path> --to <path> --describe <text>`,
    adding `--lesson <lesson-id>` when the files arrive with a lesson rather than at the
    start. Do this before you fill any lesson body, because a body written while the

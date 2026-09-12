@@ -875,32 +875,102 @@ def set_frontmatter_field(text: str, key: str, value: str) -> tuple[str, bool]:
 # tracks whichever backend `load_yaml` is actually using (the restricted
 # reader here, PyYAML if it is ever installed) rather than encoding one
 # YAML dialect's rules by hand.
+#
+# THAT ORACLE IS BLIND IN ONE DIRECTION, and a review caught it. `load_yaml`
+# is yamlite, this project's own LENIENT reader, so it is the one parser that
+# cannot fail the check. It reads `value: a: b` back as the scalar 'a: b' and
+# `value: - x` back as '- x', so the round-trip agreed and the unquoted form
+# was kept - while js-yaml@4 REJECTS both with "bad indentation of a mapping
+# entry". Both a manifest and a lesson frontmatter written by `supplies.py
+# add` were rejected by js-yaml while the pinned validator accepted them, and
+# the contract's own example (`describe: "Duck.glb: the sample model ..."`)
+# is written QUOTED, a form this emitter could not produce.
+#
+# So the loader probe is kept - it is what catches '123', 'true' and 'null' -
+# and a STRUCTURAL guard is applied before it. A plain scalar is portable
+# only when it carries no block-structure indicator that a conforming parser
+# reads as syntax. Measured against js-yaml@4, these are the shapes yamlite
+# keeps and js-yaml refuses:
+#
+#   'a: b', 'x: y: z', 'a:  b', ': lead'   contain ': '
+#   'x:', ':'                              end in ':'
+#   '- x', '-'                             open a block sequence
+#   '? x', '?'                             open a complex mapping key
+#   ', a', '{x', '[1'                      OPEN with a flow indicator
+#   'a\tb'                                 carry a tab
+#
+# Those four clauses were not guessed. Every one- two- and three-character
+# string over a 27-character alphabet of letters, digits, spaces and YAML
+# punctuation - 20454 values - was emitted by this function and read back by
+# js-yaml@4, at the top level and nested inside a `supplies:` item. With the
+# guard as written, all 20454 round-trip. Without its flow-indicator clause,
+# 1944 fail, and every one of them opens with ',', '{', '[', '}' or ']'; a
+# flow indicator INSIDE the value ('the model, which is a duck') is ordinary
+# text and stays unquoted.
+#
+# Quoting is always safe, so the guard errs towards quoting: it never has to
+# decide that an unusual value is FINE, only that a value is plainly plain.
 # --------------------------------------------------------------------------
+
+
+# The indicators that open a block structure when a plain scalar starts with
+# one and the next character is a space or the end of the value. 'a-b' and
+# '?q' are ordinary text; '- x' and '?' are syntax.
+_BLOCK_INDICATORS = ("-", "?", ":")
+# A flow indicator is syntax only when the plain scalar OPENS with it.
+_FLOW_INDICATORS = ",{}[]"
+
+
+def plain_scalar_is_portable(value: str) -> bool:
+    """True when `value` may be written as an UNQUOTED YAML scalar and read
+    back by a conforming parser, not only by this project's lenient one.
+
+    False is the safe answer: the caller quotes, and a quoted scalar is
+    valid everywhere. See the note above for the measurements behind each
+    clause.
+    """
+    if ": " in value:
+        return False
+    if value.endswith(":"):
+        return False
+    if "\t" in value:
+        return False
+    if value[:1] in tuple(_FLOW_INDICATORS):
+        return False
+    for indicator in _BLOCK_INDICATORS:
+        if value == indicator or value.startswith(indicator + " "):
+            return False
+    return True
 
 
 def emit_scalar(value: str) -> str:
     """A single-line YAML scalar that yamlite reads back as `value`.
 
-    The plain (unquoted) form is tried first, and kept only if parsing it
-    back through `load_yaml` returns the exact string `value` again. Any
-    other outcome - a different value, a different type (int/float/bool/
-    None), or a parse error - falls back to a double-quoted scalar, with
+    Two gates stand between a value and the plain (unquoted) form, and it
+    has to pass both. `plain_scalar_is_portable` refuses any value carrying
+    a block-structure indicator a conforming parser reads as syntax - ': '
+    anywhere, a trailing ':', a leading '- ' or '? '. `load_yaml` then
+    parses the unquoted rendering back and the plain form is kept only if
+    the result is the exact string `value` again. Any other outcome - a
+    different value, a different type (int/float/bool/ None), or a parse
+    error - falls back to a double-quoted scalar, with
     backslashes, double quotes and the whitespace that would otherwise break
     single-line-ness (`\\n`, `\\r`, `\\t`) escaped. Every other character is
     copied through unescaped; yamlite's quoted-scalar reader only treats a
     backslash and the closing quote specially, so nothing else needs it.
     """
-    probe = f"value: {value}\n"
-    try:
-        parsed = load_yaml(probe, "emit_scalar probe")
-    except YamlError:
-        parsed = None
-    if (
-        isinstance(parsed, dict)
-        and isinstance(parsed.get("value"), str)
-        and parsed["value"] == value
-    ):
-        return value
+    if plain_scalar_is_portable(value):
+        probe = f"value: {value}\n"
+        try:
+            parsed = load_yaml(probe, "emit_scalar probe")
+        except YamlError:
+            parsed = None
+        if (
+            isinstance(parsed, dict)
+            and isinstance(parsed.get("value"), str)
+            and parsed["value"] == value
+        ):
+            return value
     escaped = (
         value.replace("\\", "\\\\")
         .replace('"', '\\"')

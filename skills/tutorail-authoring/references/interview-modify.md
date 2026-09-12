@@ -82,9 +82,11 @@ same every time.
 
 1. Open the lesson the learner names and find the prose. It is usually in *Constraints* or
    *Suggested progression*, and it usually names a `starter/` directory.
-2. Put the files inside the bundle if they are not there already — `supplies/` at the
-   bundle root, or the lesson's own folder when they arrive with one lesson — and declare
-   them:
+2. Put the files inside the bundle if they are not there already. A manifest-scope file
+   may sit anywhere in the bundle, and `supplies/` at the bundle root is the convention. A
+   file that arrives with one lesson **MUST** be inside `lessons/` — put it in that
+   lesson's own folder, because materialization copies only `lessons/` into the instance
+   and the lesson is opened from there. Then declare them:
    `python3 scripts/supplies.py add <bundle> --from <path> --to <path> --describe <text>`,
    with `--lesson <lesson-id>` when they should arrive with that lesson rather than at the
    start. Show the `--check` run first.

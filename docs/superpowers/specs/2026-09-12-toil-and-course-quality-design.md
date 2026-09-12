@@ -6,6 +6,16 @@
 
 ---
 
+> **CORRECTION, 2026-09-12.** Section 5.2 said a file covered by a **lesson-scope**
+> `supplies` entry counts as named for check 6. That was the narrow version, and it was
+> published. The binding authority is `bundle-format.md`, **Supplied material and section
+> 6**, which says **any** declaration clears the file — the manifest's, or another
+> lesson's. `validate_bundle.py` passes every scope to `supplies_covers`, and has since
+> the check was written, so the implementation was never narrow; only this document was.
+> Section 5.2 below is corrected to match. No behaviour changed.
+
+---
+
 ## 1. The problem, as observed
 
 A generated bundle, `webgl-typescript-scene`, opens its first lesson with this task:
@@ -174,8 +184,10 @@ lesson folder to be named by that folder's `LESSON.md`. A lesson that supplies
 `lessons/13-load-gltf-model/model/` names the *directory* in its frontmatter, not
 `Duck.glb` and not the texture beside it. Check 6 as written fires on both.
 
-So: **a file covered by a lesson-scope `supplies` entry whose `from` is that file or a
-directory prefix of it counts as named.** The declaration is a stronger statement of
+So: **a file covered by ANY `supplies` entry whose `from` is that file or a directory
+prefix of it counts as named** — from the manifest or from any lesson, not only from the
+lesson that owns the folder. A file is discoverable because it is declared somewhere, not
+because the folder it sits in declared it. The declaration is a stronger statement of
 intent than prose is — it says what the file is and where it goes — and check 6's own
 docstring concedes that prose naming proves only naming. Check 6's `ran` line must say how
 many files were satisfied by a supplies declaration rather than by prose, so a reader can
@@ -331,7 +343,11 @@ it?* — which makes four such rows, not three.
 optional in three separate places of prose while sitting in `lessons:`, with no
 `optional_lessons` key in the manifest at all. The tooling reports "0 optional", the
 completability machinery never engages, and the rubric banks that lesson's 11 points into a
-total a skipping learner never earns — 194 reported against 183 actually available.
+total a skipping learner never earns — 194 reported against 183 actually available. (Those
+two totals belong to the rubric as it stood on 2026-09-12; the correction note at the top of
+`docs/audits/2026-09-12-course-quality-first-run.md` supersedes them. The 11-point gap
+between them is what this row is about, and the settled tutor-addressed rule does not touch
+lesson 14.)
 
 Three further rows a reader answers, because none is mechanically decidable and none is
 scored:
