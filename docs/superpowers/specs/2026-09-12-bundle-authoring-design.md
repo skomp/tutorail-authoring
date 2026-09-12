@@ -238,6 +238,8 @@ Not a bundle registry, a publishing pipeline, or a marketplace.
 1. **Format migration** (`bundle_format` 1 → 2) is out of scope until a version 2 exists.
    The toolkit should not grow a migration framework speculatively.
 2. **Whether the validator gains a prerequisite-id check** (§9). A change to `tutorAIl`.
-3. **Whether `scaffold` is a script at all.** Generating a skeleton from an approved spec
-   may be better done by the skill writing files directly, since the content is judgement
-   rather than mechanics. Decide during implementation.
+3. ~~**Whether `scaffold` is a script at all.**~~ **Settled 2026-09-12: no.** The skill
+   writes the four root files and the empty `lessons/` directory itself, because that
+   content is judgement, and `lesson.py add` creates every lesson, because that is
+   bookkeeping. `add` was made to work on a bundle that has no lessons yet, which is what
+   makes the bootstrap possible.
