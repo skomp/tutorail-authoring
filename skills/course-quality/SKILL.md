@@ -225,6 +225,13 @@ files live in the course. `--to` is relative to the learner's workspace root, an
 that root itself. Quoting a workspace path as `--from` is the easiest way to get this
 wrong.
 
+**With `--lesson`, the `--from` must be inside `lessons/`** — in that lesson's own folder.
+A lesson's entries are placed when the lesson opens, from the instance, and materialization
+copies only `lessons/` into it, so a lesson-scope file kept anywhere else is not there when
+the lesson needs it and the validator reports the entry. A manifest-scope `--from` has no
+such limit. If the files sit at the bundle root and belong to one lesson, propose moving
+them into that lesson's folder as part of the same fix.
+
 `--from` naming a file the bundle does not contain is the tell that this was never toil:
 if the result has to come off the network, out of a package registry or from an account the
 learner holds, there is no supplies entry to write and nothing to propose. Say that
