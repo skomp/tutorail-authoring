@@ -2,8 +2,15 @@
 
 ## Where work is tracked
 
-This project tracks deferred work in **GitHub issues**. `TODO.md` holds only a pointer to
-the open ones. Label every issue Claude creates with `created-by-claude`.
+This project tracks deferred work in **GitHub issues**, and in no other place. Label every
+issue Claude creates with `created-by-claude`.
+
+Do not add a `TODO.md`. One existed until 2026-09-13 and held a table of the open issues.
+The table was a copy, and a copy goes stale: on 2026-09-13 it listed five issues that were
+closed and omitted six that were open. Read the issues with `gh issue list`.
+
+Issues that belong to a sibling repository stay in that repository. Use the qualified form
+`tutorail-bundles#3`, never a bare number.
 
 Write every entry in ASD-STE100 Simplified Technical English. Keep identifiers, file paths
 and command names verbatim.
