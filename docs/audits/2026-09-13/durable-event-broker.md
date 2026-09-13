@@ -1,5 +1,31 @@
 # Course-quality audit: `durable-event-broker`
 
+> ## OPEN QUESTION, raised 2026-09-13 after publication — the project-skeleton rulings are unsettled
+>
+> `skomp/tutorail-bundles#3` reports a learner who reached this class of step, said *"can
+> you create the base setup for me, there is no learning in that"*, and changed
+> `ownership_policy` in their own instance so the tutor would do it. That happened twice, in
+> two different courses.
+>
+> This report rejected the step as toil on the ground that **the bundle could not have
+> supplied the result**. That reasoning is incomplete, and the rubric is the reason: it
+> carries two tests that disagree here.
+>
+> - *"could this bundle have shipped the result?"* — for a project skeleton, **yes**. It is
+>   a handful of files. A portable bundle can ship one set per supported language and let
+>   the tutor choose after the learner picks; this report assumed a single fixed `--from`
+>   path and concluded no path existed.
+> - *"setup that needs the network, a toolchain or an account is the learner's work"* —
+>   **also yes**. `go mod init`, `cargo new` and `npm init` all need the toolchain.
+>
+> `npm install` is unambiguous under both tests, because `node_modules` cannot ship. A
+> project skeleton is not, and the rubric does not say which test wins. Filed as
+> `skomp/tutorail-authoring#11`.
+>
+> **The score consequence is stated below with each affected element.** Nothing is
+> re-scored here: the ruling belongs to the author, and a report patched to agree with a
+> ruling that has not been made would be worse than one that says it is open.
+
 Audited read-only on 2026-09-13 against
 `tutorail-authoring:course-quality` 0.3.0 and its `references/rubric.md`.
 Bundle path: `/Users/robert/src/github.com/skomp/tutorail-bundles/durable-event-broker`
@@ -538,6 +564,12 @@ that is deterministic, decision-free, and shippable.
   a decision the learner records at `:67`. This is the learner's setup, scored as what it
   actually is (+2), not charged as toil. This rejection is the same shape as the `npm
   install` case the rubric's last clause exists for.
+
+> **OPEN, `tutorail-authoring#11` — the `00:53` rejection above.** A single-language course
+> can ship a `go.mod` and a `main.go` skeleton outright, so "could not have supplied" is too
+> strong here as well. If the author rules the step toil, the element goes +2 -> -2 and the
+> course scores **128**, not 132 (`skomp/tutorail-bundles#3`).
+
 - **`lessons/13-observability-and-load.md:52`** — "then add a JSON log producer representing
   several fictional services." The closest thing in this course to shippable material:
   inventing plausible service names and log fields teaches nothing about brokers. Rejected

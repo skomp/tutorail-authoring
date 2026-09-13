@@ -17,6 +17,30 @@ sentence scored — lives there. This file is the index, not a substitute for it
 | `rust-automaton-db` | [`2026-09-13/rust-automaton-db.md`](2026-09-13/rust-automaton-db.md) |
 | `webgl-typescript-scene` | [`2026-09-13/webgl-typescript-scene.md`](2026-09-13/webgl-typescript-scene.md) |
 
+> ## OPEN QUESTION, raised the same day — is a project skeleton toil?
+>
+> Four of these five reports rejected a create-the-project step with the same words, "the
+> bundle could not have supplied the result", and scored it +2, +1, +1 and 0. A learner had
+> already voted the other way twice: `skomp/tutorail-bundles#3` records them saying *"can you
+> create the base setup for me, there is no learning in that"* and changing
+> `ownership_policy` in their own instance so the tutor would do it.
+>
+> The rubric is the reason the four auditors went the other way. It carries two tests that
+> disagree for a skeleton — *could the bundle have shipped the result?* (yes: a skeleton is a
+> handful of files, and a portable bundle can ship one set per supported language) and
+> *setup that needs the network, a toolchain or an account is the learner's work* (also yes:
+> `go mod init` needs the toolchain). `npm install` is unambiguous under both. A skeleton is
+> not.
+>
+> **Neither instrument detects the gap.** The validator does not require a `supplies:` entry,
+> the toil scanner has no pattern for it, and the rubric told each auditor to reject the
+> candidate. The learner found it; the tooling did not.
+>
+> If the author rules the step toil: rate limiter **32** not 35, bytebeat **50** not 54,
+> broker **128** not 132, rust **353** not 355. Nothing is re-scored here — the ruling is the
+> author's, and each report states the consequence beside the element it affects. Filed as
+> `tutorail-authoring#11`.
+
 ## The totals are not a league table
 
 The rubric says a lesson's figure tracks how finely its `## Suggested progression`
@@ -127,3 +151,5 @@ One issue per bundle, in `skomp/tutorail-bundles`, plus the tooling defect here:
 | `tutorail-bundles#8` | `durable-event-broker` — three unused threads made load-bearing |
 | `tutorail-bundles#9` | `portable-fixed-window-rate-limiter` — the retention anchor, and where concurrency safety belongs |
 | `tutorail-authoring#10` | `audit.py` does not read a fenced coverage list |
+| `tutorail-authoring#11` | the rubric does not settle whether a project skeleton is toil, and nothing detects the missing setup |
+| `tutorail-bundles#3` | the field report that raised it — per-language setup for the two portable bundles |

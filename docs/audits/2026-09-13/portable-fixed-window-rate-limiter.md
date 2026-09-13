@@ -1,5 +1,31 @@
 # Course quality audit — `portable-fixed-window-rate-limiter`
 
+> ## OPEN QUESTION, raised 2026-09-13 after publication — the project-skeleton rulings are unsettled
+>
+> `skomp/tutorail-bundles#3` reports a learner who reached this class of step, said *"can
+> you create the base setup for me, there is no learning in that"*, and changed
+> `ownership_policy` in their own instance so the tutor would do it. That happened twice, in
+> two different courses.
+>
+> This report rejected the step as toil on the ground that **the bundle could not have
+> supplied the result**. That reasoning is incomplete, and the rubric is the reason: it
+> carries two tests that disagree here.
+>
+> - *"could this bundle have shipped the result?"* — for a project skeleton, **yes**. It is
+>   a handful of files. A portable bundle can ship one set per supported language and let
+>   the tutor choose after the learner picks; this report assumed a single fixed `--from`
+>   path and concluded no path existed.
+> - *"setup that needs the network, a toolchain or an account is the learner's work"* —
+>   **also yes**. `go mod init`, `cargo new` and `npm init` all need the toolchain.
+>
+> `npm install` is unambiguous under both tests, because `node_modules` cannot ship. A
+> project skeleton is not, and the rubric does not say which test wins. Filed as
+> `skomp/tutorail-authoring#11`.
+>
+> **The score consequence is stated below with each affected element.** Nothing is
+> re-scored here: the ruling belongs to the author, and a report patched to agree with a
+> ruling that has not been made would be worse than one that says it is open.
+
 Audited 2026-09-13 against `tutorail-authoring:course-quality` v0.3.0 and its
 `references/rubric.md`. Read-only: no file in the bundle was created, edited or staged.
 
@@ -150,6 +176,7 @@ four figures (9, 8, 8) are not obvious from their rows.
 | `:60-61` | "A test or executable example states that the first `N` requests are allowed and request `N + 1` is rejected." | evidence | 0 |
 | `:62-63` | "The learner can explain which parts are contract and which remain implementation choices." | teaching | +2 |
 | | | **sum** | **+9** |
+
 
 Notes on the two elements most easily scored differently:
 
@@ -347,6 +374,7 @@ The scanner produced nothing to reject, so these are mine, taken from the lesson
 | `file:line` | Sentence | Why it is not toil |
 |---|---|---|
 | `00:51-52` | "Create the smallest conventional runnable project and initialise version control if the learner wants it." | **Rejected because the bundle could not have supplied the result.** This is a portable bundle: the language is unknown until `00:50` executes, so there is no `--from` path that could ship a `go.mod`, a `package.json`, a `Cargo.toml` or a `pyproject.toml`. Setup needing a toolchain is the learner's work under the toil row's last clause. Scored +1 for what it is. |
+
 | `00:54`, `01:58`, `02:54` | "Add one focused test…", "Add a test that advances into a new window…", "Add or sharpen the smallest set of tests…" | The learner chooses the assertions and, in `02:54`, which tests are worth having at all. Not deterministic, not unambiguous, and a mistake is instructive. |
 | `01:57` | "Make the existing budget example pass." | The implementation being made to pass is the learner's own and does not exist yet. Practice, +1. |
 | `02:56` | "Run the complete test suite and a small demonstration." | This is the evidence step the format is built around, not a result the bundle could have shipped. Scored 0. |
@@ -365,6 +393,12 @@ section 5, deliberately**, and the absence of `supplies:` is not a finding again
 bundle.
 
 ---
+
+> **OPEN, `tutorail-authoring#11` — the `00:51-52` rejection above.** It assumed one fixed
+> `--from` path. A portable bundle can ship one skeleton per supported language and let the
+> tutor choose after `00:50`. If the author rules the step toil, the element goes +1 -> -2
+> and the course scores **32**, not 35. A learner hit exactly this step and asked for the
+> setup (`skomp/tutorail-bundles#3`).
 
 ## 5. Proposals
 

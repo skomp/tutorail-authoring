@@ -1,5 +1,31 @@
 # Course quality audit: `portable-bytebeat-wav`
 
+> ## OPEN QUESTION, raised 2026-09-13 after publication — the project-skeleton rulings are unsettled
+>
+> `skomp/tutorail-bundles#3` reports a learner who reached this class of step, said *"can
+> you create the base setup for me, there is no learning in that"*, and changed
+> `ownership_policy` in their own instance so the tutor would do it. That happened twice, in
+> two different courses.
+>
+> This report rejected the step as toil on the ground that **the bundle could not have
+> supplied the result**. That reasoning is incomplete, and the rubric is the reason: it
+> carries two tests that disagree here.
+>
+> - *"could this bundle have shipped the result?"* — for a project skeleton, **yes**. It is
+>   a handful of files. A portable bundle can ship one set per supported language and let
+>   the tutor choose after the learner picks; this report assumed a single fixed `--from`
+>   path and concluded no path existed.
+> - *"setup that needs the network, a toolchain or an account is the learner's work"* —
+>   **also yes**. `go mod init`, `cargo new` and `npm init` all need the toolchain.
+>
+> `npm install` is unambiguous under both tests, because `node_modules` cannot ship. A
+> project skeleton is not, and the rubric does not say which test wins. Filed as
+> `skomp/tutorail-authoring#11`.
+>
+> **The score consequence is stated below with each affected element.** Nothing is
+> re-scored here: the ruling belongs to the author, and a report patched to agree with a
+> ruling that has not been made would be worse than one that says it is open.
+
 Audited 2026-09-13 against `tutorail-authoring:course-quality` v0.3.0 and its rubric.
 Read-only: no file in `/Users/robert/src/github.com/skomp/tutorail-bundles` was created,
 edited, staged or deleted. Bundle checksums taken at the start and end of the audit are
@@ -324,6 +350,12 @@ laying out the RIFF header bytes — is also the thing the course exists to teac
   A runnable project in the learner's chosen track needs a toolchain, and for Node tracks a
   package install; no `supplies:` entry can create either. The rubric's last clause is explicit
   that this is the learner's setup. Scored +2 on its own merits, not −2.
+
+> **OPEN, `tutorail-authoring#11` — the `00:57` rejection above.** Five language tracks mean
+> five shippable skeletons, not none. If the author rules the step toil, the element goes
+> +2 -> -2 and the course scores **50**, not 54. Note that this report scored the act +2
+> where the rate-limiter report scored the same act +1 (`skomp/tutorail-bundles#3`).
+
 - `lessons/01-write-a-tone.md:61` — "Inspect the file size and, where available, use an installed
   file-inspection tool." **Rejected: could not have been supplied** (the tool is in the learner's
   environment, and the clause says "where available" precisely because it may not be). Scored 0.

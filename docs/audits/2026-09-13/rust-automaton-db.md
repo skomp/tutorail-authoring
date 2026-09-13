@@ -1,5 +1,31 @@
 # Course quality audit: `rust-automaton-db`
 
+> ## OPEN QUESTION, raised 2026-09-13 after publication — the project-skeleton rulings are unsettled
+>
+> `skomp/tutorail-bundles#3` reports a learner who reached this class of step, said *"can
+> you create the base setup for me, there is no learning in that"*, and changed
+> `ownership_policy` in their own instance so the tutor would do it. That happened twice, in
+> two different courses.
+>
+> This report rejected the step as toil on the ground that **the bundle could not have
+> supplied the result**. That reasoning is incomplete, and the rubric is the reason: it
+> carries two tests that disagree here.
+>
+> - *"could this bundle have shipped the result?"* — for a project skeleton, **yes**. It is
+>   a handful of files. A portable bundle can ship one set per supported language and let
+>   the tutor choose after the learner picks; this report assumed a single fixed `--from`
+>   path and concluded no path existed.
+> - *"setup that needs the network, a toolchain or an account is the learner's work"* —
+>   **also yes**. `go mod init`, `cargo new` and `npm init` all need the toolchain.
+>
+> `npm install` is unambiguous under both tests, because `node_modules` cannot ship. A
+> project skeleton is not, and the rubric does not say which test wins. Filed as
+> `skomp/tutorail-authoring#11`.
+>
+> **The score consequence is stated below with each affected element.** Nothing is
+> re-scored here: the ruling belongs to the author, and a report patched to agree with a
+> ruling that has not been made would be worse than one that says it is open.
+
 Read-only audit. Nothing in the bundle was created, edited, staged or deleted. Every
 finding below is a **proposal** the author may accept or refuse; applying one goes back
 through the `tutorail-authoring` skill and its toolkit.
@@ -170,6 +196,7 @@ carrying a `+1` or `0` that a reader would otherwise have to guess at.
 | `:89-:90` | "`cargo check` succeeds." / "`cargo test` succeeds." | 0 |
 | `:95` | "The learner can explain the difference between moving `String`, borrowing `&String`, and borrowing `&str`." | +2 |
 | `:97` | "The learner can explain why a returned borrowed value cannot outlive the database." | +2 |
+
 
 `0 + (8 × 2) + 1 + 0 + 2 + 2 = 21`.
 
@@ -619,6 +646,7 @@ supplied** are rejections of exactly the kind the skill asks to be named as such
 | Site | Sentence | Verdict |
 |---|---|---|
 | `00:76` | "Create `automaton-db` with Cargo and run the generated binary." | **Rejected — could not have supplied.** This is this course's `npm install`. `cargo new` needs the toolchain, and `tutorial.yaml:39` makes `Cargo.toml` and `Cargo.lock` learner-owned by design. No `supplies:` entry can create a Cargo project in a workspace the bundle does not own. Setup that needs a toolchain is the learner's work. Scored **evidence, 0** — what it actually is. |
+
 | `03:77` | "Move code in small increments and keep tests passing." | **Rejected — could not have supplied.** The code is the learner's, from lessons 00-02. Practice, +1. |
 | `13:50` | "Define a minimal protobuf schema." | **Rejected.** A `.proto` file is exactly the kind of thing a bundle can ship — but constraint `13:44` and theory `13:29` ("Internal Rust types should not leak directly into the protocol merely because serialization is convenient") make the schema's shape the lesson's central decision. Shipping it would delete the teaching. +2. |
 | `14:56` | "Run multi-process and Compose clusters." | **Rejected as written, with a caveat that becomes a proposal.** *Running* a cluster is evidence, 0. But the `docker-compose.yml` and the multi-process launcher this clause presupposes are never assigned by any clause, and they are precisely what a `supplies:` entry is for. Unassigned toil is not chargeable toil; it is a hole. See proposal 3. |
@@ -641,6 +669,11 @@ over, and the toil row's last clause disarms nearly every candidate before it is
 one place it does not disarm is `22:63`.
 
 ---
+
+> **OPEN, `tutorail-authoring#11` — the `00:76` rejection above.** A single-language course
+> can ship a `Cargo.toml` and a `src/` skeleton outright, so "could not have supplied" is
+> too strong here as well. The element scored 0, so a toil ruling moves the course to
+> **353** (`skomp/tutorail-bundles#3`).
 
 ## 5. Proposals
 
