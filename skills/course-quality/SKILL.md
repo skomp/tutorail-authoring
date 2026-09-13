@@ -84,7 +84,7 @@ sentence — the `text` field tells you where it starts, not where it ends.
 - **The coverage list may be absent.** The script returns `coverage_list: null` and says so
   in prose, and that absence is itself a finding: the course has declared no boundary.
 
-### Both candidate lists are candidates
+### Every candidate list is a candidate list
 
 The script says this about itself in its own output, and the report must repeat it.
 
@@ -100,13 +100,19 @@ The script says this about itself in its own output, and the report must repeat 
 - **Topic matches are word overlap, not coverage.** A topic with candidate lessons may
   still go untaught, and a topic with no candidate may be taught throughout under
   different words. The list is a place to look, not an answer.
+- **Undefined-symbol candidates, where the script reports them, are candidates too.** A
+  short backticked string is a shape, not a symbol. The rubric draws the line the reader
+  sorts on — a parameter of the concept being taught (`N`, `W`) against an identifier of
+  the language the learner already chose (`bool`, `New`, `go`) — and says plainly that no
+  script draws it yet. Sort the list by hand, and open the first use before reporting
+  anything.
 
 ## Scoring
 
 The rubric is in `references/rubric.md`. Load it, apply it per element, and print it in
 the report so the author can argue with the scoring rather than with a number.
 
-**The rubric is more than its scored table.** It also carries four rows a reader answers
+**The rubric is more than its scored table.** It also carries six rows a reader answers
 and a scored table cannot reach, one course-level invariant no structural check can reach,
 and two elements — a branch point, and an instruction addressed to the tutor — that are
 easy to score wrong and are settled there rather than left to you. Those are not optional reading and they are not footnotes: section 6 of the report
@@ -148,8 +154,12 @@ and the total with its arithmetic visible: the sum of the lessons, then each cou
 gap penalty subtracted by name.
 
 **2. The per-lesson table.** One row per lesson: lesson, score, objectives served, toil
-found. Below the table, the element breakdown for any lesson whose figure is not obvious
-from its row — and for every lesson scoring at or below zero, without exception.
+found, and **closing action** — the rubric's closing-action row, answered pass or fail for
+**every** lesson, no blanks and no exceptions. It is not a score and is never added into
+one; it sits in this table because "for every lesson" is an obligation prose quietly drops
+and a column cannot. Every lesson marked fail is carried into section 6 with its
+`file:line`. Below the table, the element breakdown for any lesson whose figure is not
+obvious from its row — and for every lesson scoring at or below zero, without exception.
 
 **3. Goal gaps.** Every stated learning objective and every `DESIGN.md` anchor that no
 lesson exercises, listed one per line with its −3. State how you decided each one, because
@@ -172,10 +182,22 @@ scanner is a candidate generator and that this inventory came from the lessons.
 Silence is not an answer here, and neither is "nothing found" with nothing underneath it.
 None of these is scored; all of them change what the author does next.
 
-- **Each of the rubric's four reader-answered rows**, answered explicitly, with a
+- **Each of the rubric's six reader-answered rows**, answered explicitly, with a
   `file:line` for every instance found and an explicit "none found" where none was:
   - a `design_refs` entry that does not answer the question its lesson raises;
   - a lesson that introduces a type or concept nothing later uses;
+  - a symbol or term a lesson uses and no lesson introduces — give the `file:line` of the
+    **first use** of each one, and keep "bound only in `DESIGN.md`" separate from "bound
+    nowhere". They are different repairs, and the split is the point of the row: the runner
+    loads an anchor for the tutor and not for the learner, so a symbol the learner meets
+    only in `DESIGN.md` has not been introduced to them at all;
+  - whether the lesson equips the tutor to end a turn with one concrete action — answered
+    for **every** lesson in the section 2 table, and repeated here with a `file:line` and
+    the failing sentence for every lesson that fails it. Both pass conditions are in the
+    rubric; the second, that decisions are kept out of the closing action, is the one an
+    auditor skips. Grade the lesson **file**, never a transcript: a learner's words are
+    evidence about the file, and an author cannot change a tutor's behaviour from this
+    repository, so a finding against live behaviour is one its reader cannot fix;
   - a lesson far outside the course's usual size, in either direction;
   - a must-cover topic that only an optional lesson teaches — acceptable for this course,
     given that a learner who declines every offer never meets it? This one is a **question

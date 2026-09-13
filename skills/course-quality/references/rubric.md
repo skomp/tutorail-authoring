@@ -113,6 +113,24 @@ time.
 So the exception fires **once in five**, not three or four times. No `DESIGN.md` anchor in the
 other four bundles names setup, toolchain or project layout.
 
+##### The table is dated, and two of its bundles have already moved
+
+Within hours of the ruling, `skomp/tutorail-bundles` acted on it. Commit `a67de21` gave
+`portable-fixed-window-rate-limiter`'s setup step to the tutor and declared
+`ownership_policy: on-request`; commit `c80d8e3` did the same for `portable-bytebeat-wav`.
+
+So in both bundles the skeleton step is **no longer an element at all** — see *A step the
+tutor performs is not an element* below — and the `00:51-52` server named in the table's
+rate-limiter row no longer exists. Their audit reports of 2026-09-13 are dated audits of the
+state before those commits, and are superseded rather than wrong.
+
+**Read this table as the worked reasoning, not as a current description of the catalogue.**
+Every `file:line` in it was correct on 2026-09-13 and several have since moved. Take line
+numbers from the bundle, never from this table or from an issue.
+
+That the ruling changed two bundles the same day is the row working: the toil charge existed
+to move mechanical work off the learner, and it did.
+
 ##### The pattern worth carrying forward: a conjunctive objective is almost never sole-served
 
 Three of the four toil rulings above share one shape. The objective is a **conjunction** —
@@ -296,8 +314,10 @@ zero would stop being comparable across courses.
 
 ## Rows a reader answers, and a script never scores
 
-None of these is mechanically decidable. None is scored. Each one is raised in the report
-as a question, with its `file:line`.
+None of these is mechanically decidable. None is scored. **None of them, and nothing else
+in this file, rejects a bundle**: a quality finding is a proposal its author may refuse, and
+`validate_bundle.py` — whose findings stop a course from starting — is not where a teaching
+judgement belongs. Each one is raised in the report as a question, with its `file:line`.
 
 - **a `design_refs` entry that does not answer the question its lesson raises.** The
   anchor exists, the reference resolves, the validator is green, and the learner who
@@ -305,6 +325,19 @@ as a question, with its `file:line`.
 - **a lesson that introduces a type or concept nothing later uses.** It cost the learner
   attention and bought the course nothing. Either something later should use it, or it
   should go.
+- **a symbol or term a lesson uses and no lesson introduces.** The mirror of the row above,
+  and the more expensive of the two: the learner meets the symbol for the first time in the
+  tutor's explanation, and has to guess. **The row passes when every symbol a lesson uses
+  has been introduced to the learner, in a lesson, at or before its first use.** A binding
+  that exists only in a `DESIGN.md` anchor does not pass it. Report the `file:line` of the
+  first use. See below.
+- **a lesson that does not equip the tutor to end a turn with one concrete action.** **The
+  row passes when both conditions hold: the lesson names the first concrete action — a
+  file, a command or an artifact, and not only the outcome; and the lesson separates the
+  decisions from the actions, marking a design decision the learner must make and keeping
+  that decision out of the closing action.** Fail either and the turn ends with a list of
+  deliverables, or with an open question, in place of a next step. Grade the lesson file.
+  See below.
 - **a lesson far outside the course's usual size.** Both directions matter: one that is
   much larger is usually two lessons, and one that is much smaller is usually a paragraph
   of the lesson beside it.
@@ -323,6 +356,126 @@ instead of improvising a replacement. A row penalising that would push authors t
 dropping the topic from the coverage list, which produces the outcome the format calls
 worse: a tutor improvising material an author had already written. Asking the question gets
 the author's judgement without prejudging it.
+
+### A symbol bound only in `DESIGN.md` has not been introduced
+
+The runner loads a `DESIGN.md` anchor **for the tutor, and not for the learner**. An anchor
+that binds a symbol has therefore told the person explaining and never the person learning.
+That is the whole row. A reader who asks *"is this symbol defined somewhere in the bundle?"*
+passes every case the row exists to catch; the question is **"does a LESSON introduce it, at
+or before its first use?"**
+
+Report each instance as one of two kinds, and never merge them, because they ask the author
+for different repairs:
+
+- **bound only in `DESIGN.md`** — the meaning exists and sits in the document the learner
+  never reads. The repair moves or restates it in the lesson that first uses the symbol.
+- **bound nowhere** — the course has not decided what the symbol means. The repair is a
+  decision, not a move.
+
+Give the `file:line` of the **first use**, not of the definition that is missing: the first
+use is the line the author edits, and the missing definition has no line.
+
+#### What counts as a symbol: the author's ruling of 2026-09-13
+
+Sorting the candidates is the part no script does, and this row must not imply otherwise. A
+script can collect every short backticked string in a lesson, and a lesson is full of them:
+`bool`, `New` and `go` are not symbols under this row.
+
+The boundary the author ruled on:
+
+> A symbol such as `N` or `W` is a **parameter of the concept being taught** — part of what
+> a fixed-window rate limiter IS. An identifier such as `bool`, `New` or `go` belongs to the
+> **language the learner already chose**, and the course did not invent it.
+
+The course owes the learner the first kind and owes nothing for the second. A learner who
+picked Go brought `go` with them. Nobody brings `N`.
+
+**The reader sorts on that boundary, candidate by candidate, and no rule of shape does it
+for them.** "A single uppercase letter" is close enough to be tempting and wrong in both
+directions: it admits `T` for a type parameter the language supplies, and it misses a course
+whose parameters are spelled `limit` and `window`.
+
+A future `DESIGN.md` convention that marks a conceptual parameter apart from a type would
+make the sort mechanical. That is a **bundle-format question, owned by `skomp/tutorAIl`**,
+and it is not settled here. Until it is, the sort is the reader's and the report says so.
+
+#### The case that produced this row, and was then repaired
+
+`portable-fixed-window-rate-limiter` is where a learner met this, on 2026-09-13: "the tutor
+throws in variables N and W and doesn't explain them". `DESIGN.md:6` was the only binding of
+either symbol, three lessons used `N`, and no lesson used `W` at all.
+
+**That bundle is repaired.** `tutorail-bundles` commit `a67de21` defines both symbols in the
+`## Theory` of `lessons/00-contract-and-language.md:31-36`, lists them under
+`## Concepts to teach` at `:44`, and tells the tutor to define them before either symbol
+appears in a task, an example or a test. `DESIGN.md:6` is unchanged and is still the
+contract; it is no longer the only place the meaning lives.
+
+Cite it as the case that produced this row, never as a current finding.
+`tutorail-authoring#14` still carries the pre-repair evidence in its body, because an issue
+records the state at filing and this one was filed before the repair. **Re-read the lessons;
+do not re-quote the issue.**
+
+### The closing-action row grades the lesson FILE, never the tutor's turns
+
+A learner stopped `portable-fixed-window-rate-limiter/lessons/00-contract-and-language.md`
+on 2026-09-13 with these words: "you need to steer me more to the next step. there is no
+call to action in this step." Asked afterwards, they named one defect: **the turn never ends
+with one plain imperative sentence.**
+
+The row is not asking the tutor for something new. The runner's own turn loop already
+requires it: step 6 of the per-turn sequence in the tutorAIl runner's
+`skills/tutorail/SKILL.md` is "give exactly one actionable task". **This row asks whether
+the lesson file makes that possible.** A lesson that hands the tutor a bundle of
+deliverables and an open design question has left the runner's rule unsatisfiable from the
+material, and the learner is the one who finds out.
+
+The temptation is to grade that turn. **Do not.** An author can change a lesson file and
+cannot change a tutor's behaviour from this repository, so a row that grades live behaviour
+reports a defect its reader cannot fix — and every finding in this report exists to carry a
+`file:line` the author can act on. Grade the file. A transcript is evidence about the file,
+the way a dry-run stall is; see **Dynamic evidence is evidence, not a verdict** below.
+
+So look for the properties of the file that leave the tutor with nothing to close on. Two of
+them, from the lesson above, and both still standing after that bundle's other repairs:
+
+- **a progression bullet carrying two actions.** `00-contract-and-language.md:66` reads
+  "Define the public contract in prose and then as an API signature or stub." The tutor
+  must split that bullet before either half can be a next step, and the lesson nowhere says
+  to split it.
+- **an open question with no home.** `## Optional deeper paths`, at `:83-86`, invites a
+  discussion of alternative return values. The tutor raised it at the end of a turn, and the
+  question took the place of the action. The section never says that it does not close a
+  turn.
+
+`tutorail-authoring#13` quotes those two sites as `:53` and `:70-73`. The sentences are the
+same; the file grew above them and the lines moved. **Take line numbers from the lesson, not
+from the issue.**
+
+Condition 2 is the one an auditor skips. A lesson that makes the learner choose — a
+language, a representation, a return shape — is doing its job, and this row does not object
+to the decision. It objects to a decision left standing **where the action should be**.
+Marked as a decision, and settled before the closing action, the same lesson passes.
+
+### Both of these rows are questions, and stay questions
+
+Both were filed with the scored-or-asked choice left open, in `tutorail-authoring#13` and
+`tutorail-authoring#14`. **The author ruled on 2026-09-13 that both are reader-answered**,
+and that is recorded here so the next auditor does not re-open it.
+
+The reason is the one the must-cover row above already gives: a scored row buys
+comparability and pays for it with a mechanical judgement about teaching. Both of these are
+teaching judgements end to end — one asks whether a lesson steers, the other asks whether a
+definition arrived in time for a learner — and neither needs a number to do its work. What
+they need is a `file:line` and an author.
+
+There is a second cost, recorded so it is not rediscovered: five course totals were
+published against this rubric on 2026-09-13, in
+`docs/audits/2026-09-13-course-quality-all-bundles.md`. Any new scored row changes all five
+and forces a third re-audit of the catalogue. That is not why either row is asked rather
+than scored, and it is the reason to be sure before turning any future question into a
+score.
 
 ## The invariant no structural check can reach
 
