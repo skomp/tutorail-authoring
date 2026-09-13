@@ -30,8 +30,16 @@ learner changed `ownership_policy` because no bundle supplies a project skeleton
 does not say if a skeleton is toil, and no check finds the missing `supplies` entry. Decide
 the rubric question first, because the bundle work depends on the ruling.
 
-The audits that produced these are at `docs/audits/2026-09-12-course-quality-first-run.md`
-and `docs/audits/2026-09-13-course-quality-all-bundles.md`.
+Where the rows come from:
+
+- `tutorail-bundles#3` and `#4` come from a learner run on the morning of 2026-09-13. They
+  are field reports, not audit findings.
+- `tutorail-bundles#5` to `#9` come from the audit of 2026-09-13, one issue for each bundle.
+- `tutorail-authoring#10` is the tooling defect that the same audit found.
+
+The audits are at `docs/audits/2026-09-12-course-quality-first-run.md` and
+`docs/audits/2026-09-13-course-quality-all-bundles.md`. The index of the second audit gives
+the same split at lines 144-155.
 
 ## Do not build a second bundle quality checker
 
