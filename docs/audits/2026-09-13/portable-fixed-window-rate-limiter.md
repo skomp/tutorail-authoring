@@ -58,9 +58,14 @@
 > `DESIGN.md` anchor names setup, toolchain or project layout either. **The exception does
 > not apply here — but it does apply in other bundles of this catalogue**, and a reader
 > comparing the five reports of 2026-09-13 should expect them to differ. The catalogue
-> splits on the lesson-00 objective lists: `rust-automaton-db` and `durable-event-broker`
-> each carry a sole-served setup objective and take the exception; this course does not.
-> The rubric's worked table names all five.
+> splits on the lesson-00 objective lists: `rust-automaton-db` carries a sole-served setup
+> objective and takes the exception; this course does not, and neither do the other three.
+> The rubric's worked table names all five, and the exception fires once in five.
+>
+> (An earlier version of this paragraph also named `durable-event-broker` as taking the
+> exception. That followed a draft of the rubric's worked table which was later rebuilt by
+> enumerating elements. The broker's objective `00:21` is a conjunction with four servers,
+> so it is toil and its report scores 128.)
 >
 > **This report HAS been re-scored accordingly.** `00:51-52` moves from practice, +1 to
 > **toil, −2**; lesson 00 moves from +9 to **+6**; the course total moves from 35 to **32**;
@@ -464,11 +469,18 @@ change the ruling: it is conditional on the learner asking and is not a second e
 
 **Expect the sibling reports to differ, and that is not an inconsistency.** The catalogue
 splits on the lesson-00 objective lists, and nothing in the lesson text shows it.
-`rust-automaton-db` ("Create and run a Cargo binary project") and `durable-event-broker`
-("Create a small Go module and executable without speculative package structure") each have
-a setup objective with a single server, so both take the exception and their skeleton steps
-are not toil. This course's setup objective has four servers, so it does not. The rubric's
-worked table for 2026-09-13 lists all five bundles and their rulings.
+`rust-automaton-db` ("Create and run a Cargo binary project") has a setup objective with a
+single server, `00:76`, so it takes the exception and its skeleton step is not toil. This
+course's setup objective has four servers, so it does not. Nor do the other three: the
+exception fires once in five.
+
+An earlier version of this paragraph also gave the exception to `durable-event-broker`
+("Create a small Go module and executable without speculative package structure"). That was
+wrong, and it followed a draft of the rubric's worked table written before anyone enumerated
+elements. That objective is a **conjunction** with four servers — `00:53`'s second clause,
+`00:63` and `00:67` — so the broker's skeleton step is toil and its report scores 128. The
+general lesson is now in the rubric: a conjunctive objective is almost never sole-served.
+The rubric's worked table for 2026-09-13 lists all five bundles and their rulings.
 
 ### Candidates I examined myself and rejected, so the next reader need not re-litigate
 

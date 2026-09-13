@@ -33,8 +33,10 @@
 > by writing "create the project" into the objective list. The operational test is:
 > *is the setup step the only element serving the objective that names it?* If yes, the setup
 > is the subject and handing it over would strand the objective at −3; if other elements serve
-> it too, the skeleton is a part of a larger goal and is toil. The rubric's worked table marks
-> **this bundle borderline** and leaves the call to the reviewer.
+> it too, the skeleton is a part of a larger goal and is toil. A draft of the rubric's worked
+> table marked **this bundle borderline** and left the call to the reviewer; the table was
+> rebuilt from the element list below and now rules it **toil**, with four servers. This
+> report and the rubric agree.
 >
 > **The call, made on the element list: the exception does not apply.** Lesson 00's objective
 > `:23` is a conjunction — "Establish an idiomatic **project and test loop** in the chosen
@@ -425,11 +427,12 @@ out of the inventory on the first half of the test.
   where the rate-limiter report scored the same act +1 (`skomp/tutorail-bundles#3`); both are
   now −2. The remedy is proposal 7.
 
-  **The exception was tested and does not apply. This is the judgement call in this report,
-  so here is the whole evidence.** The rubric's worked table marks this bundle **borderline**
-  and hands the decision to the reviewer, noting that *"idiomatic … in the chosen language"*
-  leans toward the exception. The operational test is not whether an objective names the
-  setup — it does — but:
+  **The exception was tested and does not apply. This was the judgement call in this report,
+  so here is the whole evidence.** A draft of the rubric's worked table marked this bundle
+  **borderline** and handed the decision to the reviewer, noting that *"idiomatic … in the
+  chosen language"* leans toward the exception. The table was afterwards rebuilt from the
+  element list below and now rules this bundle **toil** outright. The operational test is not
+  whether an objective names the setup — it does — but:
 
   > Is the setup step the **only** element serving the objective that names it?
 

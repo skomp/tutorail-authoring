@@ -68,15 +68,14 @@
 > question predicted — a prediction this report re-added element by element rather than
 > trusted. Section 4 now records one confirmed toil site instead of none.
 >
-> **This report disagrees with one row of the rubric that rules it.** The worked table in
-> that rubric section lists `durable-event-broker` as sole-served and therefore as taking
-> the exception. Applying the rubric's own operational test to this bundle's element list
-> gives the opposite answer, for the reasons set out in section 4. The rubric's residual-hole
-> paragraph asks a reviewer who suspects a mis-applied exception to say so in the report
-> rather than adjust a number silently, so it is said here, in the loudest place available:
-> **if the author prefers the table's reading, the single edit is `00:53` back to +2, and
-> every other figure in this report follows from that one cell — L00 returns to 8, the main
-> path to 112, the course to 132.**
+> **This report disagreed with one row of the rubric, and the rubric was corrected.** A
+> draft of that section's worked table listed `durable-event-broker` as sole-served and
+> therefore as taking the exception. Applying the rubric's own operational test to this
+> bundle's element list gave the opposite answer, and this report said so rather than
+> adjusting a number silently. The rubric's table was then rebuilt by enumerating elements,
+> and it now names four servers for `00:21` and rules this bundle **toil**, which is what
+> this report found. There is no disagreement left to record. Section 4 keeps the element
+> list that settled it.
 
 Audited read-only on 2026-09-13 against
 `tutorail-authoring:course-quality` 0.3.0 and its `references/rubric.md`.
@@ -677,17 +676,14 @@ that is deterministic, decision-free, and shippable.
   "69 of 69" — the learner still performs the task, and scoring it toil says the bundle
   should have handed the result over, not that no task exists.
 
-  **Recorded disagreement with the rubric's worked table.** That table lists this bundle as
-  sole-served — *"yes — and it carries a decision, which package structure is speculative"*
-  — and therefore as taking the exception, which would keep `:53` at +2 and the course at
-  132. The element list above is the reason this report does not follow it: the table's cell
-  states a conclusion without naming the elements, and the two grounds it gives — sole
-  service, and the decision — both resolve against the exception once `:63` and `:53`'s
-  second clause are on the page. The rubric's own residual-hole paragraph instructs a
-  reviewer who suspects a mis-applied exception to say so in the report rather than adjust a
-  number silently. **The author can overrule this with one edit**: put `:53` back to +2 and
-  L00 returns to 8, the main path to 112, the course to 132. Every other figure in this
-  report follows from that one cell.
+  **How this settled the rubric's worked table.** A draft of that table listed this bundle
+  as sole-served — *"yes — and it carries a decision, which package structure is
+  speculative"* — and therefore as taking the exception, which would keep `:53` at +2 and
+  the course at 132. That cell stated a conclusion without naming elements, and both grounds
+  it gave — sole service, and the decision — resolve against the exception once `:63` and
+  `:53`'s second clause are on the page: the decision is taken after the skeleton exists and
+  is checked at `:63`, so it never depended on the create step. The rubric was rebuilt from
+  this element list and now rules the bundle toil. The figures here stand.
 
 > **The reasoning this replaces, kept for the record.** As published, this site was
 > *"rejected because the bundle could not have supplied the result"*, on the grounds that a
