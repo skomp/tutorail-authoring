@@ -4,30 +4,34 @@ Deferred work for tutorail-authoring is tracked in **GitHub issues**, not in thi
 
 - https://github.com/skomp/tutorail-authoring/issues
 
-Open issues from the supplies, course-quality and optional-lesson work, 2026-09-12:
+Open issues, 2026-09-13:
 
 | Issue | What |
 |---|---|
-| tutorail-authoring#2 | The catalogue scope line ignores the optional lessons |
 | tutorail-authoring#3 | Add three reader-answered signals to the course-quality rubric |
 | tutorail-authoring#4 | Two documents claim more than the code enforces |
-| tutorAIl#11 | The runner design spec states the material-naming rule with no exception |
-| tutorAIl#12 | `run_case` can pass when the wrong file produces the finding |
-| tutorAIl#13 | Two claims in `bundle-format.md` are now wrong |
-| tutorail-bundles#1 | Three findings from the first course-quality audit |
+| tutorail-authoring#5 | Build the dry-run harness that tests a course before a learner pays for it |
+| tutorail-authoring#9 | README does not say how to install for Codex |
+| tutorail-authoring#10 | `audit.py` does not read a coverage list that a course writes in a code fence |
+| tutorail-authoring#11 | The toil rubric does not settle whether a project skeleton is toil |
+| tutorail-bundles#3 | Create the initial workspace setup for the language that the learner selects |
+| tutorail-bundles#4 | Show a banner when a tutorial loads for the first time |
+| tutorail-bundles#5 | `portable-bytebeat-wav`: the stereo offer blocks the completion of lesson 03 |
+| tutorail-bundles#6 | `webgl-typescript-scene`: declare the starter files and the model as supplies |
+| tutorail-bundles#7 | `rust-automaton-db`: five topics in the coverage list have no task |
+| tutorail-bundles#8 | `durable-event-broker`: make the timestamp, the ownership rule and the read path load-bearing |
+| tutorail-bundles#9 | `portable-fixed-window-rate-limiter`: add a retention anchor, and decide where concurrency safety belongs |
 
-Two issues from the optional-lesson work are deliberately not rows in that table, because
-the table lists what is still OPEN:
+All issues in `skomp/tutorAIl` are closed. `tutorail-authoring#1`, `#2`, `#6`, `#7` and `#8`
+are also closed.
 
-- `tutorail-authoring#7` (SKILL.md does not document the optional lesson modes) was filed
-  and closed on 2026-09-12. The command table in `skills/tutorail-authoring/SKILL.md` now
-  carries both `--optional` modes and the three calling contracts the table cannot show.
-- `tutorail-authoring#1` (the commands that did not know about `optional_lessons`) is
-  implemented and stays open until the owner closes it. Nothing in it is outstanding except
-  `catalog.py`'s `scope` line, which is #2 above.
+`tutorail-authoring#11` and `tutorail-bundles#3` are the same problem from two sides. The
+learner changed `ownership_policy` because no bundle supplies a project skeleton. The rubric
+does not say if a skeleton is toil, and no check finds the missing `supplies` entry. Decide
+the rubric question first, because the bundle work depends on the ruling.
 
-The audit that produced several of these is at
-`docs/audits/2026-09-12-course-quality-first-run.md`.
+The audits that produced these are at `docs/audits/2026-09-12-course-quality-first-run.md`
+and `docs/audits/2026-09-13-course-quality-all-bundles.md`.
 
 ## Do not build a second bundle quality checker
 
