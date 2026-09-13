@@ -31,6 +31,16 @@ THE DISCIPLINE THAT MATTERS MOST HERE: this script never rules on anything.
     hit list for a topic says only that no lesson's frontmatter shares a
     meaningful word with it, which is itself worth a human's attention, not
     a verdict that the topic is untaught.
+  * `symbol_evidence` TABULATES every short backticked symbol a lesson uses
+    and fills in four evidence columns for each: does any lesson's `##
+    Concepts to teach` name it, is there a defining sentence near the first
+    use, is there one elsewhere in the same lesson, and does only `DESIGN.md`
+    bind it. It does NOT decide whether a two-character backticked token is a
+    parameter of the subject (`N`, `W`) or an identifier of the chosen
+    language (`go`, `fn`) - that distinction is categorical and a reader
+    makes it, so there is no keyword denylist and no uppercase-only rule
+    here. Its `status` separates "nothing to check" from "checked and
+    clean", and its `warnings` name any evidence channel that was blind.
 
 This script computes no score. Scoring is judgement (the rubric in
 `references/rubric.md`, applied by the skill this script serves); this
@@ -547,6 +557,628 @@ def topic_candidates_for(
 
 
 # --------------------------------------------------------------------------
+# Symbols a lesson uses and nothing introduces (tutorail-authoring#14).
+#
+# THE SAME DISCIPLINE AS EVERY OTHER SCANNER HERE, AND MORE STRICTLY: this
+# TABULATES candidates, it does not classify them. The author ruled that the
+# distinction between a conceptual parameter of the thing being taught (`N`,
+# `W`) and an identifier of the chosen language (`bool`, `go`, `fn`) is
+# CATEGORICAL and that no script can make it today - a reader makes it. So
+# there is deliberately:
+#
+#   * no keyword denylist. `go`, `fn`, `id`, `ok` and `db` are emitted like
+#     any other candidate, with the evidence a reader needs to dismiss them.
+#   * no uppercase-only rule. The issue's own open question floats "report a
+#     single uppercase letter only"; that rule silently drops `n`, `w`, `qs`
+#     and anything a course writes in lower case, and this scanner's job is
+#     to make sure a reader cannot MISS a candidate.
+#   * no pruning of a candidate because some evidence channel bound it. EVERY
+#     candidate is emitted with all four evidence columns filled in and a
+#     `binding` field that is a PURE FUNCTION of those columns. A reader who
+#     disagrees with a "definition" this scanner found can see the sentence
+#     it matched, quoted, and overrule it.
+#
+# THE CANDIDATE RULE, and why it is this one.
+#
+# A candidate is an IDENTIFIER TOKEN OF ONE OR TWO CHARACTERS that appears
+# inside an EXPRESSION-SHAPED backticked span.
+#
+#   * "one or two characters" is the issue's own bound. Two is the first
+#     bound that keeps `qs`, `dt`, `id` and `go` while dropping `New`, `bool`
+#     and `null` by length alone rather than by a denylist - which is exactly
+#     the line the author drew. It is a property of the TOKEN, never of the
+#     whole span.
+#   * "expression-shaped" is what keeps `N + 1` from being lost. The issue
+#     names `N + 1` as a symbol that must survive, and a rule that measured
+#     the whole backticked span would throw it away at five characters. So
+#     the span is TOKENIZED, and a span qualifies when it holds nothing but
+#     identifiers, integer literals, whitespace and arithmetic/comparison
+#     operators. `N + 1` yields the candidate `N`; `starter/package.json`
+#     and `db.Exec()` are excluded outright by the `.` they contain, before
+#     length is even considered.
+#
+# A pure digit run (`1`, `256`) is a literal, not an identifier, and is never
+# a candidate.
+# --------------------------------------------------------------------------
+
+SYMBOL_DISCLAIMER = (
+    "Short-symbol candidates are a TABULATION, not a verdict. This scanner "
+    "cannot tell a conceptual parameter of the subject (`N`, `W`) from an "
+    "identifier of the chosen language (`go`, `fn`, `id`) - that distinction "
+    "is categorical and a reader makes it. Every candidate is listed with "
+    "its evidence, including the ones some channel appears to bind, so a "
+    "reader can overrule this scanner in both directions."
+)
+
+SYMBOL_RULE = (
+    "candidate = an identifier token of 1-2 characters inside a backticked "
+    "span made only of identifiers, integer literals, whitespace and "
+    "arithmetic/comparison operators, with a binary '-' requiring whitespace "
+    "so a slug is not mistaken for a subtraction. `N + 1` yields `N`; "
+    "`starter/package.json` is excluded by its '.'; `automaton-db` by its "
+    "wedged hyphen; `bool` and `New` are excluded by token length, not by a "
+    "denylist."
+)
+
+SYMBOL_WINDOW = (
+    "near the first use = the PARAGRAPH BLOCK holding the first use, plus "
+    "the block immediately before it and the block immediately after it "
+    "(the same blocks the toil scanner treats as one piece of prose; a "
+    "heading or a bullet always starts a fresh one). Prose in this corpus is "
+    "hard-wrapped, so a line-count window would cut sentences in half; a "
+    "paragraph is the smallest unit an author actually writes a definition "
+    "in. The block AFTER the first use is included deliberately - whether a "
+    "definition arrives early enough is a reader's question, not this "
+    "script's, so a late definition is reported as found-and-late rather "
+    "than suppressed. A definition anywhere else in the same lesson is "
+    "reported too, in its own `lesson-prose-elsewhere` bucket."
+)
+
+_MAX_SYMBOL_LEN = 2
+
+# The characters an expression-shaped span may contain, beyond identifier
+# and digit characters: whitespace and the arithmetic/comparison operators a
+# course writes inline. `.`, `/`, `:`, quotes, brackets and braces are all
+# ABSENT on purpose - they are what a path, a method call, a type parameter
+# or a dict literal is made of, and none of those is the shape this scanner
+# is looking for.
+_EXPRESSION_SPAN_RE = re.compile(r"^[A-Za-z0-9_\s+\-*%^<>=(),×·]+$")
+
+# A hyphen wedged BETWEEN two word characters is not a minus sign, it is a
+# slug: `automaton-db`, `01-write-a-tone`,
+# `frame-decoder-breaks-on-arbitrary-input`. Measured against the five real
+# bundles, every one of those three spans reached the `none` bucket and every
+# one was noise - a lesson id or a validator name, not a symbol anybody has
+# to introduce. Requiring whitespace around a binary `-` (a leading unary `-`
+# is still fine, as in `-1`) removes all three while keeping `N - 1`.
+#
+# This is a refinement of the EXPRESSION SHAPE, not a denylist of
+# identifiers: no token is judged by what it spells, only by the punctuation
+# of the span it sits in.
+_SLUG_HYPHEN_RE = re.compile(r"[A-Za-z0-9_]-[A-Za-z0-9_]")
+
+_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+_INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
+
+_FENCE_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})")
+
+
+def strip_fenced_blocks(text: str) -> tuple[str, int]:
+    """Blank the CONTENT of every fenced code block, keeping the line count.
+
+    Returns (text, number of fences opened). Line numbers survive, so every
+    `file:line` this section reports still points at the real line.
+
+    Fenced blocks are skipped DELIBERATELY and the count is reported, so that
+    "this bundle has no inline symbols" can never be confused with "this
+    bundle writes everything inside fences and the scanner never looked" -
+    the failure shape tutorail-authoring#10 describes for the coverage-list
+    parser. A bundle whose fence count is high and whose candidate count is
+    zero is a bundle to read by hand.
+    """
+    out: list[str] = []
+    fence: str | None = None
+    opened = 0
+    for line in text.splitlines():
+        marker = _FENCE_RE.match(line)
+        if fence is None:
+            if marker:
+                fence = marker.group(1)[0]
+                opened += 1
+                out.append("")
+                continue
+            out.append(line)
+        else:
+            out.append("")
+            if marker and marker.group(1)[0] == fence:
+                fence = None
+    return "\n".join(out), opened
+
+
+def symbols_in_span(span: str) -> list[str]:
+    """The 1-2 character identifier tokens an expression-shaped span holds."""
+    if not _EXPRESSION_SPAN_RE.match(span) or _SLUG_HYPHEN_RE.search(span):
+        return []
+    return [tok for tok in _IDENT_RE.findall(span) if len(tok) <= _MAX_SYMBOL_LEN]
+
+
+def symbol_uses(text: str) -> list[dict]:
+    """Every candidate-symbol use in `text`, in document order.
+
+    `text` must already have its fenced blocks blanked. Each use records the
+    symbol, the backticked span AS WRITTEN (so `N + 1` is never flattened
+    into a bare `N` and lost), the 1-indexed line and that line's text.
+    """
+    uses: list[dict] = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        for m in _INLINE_CODE_RE.finditer(line):
+            span = m.group(1)
+            for symbol in symbols_in_span(span):
+                uses.append(
+                    {
+                        "symbol": symbol,
+                        "span": span.strip(),
+                        "line": lineno,
+                        "text": line.strip(),
+                    }
+                )
+    return uses
+
+
+# --------------------------------------------------------------------------
+# What counts as a defining sentence.
+#
+# Five cues, each reported BY NAME with the sentence it matched, so a reader
+# can reject any one of them. The copula cue is the one that most easily
+# over-claims - "`N + 1` is rejected." is a sentence about `N`, and it is not
+# a definition - so `is`/`are` additionally require a determiner, a numeral
+# or a defining participle after them. That kills "is rejected", "is
+# allowed", "is enough" while keeping "`N` is the request limit" and "`W` is
+# a positive duration".
+#
+# The appositive cue ("a positive request limit `N`") requires the span to be
+# at the END of its noun phrase - followed by punctuation, "and", "or", or
+# the end of the sentence. Without that lookahead, "the first `N` requests"
+# reads as an apposition when `N` is really a determiner for "requests".
+# --------------------------------------------------------------------------
+
+_DETERMINER = r"(?:the|a|an|its|our|one|any|each|every|either|both|two|\d+|written|called|defined|known|shorthand)"
+_COPULA = r"(?:is|are|was|were|will\s+be|shall\s+be)"
+_NAMES = r"(?:means|denotes|represents|refers\s+to|stands\s+for|names)"
+
+
+def _definition_cues(symbol: str) -> list[tuple[str, re.Pattern[str]]]:
+    sym = re.escape(symbol)
+    span = r"`[^`\n]*(?<![A-Za-z0-9_])" + sym + r"(?![A-Za-z0-9_])[^`\n]*`"
+    return [
+        ("copula", re.compile(span + r"\s+" + _COPULA + r"\s+" + _DETERMINER + r"\b", re.IGNORECASE)),
+        ("names", re.compile(span + r"\s+" + _NAMES + r"\b", re.IGNORECASE)),
+        (
+            "appositive",
+            re.compile(
+                r"\b(?:the|a|an|each|one|our|its|this|that|some|any|positive|configured)\s+"
+                r"(?:[A-Za-z][A-Za-z-]*\s+){0,2}"
+                # The head noun must be a NOUN, not a preposition. "the role
+                # of `w`" and "a section index from `t`" both have the shape
+                # of an apposition and neither defines anything - the span is
+                # the preposition's OBJECT, not the noun phrase's name. Real
+                # corpus lines, both from bundles this scanner is measured
+                # against (webgl-typescript-scene/lessons/
+                # 05-transforms-and-perspective.md:20 and
+                # portable-bytebeat-wav/lessons/03-compose-and-export.md:28).
+                r"(?!(?:of|for|in|to|by|with|on|from|between|against|as|at|into|"
+                r"over|under|within|without|per|about|than|via)\s)"
+                r"[A-Za-z][A-Za-z-]*\s+" + span + r"(?=\s*(?:[,.;:)]|\band\b|\bor\b|$))",
+                re.IGNORECASE,
+            ),
+        ),
+        (
+            "gloss",
+            re.compile(span + r"\s*(?:\([^)]{2,}\)|[:—]\s+\w|\s-\s+\w)", re.IGNORECASE),
+        ),
+        (
+            "let-be",
+            re.compile(
+                # Not "use". "- Use `Vec<T>`, slices, iterators, and
+                # closures." (rust-automaton-db/lessons/00-foundations.md:29)
+                # is an instruction, not a definition, and "use" is the one
+                # verb in this family that reads as neither.
+                r"\b(?:let|call|write|denote|define)\b[^.]{0,48}?" + span, re.IGNORECASE
+            ),
+        ),
+        ("where-is", re.compile(r"\bwhere\s+" + span + r"\s+" + _COPULA + r"\b", re.IGNORECASE)),
+    ]
+
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+def _sentences(joined: str) -> list[tuple[int, str]]:
+    """(start offset, sentence) pairs covering `joined`, in order."""
+    out: list[tuple[int, str]] = []
+    pos = 0
+    for piece in _SENTENCE_SPLIT_RE.split(joined):
+        idx = joined.find(piece, pos)
+        if idx < 0:  # pragma: no cover - split output is always found
+            idx = pos
+        out.append((idx, piece))
+        pos = idx + len(piece)
+    return out
+
+
+def find_definitions(symbol: str, text: str) -> list[dict]:
+    """Every defining sentence for `symbol` in `text`, with its line and cue.
+
+    `text` must already have its fenced blocks blanked. The match is decided
+    against a SENTENCE inside a word-unwrapped paragraph block, because this
+    corpus hard-wraps its prose and a definition routinely straddles two
+    physical lines; the reported line is still the physical one a reader
+    opens their editor to, and `block` is the index of the paragraph block
+    the sentence came from, which is what the near-the-first-use window is
+    measured in.
+    """
+    lines = text.splitlines()
+    cues = _definition_cues(symbol)
+    found: list[dict] = []
+    for block_index, indices in enumerate(_paragraph_blocks(lines)):
+        joined, spans = _join_block(lines, indices)
+        for offset, sentence in _sentences(joined):
+            for name, pattern in cues:
+                m = pattern.search(sentence)
+                if m is None:
+                    continue
+                line_idx = _line_for_offset(spans, offset + m.start())
+                found.append(
+                    {
+                        "line": line_idx + 1,
+                        "cue": name,
+                        "sentence": sentence.strip(),
+                        "block": block_index,
+                    }
+                )
+                break
+    found.sort(key=lambda d: d["line"])
+    return found
+
+
+def _block_of_line(blocks: list[list[int]], line_index: int) -> int | None:
+    for i, indices in enumerate(blocks):
+        if line_index in indices:
+            return i
+    return None
+
+
+# --------------------------------------------------------------------------
+# The `## Concepts to teach` index and the DESIGN.md index.
+# --------------------------------------------------------------------------
+
+
+def concepts_symbols(lesson_text: str) -> tuple[bool, dict[str, dict]]:
+    """(does the lesson declare the section, symbols it names).
+
+    The boolean is load-bearing and is NOT derivable from the dict. A lesson
+    with no `## Concepts to teach` section and a lesson whose section names
+    no symbol both yield an empty dict, and only the first means "this
+    evidence channel does not exist here". Collapsing the two is the shape of
+    bug tutorail-authoring#10 describes and the shape `coverage_list` already
+    guards against by returning None rather than [].
+
+    A concept bullet names a symbol either in backticks ("the symbols `N`
+    (request limit) and `W`") or bare ("the window duration W"); both count,
+    and the form is reported so a reader can see which it was.
+    """
+    _, body = bl.split_frontmatter(lesson_text)
+    section: str | None = None
+    for heading, section_body in _sections(body):
+        if heading.strip().lower() == "concepts to teach":
+            section = section_body
+            break
+    if section is None:
+        return False, {}
+
+    offset = body.index(section)
+    first_line = body.count("\n", 0, offset) + 1
+    frontmatter_lines = lesson_text.count("\n", 0, lesson_text.index(body)) if body else 0
+
+    named: dict[str, dict] = {}
+    backticked: set[str] = set()
+    for lineno, line in enumerate(section.splitlines(), start=first_line):
+        real_line = lineno + frontmatter_lines
+        for m in _INLINE_CODE_RE.finditer(line):
+            for symbol in symbols_in_span(m.group(1)):
+                backticked.add(symbol)
+                named.setdefault(
+                    symbol,
+                    {"line": real_line, "text": line.strip(), "form": "backticked"},
+                )
+    # A bare mention only counts for a symbol some lesson actually USES; the
+    # caller supplies that set, so record every bare word of candidate length
+    # here and let `build_symbol_evidence` intersect.
+    bare: dict[str, dict] = {}
+    for lineno, line in enumerate(section.splitlines(), start=first_line):
+        real_line = lineno + frontmatter_lines
+        stripped = _INLINE_CODE_RE.sub(" ", line)
+        for word in re.findall(r"(?<![A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)(?![A-Za-z0-9_])", stripped):
+            if len(word) <= _MAX_SYMBOL_LEN and word not in backticked:
+                bare.setdefault(word, {"line": real_line, "text": line.strip(), "form": "bare"})
+    for symbol, hit in bare.items():
+        named.setdefault(symbol, hit)
+    return True, named
+
+
+def design_symbol_index(design_text: str) -> dict[str, dict]:
+    """Where DESIGN.md mentions each candidate symbol, and under which anchor.
+
+    A DESIGN.md mention NEVER introduces a symbol to a learner - the runner
+    loads an anchor for the TUTOR - so this index exists only to separate
+    "bound solely in DESIGN.md" from "bound nowhere at all", which the issue
+    requires be reported distinctly.
+    """
+    stripped, _ = strip_fenced_blocks(design_text)
+    lines = stripped.splitlines()
+
+    anchor_at: list[str | None] = []
+    current: str | None = None
+    for line in lines:
+        heading = _HEADING_RE.match(line)
+        if heading:
+            found = bl._ANCHOR_RE.search(heading.group(2))
+            current = found.group(1) if found else None
+        anchor_at.append(current)
+
+    index: dict[str, dict] = {}
+    for lineno, line in enumerate(lines, start=1):
+        for m in _INLINE_CODE_RE.finditer(line):
+            for symbol in symbols_in_span(m.group(1)):
+                entry = index.setdefault(
+                    symbol, {"line": lineno, "text": line.strip(), "anchors": []}
+                )
+                anchor = anchor_at[lineno - 1]
+                if anchor and anchor not in entry["anchors"]:
+                    entry["anchors"].append(anchor)
+    return index
+
+
+# --------------------------------------------------------------------------
+# Assembly of the symbol evidence
+# --------------------------------------------------------------------------
+
+# The buckets, strongest evidence first. `binding` is a PURE FUNCTION of the
+# evidence columns and ranks them in this order; it is a label for a row of
+# facts, not a judgement about the symbol.
+#
+# `other-lesson-prose` exists so that `design-md-only` means what the issue
+# needs it to mean. `portable-bytebeat-wav` uses `t` in four lessons; only
+# `DESIGN.md:24` and lesson 00's own objectives bind it. Without a column for
+# a definition in a DIFFERENT lesson, lessons 01, 02 and `stereo-bytebeat`
+# would all land in `design-md-only` while lesson 00 in fact defines `t` in
+# prose - and "only DESIGN.md binds this" would be a false statement. The
+# bucket is still a finding worth a reader's eye (a learner who starts at
+# lesson 01 has met no definition), which is why it sits below the
+# same-lesson buckets rather than beside `concepts`.
+_BINDING_ORDER = [
+    "concepts",
+    "lesson-prose-in-window",
+    "lesson-prose-elsewhere",
+    "other-lesson-prose",
+    "design-md-only",
+    "none",
+]
+
+
+def build_symbol_evidence(bundle: bl.Bundle) -> dict:
+    """Per lesson, per candidate symbol: the evidence, never a verdict.
+
+    `status` separates NOTHING TO CHECK from CHECKED AND CLEAN. A bundle
+    whose lessons declare no `## Concepts to teach` section anywhere, or
+    whose `DESIGN.md` could not be read, has lost an evidence channel, and an
+    empty `unbound` list from such a bundle means something entirely
+    different from an empty list produced with every channel alive. The same
+    goes for a bundle in which no candidate symbol was found at all. Both are
+    reported as `status` plus a populated `warnings` list, never as silence.
+    """
+    warnings: list[str] = []
+
+    design_text = bl.read_text(bundle.root / "DESIGN.md")
+    design_present = (bundle.root / "DESIGN.md").exists()
+    if design_text is None:
+        design_index: dict[str, dict] = {}
+        warnings.append(
+            "DESIGN.md could not be read"
+            + (" (the file is present but unreadable)" if design_present else " (no such file)")
+            + " - the 'defined only in DESIGN.md' column is BLIND for this bundle, "
+            "so every symbol it would have bound is reported as bound nowhere."
+        )
+    else:
+        design_index = design_symbol_index(design_text)
+
+    lessons_scanned = 0
+    unreadable: list[str] = []
+    fenced_blocks = 0
+    concepts_lessons: list[str] = []
+    without_concepts: list[str] = []
+    concepts_named: dict[str, list[dict]] = {}
+    # (lesson, body with fences blanked, uses, paragraph blocks, frontmatter
+    # line offset). Every line number inside the stripped BODY is offset by
+    # `prefix` to become a line number in the lesson FILE, which is what a
+    # reader opens their editor to.
+    per_lesson: list[tuple[bl.Lesson, str, list[dict], list[list[int]], int]] = []
+
+    for lesson in bundle.ordered:
+        raw = bl.read_text(lesson.path)
+        if raw is None:
+            unreadable.append(lesson.rel)
+            continue
+        lessons_scanned += 1
+        has_section, named = concepts_symbols(raw)
+        if has_section:
+            concepts_lessons.append(lesson.rel)
+            for symbol, hit in named.items():
+                concepts_named.setdefault(symbol, []).append({"rel": lesson.rel, **hit})
+        else:
+            without_concepts.append(lesson.rel)
+
+        _, body = bl.split_frontmatter(raw)
+        prefix_lines = raw.count("\n", 0, raw.index(body)) if body else 0
+        stripped, opened = strip_fenced_blocks(body)
+        fenced_blocks += opened
+        uses = symbol_uses(stripped)
+        for use in uses:
+            use["line"] += prefix_lines
+        per_lesson.append(
+            (lesson, stripped, uses, _paragraph_blocks(stripped.splitlines()), prefix_lines)
+        )
+
+    if not concepts_lessons and lessons_scanned:
+        warnings.append(
+            "NO lesson in this bundle declares a '## Concepts to teach' section - "
+            "the 'some lesson names it' column is BLIND for this bundle. Every "
+            "candidate below is reported as un-introduced by that channel because "
+            "the channel does not exist here, not because a reader checked it."
+        )
+
+    # Every distinct candidate symbol, looked for in EVERY lesson, so that a
+    # definition in a different lesson is a column of its own rather than an
+    # absence that would make `design-md-only` lie (see `_BINDING_ORDER`).
+    all_symbols = sorted({use["symbol"] for _, _, uses, _, _ in per_lesson for use in uses})
+    definitions_by_lesson: dict[str, dict[str, list[dict]]] = {}
+    for lesson, stripped, _uses, _blocks, prefix in per_lesson:
+        found: dict[str, list[dict]] = {}
+        for symbol in all_symbols:
+            rows = find_definitions(symbol, stripped)
+            if rows:
+                found[symbol] = [dict(row, line=row["line"] + prefix) for row in rows]
+        definitions_by_lesson[lesson.rel] = found
+
+    candidates: list[dict] = []
+    for lesson, stripped, uses, blocks, prefix in per_lesson:
+        seen: set[str] = set()
+        for use in uses:
+            symbol = use["symbol"]
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+
+            definitions = definitions_by_lesson[lesson.rel].get(symbol, [])
+
+            use_block = _block_of_line(blocks, use["line"] - prefix - 1)
+            in_window: dict | None = None
+            elsewhere: list[dict] = []
+            for d in definitions:
+                row = {
+                    "rel": lesson.rel,
+                    "line": d["line"],
+                    "cue": d["cue"],
+                    "sentence": d["sentence"],
+                }
+                near = use_block is not None and abs(d["block"] - use_block) <= 1
+                if near and in_window is None:
+                    row["offset_lines"] = row["line"] - use["line"]
+                    in_window = row
+                elif not near:
+                    elsewhere.append(row)
+
+            other_lessons: list[dict] = []
+            for rel, found in definitions_by_lesson.items():
+                if rel == lesson.rel:
+                    continue
+                for d in found.get(symbol, []):
+                    other_lessons.append(
+                        {"rel": rel, "line": d["line"], "cue": d["cue"], "sentence": d["sentence"]}
+                    )
+
+            concepts_hits = concepts_named.get(symbol, [])
+            design_hit = design_index.get(symbol)
+
+            if concepts_hits:
+                binding = "concepts"
+            elif in_window is not None:
+                binding = "lesson-prose-in-window"
+            elif elsewhere:
+                binding = "lesson-prose-elsewhere"
+            elif other_lessons:
+                binding = "other-lesson-prose"
+            elif design_hit is not None:
+                binding = "design-md-only"
+            else:
+                binding = "none"
+
+            candidates.append(
+                {
+                    "symbol": symbol,
+                    "lesson": lesson.rel,
+                    "first_use": {
+                        "rel": lesson.rel,
+                        "line": use["line"],
+                        "span": use["span"],
+                        "text": use["text"],
+                    },
+                    "named_in_concepts": concepts_hits,
+                    "defined_in_window": in_window,
+                    "defined_elsewhere_in_lesson": elsewhere,
+                    "defined_in_other_lessons": other_lessons,
+                    "design_md": (
+                        None
+                        if design_hit is None
+                        else {
+                            "line": design_hit["line"],
+                            "text": design_hit["text"],
+                            "anchors": design_hit["anchors"],
+                        }
+                    ),
+                    "binding": binding,
+                }
+            )
+
+    candidates.sort(key=lambda c: (c["lesson"], c["first_use"]["line"], c["symbol"]))
+
+    if lessons_scanned == 0:
+        status = "nothing-to-check"
+        warnings.append(
+            "NO lesson text could be read at all - nothing was checked. This is "
+            "not a clean result."
+        )
+    elif not candidates:
+        status = "nothing-to-check"
+        warnings.append(
+            f"NO candidate symbol was found in any of the {lessons_scanned} lesson(s) "
+            f"scanned ({fenced_blocks} fenced code block(s) were skipped, as this "
+            f"scanner only reads INLINE backticked spans). 'No candidate found' is "
+            f"NOT 'no undefined symbol' - read the lessons."
+        )
+    elif warnings:
+        status = "checked-with-blind-channels"
+    else:
+        status = "checked"
+
+    summary = {name: 0 for name in _BINDING_ORDER}
+    for c in candidates:
+        summary[c["binding"]] += 1
+
+    return {
+        "status": status,
+        "rule": SYMBOL_RULE,
+        "window": SYMBOL_WINDOW,
+        "disclaimer": SYMBOL_DISCLAIMER,
+        "warnings": warnings,
+        "scan": {
+            "lessons_scanned": lessons_scanned,
+            "lessons_unreadable": unreadable,
+            "fenced_blocks_skipped": fenced_blocks,
+            "lessons_with_concepts_section": concepts_lessons,
+            "lessons_without_concepts_section": without_concepts,
+            "design_md_present": design_present,
+            "design_md_readable": design_text is not None,
+            "design_md_symbols": sorted(design_index),
+            "candidate_rows": len(candidates),
+            "distinct_symbols": sorted({c["symbol"] for c in candidates}),
+        },
+        "summary_by_binding": summary,
+        "candidates": candidates,
+    }
+
+
+# --------------------------------------------------------------------------
 # Assembly
 # --------------------------------------------------------------------------
 
@@ -600,9 +1232,11 @@ def build(bundle: bl.Bundle) -> dict:
         "supplies": gather_supplies(bundle),
         "candidates": candidates,
         "topic_candidates": topic_candidates,
+        "symbol_evidence": build_symbol_evidence(bundle),
         "notes": {
             "toil_scanner": CANDIDATE_DISCLAIMER,
             "topic_matching": TOPIC_DISCLAIMER,
+            "symbol_evidence": SYMBOL_DISCLAIMER,
         },
     }
 
@@ -687,8 +1321,112 @@ def render_markdown(data: dict) -> str:
             out.append(f"- [{scope}] {entry.get('from')} -> {entry.get('to')}: {entry.get('describe')}")
     out.append("")
 
+    out.extend(render_symbol_evidence(data["symbol_evidence"]))
+
     out.append(f"DESIGN.md anchors ({len(data['anchors'])}): {', '.join(data['anchors']) or '(none)'}")
     return "\n".join(out)
+
+
+_BINDING_HEADINGS = {
+    "none": "Used, and introduced NOWHERE this scanner can see",
+    "design-md-only": "Bound ONLY in DESIGN.md - the runner loads an anchor for the TUTOR, not for the learner, so this does NOT introduce the symbol to a learner",
+    "lesson-prose-elsewhere": "A defining sentence exists in the same lesson but OUTSIDE the near-the-first-use window - is it early enough? A reader decides",
+    "other-lesson-prose": "No same-lesson introduction: the only defining sentence is in a DIFFERENT lesson. A learner who reaches this lesson without that one has met no definition",
+    "lesson-prose-in-window": "A defining sentence is near the first use - read the sentence and decide whether it really defines the symbol",
+    "concepts": "Some lesson's '## Concepts to teach' names it - read the bullet and decide whether it really introduces the symbol",
+}
+
+
+def render_symbol_evidence(ev: dict) -> list[str]:
+    out: list[str] = []
+    out.append("## Short symbols a lesson uses")
+    out.append("")
+    out.append(f"status: {ev['status']}")
+    out.append("")
+    out.append(f"Candidate rule: {ev['rule']}")
+    out.append("")
+    out.append(f"Window: {ev['window']}")
+    out.append("")
+    out.append(ev["disclaimer"])
+    out.append("")
+
+    scan = ev["scan"]
+    out.append(
+        f"Scanned {scan['lessons_scanned']} lesson(s); "
+        f"{len(scan['lessons_with_concepts_section'])} declare '## Concepts to teach'; "
+        f"{scan['fenced_blocks_skipped']} fenced code block(s) skipped; "
+        f"DESIGN.md present={scan['design_md_present']} readable={scan['design_md_readable']}; "
+        f"{scan['candidate_rows']} candidate row(s) over "
+        f"{len(scan['distinct_symbols'])} distinct symbol(s)."
+    )
+    out.append("")
+
+    if ev["warnings"]:
+        out.append("NOTHING-TO-CHECK / BLIND-CHANNEL WARNINGS - read these before")
+        out.append("reading an empty list below as a clean result:")
+        for text in ev["warnings"]:
+            out.append(f"  !! {text}")
+        out.append("")
+
+    if ev["status"] == "nothing-to-check":
+        out.append(
+            "This section checked NOTHING. That is a different result from "
+            "'checked and clean', and the warnings above say why."
+        )
+        out.append("")
+        return out
+
+    for binding in _BINDING_ORDER:
+        rows = [c for c in ev["candidates"] if c["binding"] == binding]
+        out.append(f"### {binding} ({len(rows)})")
+        out.append("")
+        out.append(_BINDING_HEADINGS[binding])
+        out.append("")
+        if not rows:
+            if binding == "none":
+                out.append(
+                    "(no candidate fell in this bucket - with every channel above "
+                    "alive, that is 'checked and clean' for this bucket, not "
+                    "'nothing was checked'.)"
+                )
+            else:
+                out.append("(none)")
+            out.append("")
+            continue
+        for c in rows:
+            use = c["first_use"]
+            out.append(f"- `{c['symbol']}` first used at {use['rel']}:{use['line']} (written `{use['span']}`)")
+            out.append(f"    {use['text']}")
+            for hit in c["named_in_concepts"]:
+                out.append(
+                    f"    concepts: {hit['rel']}:{hit['line']} [{hit['form']}] {hit['text']}"
+                )
+            if c["defined_in_window"]:
+                d = c["defined_in_window"]
+                out.append(
+                    f"    definition in window: {d['rel']}:{d['line']} "
+                    f"({d['offset_lines']:+d} lines) [{d['cue']}] {d['sentence']}"
+                )
+            for d in c["defined_elsewhere_in_lesson"]:
+                out.append(
+                    f"    definition elsewhere in lesson: {d['rel']}:{d['line']} "
+                    f"[{d['cue']}] {d['sentence']}"
+                )
+            for d in c["defined_in_other_lessons"]:
+                out.append(
+                    f"    definition in ANOTHER lesson: {d['rel']}:{d['line']} "
+                    f"[{d['cue']}] {d['sentence']}"
+                )
+            if c["design_md"]:
+                anchors = ", ".join(c["design_md"]["anchors"]) or "(no anchor)"
+                out.append(
+                    f"    DESIGN.md:{c['design_md']['line']} under {anchors} - "
+                    f"TUTOR-ONLY, does not introduce the symbol to a learner"
+                )
+            else:
+                out.append("    DESIGN.md: no mention")
+        out.append("")
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:

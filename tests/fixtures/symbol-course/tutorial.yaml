@@ -1,0 +1,29 @@
+bundle_format: 1
+id: symbol-course
+title: A Short-Symbol Fixture
+description: >
+  A minimal bundle for the short-symbol tabulation of
+  tutorail-authoring#14. It carries one symbol of each binding kind on
+  purpose: `N` is introduced by a '## Concepts to teach' bullet AND by a
+  defining sentence beside its first use, `K` is mentioned only by a
+  DESIGN.md anchor, and `Q` is introduced nowhere at all. It also carries
+  `N + 1` and `2N`, the multi-character spans the issue and the review
+  require never be lost, and the length negatives `bool`, `New` and
+  `starter/package.json`.
+
+lessons:
+  - lessons/00-contract.md
+  - lessons/01-counting.md
+  - lessons/02-headroom.md
+
+workspace_kind: none
+tutor_owned: [tutorial/STATE.md, tutorial/DESIGN.md]
+learner_owned: []
+ownership_policy: tutor-must-not-edit-learner-owned
+
+validators:
+  manual: { kind: manual }
+
+one_task_at_a_time: true
+solution_code: on-request-only
+advance_on: validated-evidence-only
