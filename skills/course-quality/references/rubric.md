@@ -148,10 +148,61 @@ no options, or declares options with no skeletons behind them, is charged exactl
 before. Otherwise the row becomes a loophole: promise every language, ship none, pay
 nothing.
 
-This holds however the format ends up expressing the choice. As of 2026-09-13 it cannot
-express it at all — `supplies` entries have no selector and are placed before the learner
-answers — which is why the two portable bundles in the catalogue are charged today. That
-gap is `tutorail-authoring#11` item 4, and the contract for it is proposed in `tutorAIl#25`.
+This row governs a course with a **closed** set of tracks. `portable-bytebeat-wav` names
+five, so it can ship five skeletons and shed the charge that way.
+
+A course with a **genuinely open** choice cannot, and the format is not the reason. The set
+is unbounded, so no `supplies` key of any shape helps: a bundle cannot ship a skeleton for a
+language it has never heard of. The author ruled on 2026-09-13 that
+`portable-fixed-window-rate-limiter` keeps its open choice and the **tutor** creates the
+project instead. That route is scored by the next section, not by this one — the step stops
+being an element rather than stopping being toil.
+
+#### A step the tutor performs is not an element
+
+The open-choice row above has two cases: the course declares options and supplies a set for
+each (not toil), or a learner picks outside the declared set (not toil, the learner's
+setup). There is a third, and it is the one that matters most.
+
+**A course can hand the setup to the TUTOR rather than to a supplied file.** The tutor
+creates the project after the learner answers, in a language the bundle never heard of and
+could not have shipped.
+
+Score it as nothing. **It is not an element at all** — not toil, and not evidence at 0.
+
+The toil row charges a course for work it **assigns to the learner** that the bundle could
+have handed over. Evidence at 0 is still something the learner does: run a validator, read
+the output, report what happened. A step the learner never performs is neither. There is no
+act to score.
+
+This is not a loophole, it is the row working. The purpose of the toil row is to get
+mechanical work off the learner. A course that moves the work to the tutor has done exactly
+what the charge exists to demand. Charging it anyway would score the mechanism instead of
+the outcome.
+
+##### The two guards
+
+The charge disappears only when the work genuinely changes hands:
+
+1. **The learner must not still do it.** If the lesson has the tutor generate the project
+   and then requires the learner to review it, repair it, or fill it in, that remaining act
+   IS an element and scores as whatever it is. Read what the lesson asks of the learner
+   after the tutor finishes.
+2. **The hand-over must be declared in the bundle**, in the lesson text and in the
+   `ownership_policy` the bundle sets — not assumed from the tutor's good nature. A reviewer
+   who cannot point at the declaration should score the step as assigned to the learner,
+   because that is what an unmodified runner will do.
+
+##### The objective does not disappear with the element
+
+Removing the element does not remove the objective it served, and the sole-server test still
+applies. If the tutor-performed step was **the only element serving an objective**, that
+objective is now served by nothing and the course pays **−3**, exactly as it would if the
+step had been supplied as a file.
+
+That is the correct signal, not a penalty for doing the right thing: it tells the author to
+rewrite the objective in the same change that moves the work. `rust-automaton-db` is the
+course in the catalogue where this bites, because `00:24` has one server.
 
 #### The residual hole
 
