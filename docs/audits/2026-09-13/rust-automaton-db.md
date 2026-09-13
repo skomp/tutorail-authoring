@@ -1,15 +1,13 @@
 # Course quality audit: `rust-automaton-db`
 
-> ## OPEN QUESTION, raised 2026-09-13 after publication — the project-skeleton rulings are unsettled
+> ## RULED 2026-09-13 — a project skeleton is toil, and this course takes the exception
 >
-> `skomp/tutorail-bundles#3` reports a learner who reached this class of step, said *"can
-> you create the base setup for me, there is no learning in that"*, and changed
-> `ownership_policy` in their own instance so the tutor would do it. That happened twice, in
-> two different courses.
+> ### What was open
 >
-> This report rejected the step as toil on the ground that **the bundle could not have
-> supplied the result**. That reasoning is incomplete, and the rubric is the reason: it
-> carries two tests that disagree here.
+> This report scored the create-the-project step at `00:76` as **evidence, 0**, and
+> rejected it as toil on the ground that **the bundle could not have supplied the result**.
+> That ground was wrong, and the rubric was the reason: it carried two tests that disagree
+> at a project skeleton.
 >
 > - *"could this bundle have shipped the result?"* — for a project skeleton, **yes**. It is
 >   a handful of files. A portable bundle can ship one set per supported language and let
@@ -19,12 +17,71 @@
 >   **also yes**. `go mod init`, `cargo new` and `npm init` all need the toolchain.
 >
 > `npm install` is unambiguous under both tests, because `node_modules` cannot ship. A
-> project skeleton is not, and the rubric does not say which test wins. Filed as
-> `skomp/tutorail-authoring#11`.
+> project skeleton was not, and the rubric did not say which test wins. The question was
+> not academic: `skomp/tutorail-bundles#3` reports a learner who reached this class of step,
+> said *"can you create the base setup for me, there is no learning in that"*, and changed
+> `ownership_policy` in their own instance so the tutor would do it. That happened twice, in
+> two different courses. Filed as `skomp/tutorail-authoring#11`.
 >
-> **The score consequence is stated below with each affected element.** Nothing is
-> re-scored here: the ruling belongs to the author, and a report patched to agree with a
-> ruling that has not been made would be worse than one that says it is open.
+> ### What the author ruled, 2026-09-13
+>
+> **When the two tests disagree, the shippability test wins. A project skeleton is toil.**
+> The shippability question is asked in its full form — *"could the bundle have shipped one
+> set of files for each language the course supports?"*, not *"could it have shipped one
+> file?"*. `npm install` is unaffected and stays the learner's work, because `node_modules`
+> cannot ship under any language.
+>
+> **The exception.** A setup step is **teaching**, not toil, when a stated objective or a
+> `DESIGN.md` anchor describes the setup *itself* — a Forth course, a build-system course.
+> The test is the objective, not the author's intent and not the difficulty of the step.
+> An objective that merely *names* the setup is not enough, or any author could cancel a
+> toil charge by writing "create the project" into an objective list. The rubric's
+> operational test is:
+>
+> > **Is the setup step the ONLY element serving the objective that names it?**
+> > **Yes** — the setup is the subject; handing the result over would strand the objective
+> > and cost −3, so score the step as what it teaches. **No** — other elements serve that
+> > objective too, so the skeleton is a part of a larger goal and not the goal, and it is
+> > toil.
+>
+> **Where the ruling lives.** `skills/course-quality/references/rubric.md`, in the section
+> "A project skeleton is toil — the tiebreak, ruled 2026-09-13", which also carries a worked
+> table naming all five catalogue bundles. That section is the authority; this block records
+> what it decided, not a paraphrase to be scored against.
+>
+> ### This report has been re-checked, and `rust-automaton-db` takes the exception
+>
+> **No score changes.** `00:24` states the learning objective "Create and run a Cargo binary
+> project.", and `00:76` — "Create `automaton-db` with Cargo and run the generated binary."
+> — is the **only** element in lesson 00 that serves it. The element-by-element
+> verification is in section 4 under *The project skeleton at `00:76`*, checked against the
+> full element list in section 2. Handing the skeleton over would leave `00:24` unserved and
+> cost −3, which is precisely the contradiction the exception exists to prevent: a bundle
+> cannot be charged −2 for assigning a step and −3 for supplying it.
+>
+> So `00:76` keeps **evidence, 0**, lesson 00 keeps **21**, the sum of the 23 lessons keeps
+> **370**, and the course total keeps **355**. The earlier note predicting a move to **353**
+> is superseded and is marked as such where it stood, in section 4.
+>
+> ### What did change is the reason, not the number
+>
+> The original rejection was right in its verdict and wrong in its ground. It said the
+> bundle *could not* have supplied a Cargo skeleton. It could: a `Cargo.toml` and a
+> `src/main.rs` are static text, and `tutorial.yaml:39` marking them `learner_owned` is the
+> author's own declaration rather than a limit of the format. The single-language point cuts
+> the same way — this course supports exactly one language, so "one set of files for each
+> language the course supports" is **one set**, the cheapest shipping obligation in the
+> catalogue. **Single-language makes the shippability answer easier, not harder, so
+> shippability is not what saves this element. The objective is.** Section 4 now rejects
+> `00:76` on the exception, and says so in those terms.
+>
+> ### One thing the author should know before accepting this
+>
+> The rubric names a residual hole in its own exception, and this course sits close to it:
+> an objective can be written around a step that teaches nothing, and "Create and run a
+> Cargo binary project" asks the learner to *perform* rather than to *decide*. The rubric
+> asks a reviewer who suspects that to say so rather than adjust the number silently, so it
+> is said here, and section 5 carries it as proposal 9 — a question, not a score.
 
 Read-only audit. Nothing in the bundle was created, edited, staged or deleted. Every
 finding below is a **proposal** the author may accept or refuse; applying one goes back
@@ -123,6 +180,9 @@ COURSE TOTAL                                                     355
 ```
 
 Five gaps listed in section 3, −3 each, −15 subtracted. The list and the arithmetic agree.
+The lesson sum is the visible sum of the 23 rows in section 2. It was re-added row by
+row when the ruling of 2026-09-13 was applied to this report: 370, and 370 − 15 = 355.
+No element changed score under the ruling — see the block at the head of this report.
 
 ### A correction to the evidence script's own output, before anything is built on it
 
@@ -200,8 +260,12 @@ carrying a `+1` or `0` that a reader would otherwise have to guess at.
 
 `0 + (8 × 2) + 1 + 0 + 2 + 2 = 21`.
 
-`:76` is the `npm install` case of this course and is discussed under rejected candidates
-in section 4. `:85` is practice: the decision about what is obsolete was already made at
+`:76` was first scored 0 as this course's `npm install` case, on the ground that the
+bundle could not have supplied the result. Under the ruling of 2026-09-13 that ground is
+wrong and the score is nonetheless right: the bundle **could** ship a Cargo skeleton, and
+`:76` is saved instead by the tiebreak's exception, because it is the only element serving
+the objective at `00:24`. The verification is in section 4 under *The project skeleton at
+`00:76`*. `:85` is practice: the decision about what is obsolete was already made at
 `:83`, and `COURSE.md:41-44` makes the cleanup a house rule rather than a fresh judgement.
 
 ### 01 — 18 points
@@ -640,12 +704,14 @@ then opened every lesson anyway.
 
 ### Candidates I raised myself from reading the lessons, and rejected
 
-Named here so the next reader does not re-litigate them. The three marked **could not have
-supplied** are rejections of exactly the kind the skill asks to be named as such.
+Named here so the next reader does not re-litigate them. Those marked **could not have
+supplied** are rejections of exactly the kind the skill asks to be named as such. `00:76` is
+no longer one of them: it is still rejected, but on the tiebreak's exception, and the
+element-by-element verification follows the table.
 
 | Site | Sentence | Verdict |
 |---|---|---|
-| `00:76` | "Create `automaton-db` with Cargo and run the generated binary." | **Rejected — could not have supplied.** This is this course's `npm install`. `cargo new` needs the toolchain, and `tutorial.yaml:39` makes `Cargo.toml` and `Cargo.lock` learner-owned by design. No `supplies:` entry can create a Cargo project in a workspace the bundle does not own. Setup that needs a toolchain is the learner's work. Scored **evidence, 0** — what it actually is. |
+| `00:76` | "Create `automaton-db` with Cargo and run the generated binary." | **Rejected — the tiebreak's exception applies.** Score unchanged at **evidence, 0**; the *ground* is replaced. Verification below the table. The superseded ground, kept so the change is legible: *"could not have supplied. This is this course's `npm install`. `cargo new` needs the toolchain, and `tutorial.yaml:39` makes `Cargo.toml` and `Cargo.lock` learner-owned by design. No `supplies:` entry can create a Cargo project in a workspace the bundle does not own."* |
 
 | `03:77` | "Move code in small increments and keep tests passing." | **Rejected — could not have supplied.** The code is the learner's, from lessons 00-02. Practice, +1. |
 | `13:50` | "Define a minimal protobuf schema." | **Rejected.** A `.proto` file is exactly the kind of thing a bundle can ship — but constraint `13:44` and theory `13:29` ("Internal Rust types should not leak directly into the protocol merely because serialization is convenient") make the schema's shape the lesson's central decision. Shipping it would delete the teaching. +2. |
@@ -654,6 +720,81 @@ supplied** are rejections of exactly the kind the skill asks to be named as such
 | `22:55` | "Establish benchmark baselines." | **Rejected.** Running benchmarks and recording numbers is evidence, 0, not toil — nothing here could have been shipped, since the baselines are of the learner's own implementation. |
 | Every lesson's `## On completion, persist` section, e.g. `21:68` | "Persist the strong-mode guarantee/protocol in `DESIGN.md`; record consistency/protocol concepts in `STATE.md`." | **Rejected — not the learner's work at all.** `tutorial.yaml:38` makes `tutorial/STATE.md` and `tutorial/DESIGN.md` tutor-owned. Twenty-three near-identical bookkeeping instructions look like busywork, but they are addressed to the tutor and the learner does nothing in response, so the rubric's tutor-addressed rule sends them to **not scored** rather than to +2. |
 | The `## Optional deeper paths` block in lessons 05-22 | "Offer relevant papers, proofs, implementation archaeology, or formal models when the learner asks and the material would deepen the topic without replacing the main path." | **Rejected as toil** — it assigns the learner nothing and is therefore unscorable. It is a **quality finding** all the same: this exact sentence is repeated verbatim in 18 of 23 lessons, while lessons 00-04 each carry three specific, lesson-shaped deeper paths (`00:108-110`, `01:103-106`, `02:127-130`, `03:103-105`, `04:93-94`). See proposal 5. |
+
+### The project skeleton at `00:76` — why this course takes the exception
+
+Added 2026-09-13, when the author ruled `tutorail-authoring#11`. The rubric's tiebreak makes
+a project skeleton toil, and its exception makes a skeleton **teaching** when the setup step
+is the only element serving the objective that names it. This is the verification the
+exception requires, done against the full element list in section 2 rather than from memory.
+
+**The objective.** `lessons/00-foundations.md:24`, item 1 of `## Learning objectives`:
+
+> Create and run a Cargo binary project.
+
+**Every scored element of lesson 00, and the objective each one serves.** The lesson states
+eleven objectives at `:24-:34`, and this report scored fourteen elements in the lesson
+(the breakdown in section 2 prints `:89` and `:90` on one row). The mapping:
+
+| Element | Sentence | Objective(s) it serves |
+|---|---|---|
+| `:76` | "Create `automaton-db` with Cargo and run the generated binary." | **`:24` — create and run a Cargo binary project** |
+| `:77` | "Experiment with bindings, `String`, `&str`, function arguments, moves, and borrows." | `:25` `String` vs `&str`; `:26` moves and borrows |
+| `:78` | "Introduce a small entry struct and a `Vec<Entry>`." | `:28` structs; `:29` `Vec<T>` |
+| `:79` | "Implement insertion and exact lookup by iterating the vector." | `:29` slices, iterators, closures |
+| `:80` | "Use `Option` to represent missing keys." | `:30` `Option<T>` and `match` |
+| `:81` | "Encounter and reason about returning a borrowed value from stored data." | `:31` borrowed returns and lifetimes |
+| `:82` | "Move behavior into a `Database` type with methods using `&self` and `&mut self`." | `:27` references; `:28` methods and constructors; `:32` `&self`/`&mut self` |
+| `:83` | "Replace the linear entry vector with `BTreeMap<String, String>`." | `:33` replace a linear collection with `BTreeMap` |
+| `:84` | "Add tests that protect insert/replace/lookup semantics." | `:34` write and run unit tests |
+| `:85` | "Remove obsolete representations once the map replaces them." | `:33` |
+| `:89` | "`cargo check` succeeds." | none directly — it verifies the code written at `:77-:85` |
+| `:90` | "`cargo test` succeeds." | `:34` |
+| `:95` | "The learner can explain the difference between moving `String`, borrowing `&String`, and borrowing `&str`." | `:25`, `:26` |
+| `:97` | "The learner can explain why a returned borrowed value cannot outlive the database." | `:31` |
+
+**Sole server: yes.** `:76` is the only element serving `:24`. The other twelve serve the
+ten ownership, collection and testing objectives; not one of them creates or runs a Cargo
+project. Two near misses were checked and rejected:
+
+- **`:89`, "`cargo check` succeeds."** It presupposes a Cargo project rather than creating
+  one, and it verifies the code the learner writes at `:77-:85`. Deleting `:76` would not
+  make `:89` serve `:24`; it would make `:89` unrunnable.
+- **The `cargo-run` validator at `00:4`.** Lesson 00 is the **only** lesson in the bundle
+  whose frontmatter declares `cargo-run` (every other lesson declares `cargo-check` and
+  `cargo-test`), and **no completion condition at `:89-:97` invokes it**. So even the *run*
+  half of `:24` rests on `:76` alone. If anything this strengthens the sole-server finding:
+  the author wired a validator for the objective and then never called it.
+- **Outside the lesson**, the only other mention of Cargo project structure is
+  `lessons/03-first-refactor.md:105`, "Inspect Cargo target discovery rules." — an
+  `## Optional deeper paths` item, unscorable and not on the main path, serving lesson 03's
+  objectives rather than `00:24`.
+
+**Therefore the exception applies and `00:76` is not toil.** Supplying the skeleton would
+strand `00:24` and cost this course −3 under the unserved-objective row, against the −2 it
+would save. `00:76` keeps **evidence, 0** — what it actually is, and what the exception says
+to score it as: what it teaches.
+
+**The single-language question, answered explicitly.** The shippability test is asked in its
+full form, "could the bundle have shipped one set of files for each language the course
+supports?" `rust-automaton-db` supports one language, so that set is one set — a
+`Cargo.toml` and a `src/main.rs`, both static text inside the bundle, with no tutor-side
+language selection to do. The answer is **yes, easily**: this is the cheapest shipping
+obligation in the catalogue, cheaper than the portable bundles that owe one set per track.
+Single-language therefore makes the shippability answer *easier*, and shippability is not
+what saves this element. Nor is `tutorial.yaml:39`, which marks `Cargo.toml` and
+`Cargo.lock` `learner_owned`: that is the author's declaration in the author's own manifest,
+and it is the very line `skomp/tutorail-bundles#3` reports a learner editing. A course
+cannot exempt itself from the toil row by declaring the toil's output learner-owned. What
+saves `00:76` is `00:24`, and nothing else.
+
+**The residual hole, named rather than silently priced in.** The rubric says an author can
+still take the exception by writing a sole-served objective around a step that teaches
+nothing, and names "Create and run a Cargo binary project" as close to that line, because it
+asks the learner to *perform* rather than to *decide*. This report agrees that it is close.
+The score follows the rubric as written — the exception is a rule about objectives, not a
+judgement about interest — and the suspicion is raised for the author as **proposal 9**
+rather than settled by adjusting a number.
 
 ### The scanner is a candidate generator
 
@@ -670,10 +811,15 @@ one place it does not disarm is `22:63`.
 
 ---
 
-> **OPEN, `tutorail-authoring#11` — the `00:76` rejection above.** A single-language course
-> can ship a `Cargo.toml` and a `src/` skeleton outright, so "could not have supplied" is
-> too strong here as well. The element scored 0, so a toil ruling moves the course to
-> **353** (`skomp/tutorail-bundles#3`).
+> **RULED, `tutorail-authoring#11` — settled 2026-09-13. The prediction in this note did
+> not happen.** The note read: *"A single-language course can ship a `Cargo.toml` and a
+> `src/` skeleton outright, so 'could not have supplied' is too strong here as well. The
+> element scored 0, so a toil ruling moves the course to 353."* Its first half was right and
+> is now the report's own position: the bundle **could** have shipped the skeleton. Its
+> second half does not follow. The ruling carries an exception for setup that is itself the
+> subject, `00:24` is served by `00:76` and by nothing else, so the exception applies,
+> `00:76` keeps **0**, and the course total stays **355** — re-added element by element, not
+> carried over. The verification is above, under *The project skeleton at `00:76`*.
 
 ## 5. Proposals
 
@@ -819,6 +965,28 @@ asserting the author "started this section and never filled it in." For this bun
 statement is false and, taken at face value, would have suppressed the entire five-gap
 finding in section 3. This is a defect in the `course-quality` skill's script, not in
 `rust-automaton-db`, and it belongs in that skill's issue tracker.
+
+**Proposal 9 — a question about `00:24`, not a score change.** Added 2026-09-13 with the
+skeleton ruling. `00:76` keeps its 0 because `00:24` ("Create and run a Cargo binary
+project.") is served by that element and no other, which is exactly the rubric's exception.
+The rubric also names the hole that shape of objective leaves open, and asks a reviewer who
+suspects it to say so. Saying so: `00:24` asks the learner to **perform** a command rather
+than to **decide** anything, which is unlike the other ten objectives at `:25-:34`, every one
+of which names a distinction, a prediction or a construction. Two ways to close it, both
+cheap, and the author may also refuse both:
+
+- **Keep the objective and make it earn its place.** Rewrite `:76` so the learner decides
+  something the next lessons use — for example "Create `automaton-db` with Cargo, run the
+  generated binary, and say which of the generated files the compiler needs and which exist
+  for you." That converts an unambiguous command into a reading of the package layout, and
+  `Cargo workspaces` — an unserved coverage topic, G4 in section 3 — is the topic it opens
+  onto.
+- **Or drop the objective and ship the skeleton**, with `supplies:` seeding `Cargo.toml` and
+  `src/main.rs`. This is the honest option if the author reads `:76` as pure setup. It costs
+  the −3 for an unserved `00:24` unless `00:24` goes at the same time, so the two edits are
+  one edit: they must land together, or the course pays for the tidy-up.
+
+The report does not choose between them. The score is the same either way today.
 
 ---
 

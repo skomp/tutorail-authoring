@@ -1,15 +1,13 @@
 # Course quality audit: `portable-bytebeat-wav`
 
-> ## OPEN QUESTION, raised 2026-09-13 after publication — the project-skeleton rulings are unsettled
+> ## RULED 2026-09-13 — a project skeleton is toil. This report has been re-scored.
 >
-> `skomp/tutorail-bundles#3` reports a learner who reached this class of step, said *"can
-> you create the base setup for me, there is no learning in that"*, and changed
-> `ownership_policy` in their own instance so the tutor would do it. That happened twice, in
-> two different courses.
->
-> This report rejected the step as toil on the ground that **the bundle could not have
-> supplied the result**. That reasoning is incomplete, and the rubric is the reason: it
-> carries two tests that disagree here.
+> **What was asked.** `skomp/tutorail-bundles#3` reported a learner who reached this class
+> of step, said *"can you create the base setup for me, there is no learning in that"*, and
+> changed `ownership_policy` in their own instance so the tutor would do it. That happened
+> twice, in two different courses. As first published, this report rejected the step as toil
+> on the ground that **the bundle could not have supplied the result** — and the rubric
+> carried two tests that disagreed on exactly this candidate:
 >
 > - *"could this bundle have shipped the result?"* — for a project skeleton, **yes**. It is
 >   a handful of files. A portable bundle can ship one set per supported language and let
@@ -18,13 +16,44 @@
 > - *"setup that needs the network, a toolchain or an account is the learner's work"* —
 >   **also yes**. `go mod init`, `cargo new` and `npm init` all need the toolchain.
 >
-> `npm install` is unambiguous under both tests, because `node_modules` cannot ship. A
-> project skeleton is not, and the rubric does not say which test wins. Filed as
+> `npm install` was unambiguous under both tests, because `node_modules` cannot ship. A
+> project skeleton was not, and the rubric did not say which test wins. Filed as
 > `skomp/tutorail-authoring#11`.
 >
-> **The score consequence is stated below with each affected element.** Nothing is
-> re-scored here: the ruling belongs to the author, and a report patched to agree with a
-> ruling that has not been made would be worse than one that says it is open.
+> **What the author ruled, 2026-09-13.** When the two tests disagree, **the shippability
+> test wins: a project skeleton is toil.** The shippability question is asked in its full
+> form — *"could the bundle have shipped one set of files for each language the course
+> supports?"*, not *"one file"* — and a portable bundle can, with the tutor selecting the
+> set after the learner selects the language. `npm install` is unaffected and stays the
+> learner's work.
+>
+> **The exception, and how this course falls under it.** A setup step is teaching, not toil,
+> when the course's own objectives make the setup the thing being taught. An objective that
+> merely names the setup is **not** enough — otherwise any author could cancel a toil charge
+> by writing "create the project" into the objective list. The operational test is:
+> *is the setup step the only element serving the objective that names it?* If yes, the setup
+> is the subject and handing it over would strand the objective at −3; if other elements serve
+> it too, the skeleton is a part of a larger goal and is toil. The rubric's worked table marks
+> **this bundle borderline** and leaves the call to the reviewer.
+>
+> **The call, made on the element list: the exception does not apply.** Lesson 00's objective
+> `:23` is a conjunction — "Establish an idiomatic **project and test loop** in the chosen
+> language" — and **four** elements serve it: `:57` and `:65` (the project), `:60` and
+> `:67-68` (the test loop). The lesson's own `validators: [project-runs, tests-pass]` states
+> the same split. Not sole-served, so the skeleton is toil. Section 4 carries the full
+> evidence, the argument for the opposite reading, and what would overturn it.
+>
+> **Where the ruling lives.** `skills/course-quality/references/rubric.md`, section
+> *"A project skeleton is toil — the tiebreak, ruled 2026-09-13"*. That section is the
+> authority; the paragraphs above summarise it.
+>
+> **What changed here.** `lessons/00-language-and-waveform.md:57` moves from **+2 to −2** and
+> lesson 00 from **12 to 8**. Re-adding every element to verify that change also exposed an
+> **unrelated addition error**: lesson 01 was published as 12 and its rows sum to 10. The
+> course total moves from **54 to 48** — 50 from the ruling, and 48 once lesson 01 adds up.
+> No element score was changed to reach either figure. Every figure in this report is the
+> re-scored one. The question is recorded above rather than deleted so a reader can still see
+> what was open and why the first published figures differed.
 
 Audited 2026-09-13 against `tutorail-authoring:course-quality` v0.3.0 and its rubric.
 Read-only: no file in `/Users/robert/src/github.com/skomp/tutorail-bundles` was created,
@@ -102,22 +131,31 @@ All five are answered in writing in section 6.
 **Arithmetic**
 
 ```
-  lesson 00-language-and-waveform   12
-  lesson 01-write-a-tone            12
+  lesson 00-language-and-waveform    8   (was 12; :57 re-scored −2 by the 2026-09-13 ruling)
+  lesson 01-write-a-tone            10   (was 12; published addition error, no element changed)
   lesson 02-bytebeat-rhythm         15
   lesson 03-compose-and-export       8
   lesson stereo-bytebeat [optional] 10
   --------------------------------------
-  sum of lessons                    57
+  sum of lessons                    51
   − unserved objectives (1 × −3)    −3   (03-compose-and-export objective 4)
   − unserved anchors    (0 × −3)     0
   − required_for gates  (0 × −3)     0
   --------------------------------------
-  COURSE TOTAL                      54
+  COURSE TOTAL                      48
 ```
 
+**Two corrections are folded into that figure, and they are independent of each other.** The
+ruling of 2026-09-13 costs lesson 00 four points (`:57`, +2 -> −2). Separately, re-adding every
+element to check the ruling's effect exposed an addition error in the published lesson 01 figure:
+its eleven rows sum to 10 and it was published as 12. No element score was changed to reach
+either figure. Had only the ruling been applied, this report would read **50** — the figure the
+open question predicted — over a table that adds to 48, which is the exact defect this re-score
+exists to remove. The lesson 01 correction is set out under that lesson's breakdown in section 2,
+including the one reading that would restore 12.
+
 **Main path only** (a learner who declines the stereo offer, which is the supported outcome):
-12 + 12 + 15 + 8 = 47, − 3 = **44**. Prose and manifest agree about which lesson is optional
+8 + 10 + 15 + 8 = 41, − 3 = **38**. Prose and manifest agree about which lesson is optional
 (see section 6), so this figure is informational rather than a correction.
 
 **No `required_for` gate exists**, so the rubric's `required_for` row does not fire and its
@@ -136,21 +174,22 @@ is with a human completion condition, and no structural check can see it.
 
 | Lesson | Score | Objectives served | Toil found |
 |---|---:|---|---|
-| `lessons/00-language-and-waveform.md` — Turn time into samples | **12** | 4 of 4 | none |
-| `lessons/01-write-a-tone.md` — Put a tone in a WAV file | **12** | 4 of 4 | none |
+| `lessons/00-language-and-waveform.md` — Turn time into samples | **8** | 4 of 4 | **1** (`:57`, the project skeleton) |
+| `lessons/01-write-a-tone.md` — Put a tone in a WAV file | **10** | 4 of 4 | none |
 | `lessons/02-bytebeat-rhythm.md` — Find rhythm in the bits | **15** | 4 of 4 | none |
 | `lessons/03-compose-and-export.md` — Shape a tiny composition | **8** | 3 of 4 | none |
 | `lessons/stereo-bytebeat.md` *(optional)* — Compose in two channels | **10** | 4 of 4 | none |
 
-No lesson scores at or below zero. Full element breakdowns follow for all five, because two
-figures (03 at 8, 02 at 15) are not obvious from the row.
+No lesson scores at or below zero. Full element breakdowns follow for all five, because no figure
+in this column is obvious from the row, and because two of them (00 at 8, 01 at 10) differ from
+the figures this report carried at first publication.
 
-### `lessons/00-language-and-waveform.md` — 12
+### `lessons/00-language-and-waveform.md` — 8 (joint lowest)
 
 | file:line | Sentence | Score |
 |---|---|---:|
 | `:49` | "Ask the learner to choose TypeScript, JavaScript, Python, Go, or Kotlin before setup." | 0 |
-| `:57` | "Select the language track and create its smallest conventional runnable project." (project clause; the select clause is the branch at `:49`) | +2 |
+| `:57` | "Select the language track and create its smallest conventional runnable project." (project clause; the select clause is the branch at `:49`) | **−2** (toil) |
 | `:58` | "Generate a short sequence from a deliberately simple function of `t`." | +2 |
 | `:59` | "Reduce every value to 0–255 using an idiom correct for the language." | +2 |
 | `:60` | "Add a small deterministic test or inspectable assertion for several known samples." | +2 |
@@ -160,17 +199,26 @@ figures (03 at 8, 02 at 15) are not obvious from the row.
 | `:67-68` | "At least a few known indices are checked automatically or by clear executable evidence." | 0 |
 | `:69` | "The learner can explain the relationship among `t`, sample rate, and elapsed time." | +2 |
 
-Sum: 0+2+2+2+2+2+0+0+0+2 = **12**.
+Sum: 0−2+2+2+2+2+0+0+0+2 = **8**.
 
 Two calls worth arguing with. `:49` is the course's language fork, and the rubric settles a
 branch point at 0 even though it is the element that serves the `supported-language selection`
 topic — **serving a topic and scoring points are different questions**. `:57`'s project clause
-I scored +2 rather than 0 because `Establish an idiomatic project and test loop in the chosen
-language` is a stated objective (`:23`) and the learner picks the layout and test runner; an
-author who thinks "create a project" is setup rather than teaching would score it 0 and the
-lesson would be 10.
+was scored +2 at first publication, on the reasoning that `Establish an idiomatic project and
+test loop in the chosen language` is a stated objective (`:23`) and the learner picks the
+layout and test runner. **The ruling of 2026-09-13 overrides that: a project skeleton is
+toil, −2**, because the bundle could have shipped one set of files per supported track and
+let the tutor choose after the learner picks. The exception was tested against this lesson's
+objectives and does not apply — see section 4.
 
-### `lessons/01-write-a-tone.md` — 12
+**Objective `:23` is still served, and the −3 unserved-objective row does not fire.** It has
+four servers — `:57`, `:60`, `:65` and `:67-68` — and that plurality is exactly what decides
+the toil call against the exception; section 4 sets the test out in full. Scoring `:57` as
+toil does not unserve anything: the learner still performs it, and three other elements would
+still serve `:23` if the bundle supplied it instead (proposal 7). Serving and scoring are
+independent, as `:49` already shows in the opposite direction.
+
+### `lessons/01-write-a-tone.md` — 10 (corrected from 12; see the note under the table)
 
 | file:line | Sentence | Score |
 |---|---|---:|
@@ -186,8 +234,25 @@ lesson would be 10.
 | `:70` | "Relevant tests pass." | 0 |
 | `:71` | "The learner can explain how period determines the tone's frequency." | +2 |
 
-Sum: **12**. `:59` is the best-constructed element in the course — the learner builds a model
-of the container before writing a byte, and a wrong sketch fails visibly at `:68`.
+Sum: 2+2+2+0+0+2+0+0+0+0+2 = **10**. `:59` is the best-constructed element in the course — the
+learner builds a model of the container before writing a byte, and a wrong sketch fails visibly
+at `:68`.
+
+> **Correction, found while re-adding the elements for the 2026-09-13 re-score.** This lesson
+> was published as **12**. Its eleven rows sum to **10**: five elements at +2 and six at 0.
+> **No element score has been changed** — the published figure was an addition error, and it
+> propagated into the course total. Section 6.3 corroborates the row count rather than the
+> figure: it states eleven scored elements for this lesson, which is exactly the table above,
+> so no twelfth element was scored and then dropped.
+>
+> The only reading that restores 12 is scoring the constraint at `:52` ("Derive RIFF and data
+> sizes from the generated duration") as a distinct element at +2. The scoring conventions do
+> admit constraints, and lesson 00 scores one (`:49`). I did not add it, because `:60` and
+> `:67` already impose that derivation and because inventing a twelfth element to make a
+> published total come out is the defect this correction exists to remove. **If the author
+> rules `:52` a distinct element, this lesson returns to 12, the course total rises by 2, and
+> section 6.3's element count for this lesson becomes twelve.** That is the author's call, not
+> the auditor's.
 
 ### `lessons/02-bytebeat-rhythm.md` — 15 (highest)
 
@@ -211,7 +276,7 @@ the writer already built in lesson 01 and makes no new decision. The high figure
 `:59`-`:61` are a controlled one-variable-at-a-time experiment loop, and `:62` forces the
 learner to compute expected sample values by hand across whichever language they chose.
 
-### `lessons/03-compose-and-export.md` — 8 (lowest)
+### `lessons/03-compose-and-export.md` — 8 (joint lowest, with lesson 00)
 
 | file:line | Sentence | Score |
 |---|---|---:|
@@ -301,7 +366,8 @@ do**, never against `design_refs` citations and never against `topic_candidates`
   `lessons/00:34-36` and is never something the learner is made to observe. Compound topic, one
   half strong, so not a −3.
 - **`supported-language selection` (`COURSE.md:53`) — served** by `lessons/00:49`+`:57`, even
-  though `:49` scores 0. Serving and scoring are independent.
+  though `:49` scores 0 and `:57` now scores −2. Serving and scoring are independent: an element
+  charged as toil is still an element the learner performs.
 - The remaining eight coverage topics (`discrete audio samples`, `sample rate`,
   `unsigned 8-bit PCM`, `WAV containers`, `Bytebeat expressions`, `bitwise shifts`,
   `audible pitch and rhythm`, `deterministic generation`, `basic artifact validation`) are each
@@ -329,32 +395,83 @@ learner"). Nothing found.
 
 ## 4. The toil inventory
 
-**Confirmed toil sites: none. The inventory is empty, and here is why that is a real finding
-rather than an absence of looking.**
+**Confirmed toil sites: one — `lessons/00-language-and-waveform.md:57`, the project skeleton,
+−2.** This section was published with an empty inventory; the ruling of 2026-09-13 moved one
+candidate out of the rejected list and into it.
 
 The scanner reported 0 candidates. **The scanner is a candidate generator over a fixed verb
 list, and its silence is evidence about the verb list, not about the course.** This inventory
 comes from opening all five lessons and reading every progression bullet, constraint and
-completion condition — 56 scored elements — against the rubric's two-part toil test.
+completion condition — 56 scored elements — against the rubric's toil test.
 
-The structural reason the inventory is empty is worth stating: **this bundle ships no files at
-all.** `supplies:` is empty, the bundle contains nothing but `COURSE.md`, `DESIGN.md`,
-`tutorial.yaml`, `STATE.template.md` and five lesson files. There is no asset it withheld and
-re-assigned to the learner, and the one deterministic, unambiguous piece of work in the course —
-laying out the RIFF header bytes — is also the thing the course exists to teach.
+One structural fact still shapes the inventory: **this bundle ships no files at all.**
+`supplies:` is empty, the bundle contains nothing but `COURSE.md`, `DESIGN.md`,
+`tutorial.yaml`, `STATE.template.md` and five lesson files. What the ruling changes is the
+reading of that fact. An empty `supplies:` is not evidence that nothing was shippable; here it
+means the one shippable result — the project skeleton, in five language variants — was assigned
+to the learner instead of handed over. The other deterministic, unambiguous piece of work in
+the course, laying out the RIFF header bytes, is the thing the course exists to teach and stays
+out of the inventory on the first half of the test.
 
-**Candidates I examined and rejected, so the next reader does not re-litigate them:**
+**The confirmed site:**
 
 - `lessons/00-language-and-waveform.md:57` — "Select the language track and create its smallest
-  conventional runnable project." **Rejected: the bundle could not have supplied the result.**
-  A runnable project in the learner's chosen track needs a toolchain, and for Node tracks a
-  package install; no `supplies:` entry can create either. The rubric's last clause is explicit
-  that this is the learner's setup. Scored +2 on its own merits, not −2.
+  conventional runnable project." **Toil, −2.** The bundle supports five tracks
+  (`DESIGN.md` `#supported-tracks`), so it could have shipped five skeletons and let the tutor
+  select one after the learner picks the language. The first publication of this report
+  rejected the site on the ground that a runnable project needs a toolchain; the ruling holds
+  that the toolchain is what *runs* the project, not what writes `go.mod`, and that where the
+  two tests disagree the shippability test wins. Note that this report had scored the act +2
+  where the rate-limiter report scored the same act +1 (`skomp/tutorail-bundles#3`); both are
+  now −2. The remedy is proposal 7.
 
-> **OPEN, `tutorail-authoring#11` — the `00:57` rejection above.** Five language tracks mean
-> five shippable skeletons, not none. If the author rules the step toil, the element goes
-> +2 -> -2 and the course scores **50**, not 54. Note that this report scored the act +2
-> where the rate-limiter report scored the same act +1 (`skomp/tutorail-bundles#3`).
+  **The exception was tested and does not apply. This is the judgement call in this report,
+  so here is the whole evidence.** The rubric's worked table marks this bundle **borderline**
+  and hands the decision to the reviewer, noting that *"idiomatic … in the chosen language"*
+  leans toward the exception. The operational test is not whether an objective names the
+  setup — it does — but:
+
+  > Is the setup step the **only** element serving the objective that names it?
+
+  The objective is lesson 00's fourth, `:23` **"Establish an idiomatic project and test loop
+  in the chosen language."** It is a conjunction: a project **and** a test loop. Every element
+  in the lesson that serves it:
+
+  | Element | Sentence | Half of `:23` it serves |
+  |---|---|---|
+  | `:57` | "Select the language track and create its smallest conventional runnable project." | the project |
+  | `:60` | "Add a small deterministic test or inspectable assertion for several known samples." | the test loop |
+  | `:65` | "The project runs with the selected toolchain." | the project |
+  | `:67-68` | "At least a few known indices are checked automatically or by clear executable evidence." | the test loop |
+
+  **Four elements, not one. The answer to the operational test is *no*, so the skeleton is a
+  part of a larger goal and not the goal: toil, −2.** The lesson's own front matter states the
+  same split independently — `validators: [project-runs, tests-pass]` (`:5`) is one validator
+  per half of the objective, and `tests-pass` is discharged by `:60` and `:67-68`, not by
+  `:57`. Handing the skeleton over therefore strands nothing: `:23` keeps three of its four
+  servers, so the −3 unserved-objective row does not fire against the remedy, and the rubric's
+  consistency condition ("a bundle cannot be charged −2 for assigning a step and −3 for
+  supplying it") is satisfied. (The "project" half would still be thinned — see proposal 7.)
+
+  **The argument for the exception, and why I rejected it.** *"Idiomatic … in the chosen
+  language"* does ask the learner to know what is conventional for their track, which sounds
+  like a decision rather than a chore. But the same phrase recurs at `:59` ("using an idiom
+  correct for the language"), an element that is not setup at all — so idiomatic-for-the-track
+  is a property this whole lesson carries, not the subject `:57` uniquely teaches. Compare the
+  two ends of the rubric's table: `rust-automaton-db`'s "Create and run a Cargo binary project"
+  is a single act with a single server, and takes the exception; the rate-limiter's "Establish
+  a fast run-and-test feedback loop" has four servers, and is toil. This
+  objective is built like the second — an *Establish … and …* conjunction whose second half is
+  exercised elsewhere — and it is scored like the second.
+
+  **What would overturn this.** A reader who judges `:65` and `:67-68` to be evidence *about*
+  the objective rather than servers *of* it would be left with `:57` and `:60`, which is still
+  two, so the ruling is stable unless the test-loop half is also read out of `:23`. If the
+  author intends `:23` to mean the project alone, the objective is sole-served, the exception
+  fires, `:57` returns to +2 and the course to 52. Saying so here rather than adjusting the
+  number silently, as the rubric's "residual hole" paragraph requires.
+
+**Candidates I examined and rejected, so the next reader does not re-litigate them:**
 
 - `lessons/01-write-a-tone.md:61` — "Inspect the file size and, where available, use an installed
   file-inspection tool." **Rejected: could not have been supplied** (the tool is in the learner's
@@ -377,7 +494,8 @@ laying out the RIFF header bytes — is also the thing the course exists to teac
 - `lessons/03-compose-and-export.md:60-63` — the four environment questions before generating the
   live-playback lesson. **Rejected: this is the tutor's work, not an assignment to the learner.**
 
-**Nothing in this course is charged −2.**
+**One element in this course is charged −2: `lessons/00-language-and-waveform.md:57`. Every
+other candidate above is rejected and scores what it actually is.**
 
 ---
 
@@ -450,10 +568,35 @@ header fields or total size". Extend `:63` to name the byte order, e.g. "Add a f
 multi-byte header field (sample rate or byte rate) is written least-significant byte first." One
 sentence, and the objective stops depending on a player's tolerance to prove it.
 
-**No `supplies.py` proposal is possible or appropriate for this bundle.** The toil inventory is
-empty, and the only result the bundle could have shipped (the WAV writer) is the teaching. There is
-no `--from` path to write, and saying so plainly is the correct outcome here rather than inventing
-a supplies entry.
+**Proposal 7 — hand the project skeleton over, and re-point the objective that currently rests on
+it.** This proposal did not exist at first publication; it follows from the ruling of 2026-09-13
+that a project skeleton is toil (see the block at the head of this report and section 4).
+
+`lessons/00-language-and-waveform.md:57` charges the learner −2 for work the bundle can ship. The
+bundle supports five tracks, so the remedy is five skeletons, not one: add a `supplies:` entry per
+track holding the smallest runnable project and its test command, and let the tutor copy the set
+that matches the language chosen at `:49`. The progression bullet then reads, e.g., "Select the
+language track; the tutor supplies the matching project skeleton." That removes the −2 and lifts
+lesson 00 from 8 to 10 — the course total from 48 to 50 — without touching any element that teaches.
+
+**The objective this rests on survives the change — that is precisely why the step is toil.**
+Objective `:23`, "Establish an idiomatic project and test loop in the chosen language", has four
+servers (section 4). Supplying the skeleton removes one, `:57`, and leaves `:60`, `:65` and
+`:67-68`, so **the −3 unserved-objective row does not fire** and the rubric's consistency
+condition holds: this bundle is not charged −2 for assigning the step and −3 for supplying it.
+Had `:57` been the sole server, the exception would have applied and this proposal would be
+wrong.
+
+Worth the author's eye anyway: after the change the *project* half of `:23` is exercised only by
+`:65` ("The project runs with the selected toolchain"), which is an evidence condition. If the
+author wants that half to stay learner-work, the honest edit is to narrow `:23` to "Establish a
+test loop in the chosen language" — which `:60` and `:67-68` exercise directly — rather than to
+keep a wider objective propped up by a validator run.
+
+**The other result this bundle could have shipped stays where it is.** The WAV writer
+(`lessons/01:59-60`) is a small file and a `supplies:` entry could hand it over — and must not.
+It fails the first half of the toil test decisively and is the teaching the course exists for;
+section 4 records that reasoning in full.
 
 ---
 
@@ -501,12 +644,20 @@ terminal lessons, so "nothing later" is structural rather than a defect.
 79 / 82 / 81 / 85 / 76 lines, and share an identical section structure. There is no candidate for
 splitting and none for folding into a neighbour.
 
-The outlier is a **score**, not a size: `lessons/03-compose-and-export.md` scores 8 against 12, 12
-and 15, from the same 12-element count as lesson 02. The cause is visible in its breakdown — two
-branch points (`:59`, `:60-63`) and six evidence conditions, against four constructive elements.
-That is a defensible shape for a closing lesson that has to land the artifact and make two offers,
-and it is above zero, so the rubric does not require a what-is-this-for question. Raised anyway,
-because if the author wants the composition work to carry more weight, `:54-55` is where to add it.
+The outliers are **scores**, not sizes: `lessons/03-compose-and-export.md` and
+`lessons/00-language-and-waveform.md` both score 8, against 10, 15 and 10. They are outliers for
+different reasons, and only one is a shape worth the author's attention.
+
+Lesson 03 reaches 8 from the same 12-element count as lesson 02. The cause is visible in its
+breakdown — two branch points (`:59`, `:60-63`) and six evidence conditions, against four
+constructive elements. That is a defensible shape for a closing lesson that has to land the
+artifact and make two offers, and it is above zero, so the rubric does not require a
+what-is-this-for question. Raised anyway, because if the author wants the composition work to
+carry more weight, `:54-55` is where to add it.
+
+Lesson 00 reaches 8 only because one element is charged −2 (`:57`, the project skeleton). Its
+other nine elements sum to 10, which is an ordinary shape for an opening lesson. This outlier is
+answered by proposal 7, not by a restructuring.
 
 ### 6.4 A must-cover topic that only an optional lesson teaches
 
@@ -554,7 +705,7 @@ lesson sitting in `lessons:` calls itself optional in its prose. The "Optional d
 at the foot of all five lessons are conditional discussion topics ("If asked…"), not lessons, and the
 live-playback extension is generated on request and is not a bundle lesson at all
 (`DESIGN.md:34-39`) — so neither creates a prose/manifest disagreement. **The total in section 1
-therefore needs no restatement**; the main-path-only figure of 44 is given there for information,
+therefore needs no restatement**; the main-path-only figure of 38 is given there for information,
 not as a correction.
 
 **The defect the invariant question surfaced is the mirror image of the usual one.** The course is

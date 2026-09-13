@@ -49,6 +49,118 @@ at every candidate is not "is this boring?" but **"could this bundle have shippe
 result?"** If it could and it did not, that is toil. If it could not, it is the learner's
 setup and it scores as whatever it actually is.
 
+### A project skeleton is toil — the tiebreak, ruled 2026-09-13
+
+The two tests above disagree for one candidate, and the disagreement is not theoretical: it
+changed four scores in the audit of 2026-09-13. A lesson that tells the learner to create
+the smallest conventional project for their language passes **both** tests. It is a handful
+of files, so the bundle could have shipped it. It also needs the toolchain, because
+`go mod init`, `cargo new` and `npm init` are toolchain commands.
+
+**When the two tests disagree, the shippability test wins. A project skeleton is toil.**
+
+Ask the shippability question in its full form. It is not *"could the bundle have shipped
+one file?"* but **"could the bundle have shipped one set of files for each language the
+course supports?"** A portable bundle can. The tutor selects the set after the learner
+selects the language. The toolchain is what *runs* the project; it is not what *writes*
+`go.mod`, and the learner who types `go mod init` learns nothing that the next lesson uses.
+
+`npm install` is unaffected and stays the learner's work, because `node_modules` cannot
+ship under any language. The clause above still governs every candidate the two tests agree
+on. This section governs only the skeleton, where they do not.
+
+#### The exception: setup that is itself the subject
+
+A setup step is **teaching**, not toil, when the course's own objectives make the setup the
+thing being taught. A course on Forth, on a build system, on linkers or on packaging is a
+course where assembling the environment *is* the material, and handing the result over
+would remove the lesson rather than the chore.
+
+The test is the objective, not the author's intent and not the difficulty of the step. But
+**an objective that merely names the setup is not enough.** If it were, any author could
+cancel a toil charge by writing "create the project" into the objective list, and the row
+would stop meaning anything.
+
+Use the operational test, which is the one the unserved-objective row already implies:
+
+> **Is the setup step the ONLY element serving the objective that names it?**
+>
+> - **Yes** — the setup is the subject. Handing the result over would strand the objective
+>   and cost −3. Score the step as what it teaches. This is the exception.
+> - **No** — other elements serve that objective too, so the skeleton is a *part* of a
+>   larger goal and not the goal. It is toil.
+
+The two rows are consistent by construction: the exception fires exactly where the toil
+charge and the unserved-objective charge would otherwise contradict each other. A bundle
+cannot be charged −2 for assigning a step and −3 for supplying it.
+
+#### Worked: the five bundles, 2026-09-13
+
+An earlier draft of this section claimed every course in the catalogue treats the skeleton
+as ground, and a second draft replaced it with a table of guesses. **Both were wrong.** The
+table below is the third version and the first built by enumerating elements. Each row was
+settled by listing every element that serves the objective, in the bundle, one report at a
+time.
+
+| Bundle | The objective that names the setup | Servers found | Ruling |
+|---|---|---|---|
+| `rust-automaton-db` | `00:24` "Create and run a Cargo binary project." | **1** — `00:76` alone | **exception**, not toil. Score unchanged |
+| `durable-event-broker` | `00:21` "Create a small Go module and executable without speculative package structure." | 4 — `00:53` both clauses, `00:63`, `00:67` | **toil** |
+| `portable-bytebeat-wav` | `00:23` "Establish an idiomatic project and test loop in the chosen language." | 4 — `00:57`, `00:60`, `00:65`, `00:67-68` | **toil** |
+| `portable-fixed-window-rate-limiter` | `00:22` "Establish a fast run-and-test feedback loop." | 4 — `00:51-52`, `00:54`, `00:58`, `01:65` | **toil** |
+| `webgl-typescript-scene` | none; `DESIGN.md` anchor `#platform-toolchain` describes the platform, not the act | — | **toil** on the plain test; its skeleton ships as `starter/` files, so the tiebreak never fires |
+
+So the exception fires **once in five**, not three or four times. No `DESIGN.md` anchor in the
+other four bundles names setup, toolchain or project layout.
+
+##### The pattern worth carrying forward: a conjunctive objective is almost never sole-served
+
+Three of the four toil rulings above share one shape. The objective is a **conjunction** —
+"a project *and* a test loop", "a module *and* an executable *without* speculative
+structure", "run *and* test" — and the setup step serves one conjunct while later elements
+serve the others. An objective built from two halves is served by the elements that satisfy
+both halves, so the setup step is a part by construction.
+
+`rust-automaton-db` reads like a conjunction too ("create *and* run"), and it is the
+exception anyway, because **no element serves the other half either**: the bundle declares
+a `cargo-run` validator at `00:4` and never invokes it in a completion condition. That is
+what makes `00:76` sole-served, and it is visible only by enumerating.
+
+**Enumerate. Do not judge this from the objective's wording.** Two reviewers reading the
+same four objective lists, without listing elements, got two of these four rows wrong in
+opposite directions.
+
+#### A course that lets the learner choose a language
+
+A portable course asks the learner to pick a language, and the skeleton it could ship
+depends on the answer. Score the step **against the set of languages the course declares it
+supports**, not against the one a particular learner picked. The rubric scores a course, not
+a run.
+
+- The course declares a set and ships a skeleton for each member → the work is handed over
+  for every learner the course claims to support. **Not toil.**
+- A learner picks a language outside the declared set → the set is unbounded, the bundle
+  genuinely could not have shipped that result, and the existing clause applies: it is the
+  learner's setup. **Not toil**, and not a gap in the course either.
+
+**The waiver is earned by options that are declared AND supplied.** A course that declares
+no options, or declares options with no skeletons behind them, is charged exactly as
+before. Otherwise the row becomes a loophole: promise every language, ship none, pay
+nothing.
+
+This holds however the format ends up expressing the choice. As of 2026-09-13 it cannot
+express it at all — `supplies` entries have no selector and are placed before the learner
+answers — which is why the two portable bundles in the catalogue are charged today. That
+gap is `tutorail-authoring#11` item 4, and the contract for it is proposed in `tutorAIl#25`.
+
+#### The residual hole
+
+An author can still take the exception by writing a sole-served objective around a step
+that teaches nothing — "Create and run a Cargo binary project" is close to that line, since
+it asks the learner to *perform* rather than to *decide*. This rubric does not close that
+hole, and no mechanical check will. A reviewer who suspects it should say so in the report
+rather than adjust the number silently.
+
 ### An anchor is served by what lessons DO, not by what they CITE
 
 The obvious mechanical proxy for the unserved-anchor row is *does some `design_refs` name

@@ -1,15 +1,17 @@
 # Course-quality audit: `durable-event-broker`
 
-> ## OPEN QUESTION, raised 2026-09-13 after publication — the project-skeleton rulings are unsettled
+> ## RULED 2026-09-13 — a project skeleton is toil. This report is re-scored.
+>
+> ### What was asked, kept so the ruling can be read against it
 >
 > `skomp/tutorail-bundles#3` reports a learner who reached this class of step, said *"can
 > you create the base setup for me, there is no learning in that"*, and changed
 > `ownership_policy` in their own instance so the tutor would do it. That happened twice, in
 > two different courses.
 >
-> This report rejected the step as toil on the ground that **the bundle could not have
-> supplied the result**. That reasoning is incomplete, and the rubric is the reason: it
-> carries two tests that disagree here.
+> As published, this report rejected the step as toil on the ground that **the bundle could
+> not have supplied the result**. That reasoning was incomplete, and the rubric was the
+> reason: it carried two tests that disagreed here.
 >
 > - *"could this bundle have shipped the result?"* — for a project skeleton, **yes**. It is
 >   a handful of files. A portable bundle can ship one set per supported language and let
@@ -18,13 +20,63 @@
 > - *"setup that needs the network, a toolchain or an account is the learner's work"* —
 >   **also yes**. `go mod init`, `cargo new` and `npm init` all need the toolchain.
 >
-> `npm install` is unambiguous under both tests, because `node_modules` cannot ship. A
-> project skeleton is not, and the rubric does not say which test wins. Filed as
+> `npm install` was unambiguous under both tests, because `node_modules` cannot ship. A
+> project skeleton was not, and the rubric did not say which test won. Filed as
 > `skomp/tutorail-authoring#11`.
 >
-> **The score consequence is stated below with each affected element.** Nothing is
-> re-scored here: the ruling belongs to the author, and a report patched to agree with a
-> ruling that has not been made would be worse than one that says it is open.
+> ### What the author ruled, on 2026-09-13
+>
+> **When the two tests disagree, the shippability test wins. A project skeleton is toil.**
+> The shippability question is asked in its full form — *"could the bundle have shipped one
+> set of files for each language the course supports?"*, not *"one file"* — and a portable
+> bundle can, with the tutor selecting the set after the learner selects the language.
+> `npm install` is unaffected and stays the learner's work.
+>
+> **The exception:** a setup step is teaching, not toil, when the course's own objectives
+> make the setup the thing being taught. The test is the objective, not the author's intent
+> and not the difficulty of the step — and an objective that merely *names* the setup is not
+> enough, or any author could cancel a toil charge by writing "create the project" into the
+> objective list. The rubric's operational form:
+>
+> > **Is the setup step the ONLY element serving the objective that names it?**
+> > **Yes** — the setup is the subject; handing it over would strand the objective and cost
+> > −3, so score the step as what it teaches. **No** — other elements serve that objective
+> > too, so the skeleton is a part of a larger goal and not the goal. It is toil.
+>
+> The two rows are consistent by construction: the exception fires exactly where the −2 and
+> the −3 would otherwise contradict each other. A bundle cannot be charged −2 for assigning
+> a step and −3 for supplying it.
+>
+> The ruling now lives in `skills/course-quality/references/rubric.md`, in the section
+> **"A project skeleton is toil — the tiebreak, ruled 2026-09-13"**. That section is the
+> authority; this block only records that the question it settles was raised here.
+>
+> ### What changed in this report
+>
+> **This report HAS been re-scored.** The exception was checked first, by listing every
+> element that serves the objective naming the setup — `lessons/00-running-broker.md:21`,
+> "Create a small Go module and executable without speculative package structure". **It is
+> not solely served**, so the exception does not fire and the step is toil. The full element
+> list and the stranding test are in section 4; the short form is that `:53`'s skeleton
+> clause serves the objective's first half, while completion condition `:63` ("No declared
+> production function or type is disconnected from the running path") serves its second half
+> and would go on serving it if the bundle shipped the skeleton tomorrow.
+>
+> The element at `00-running-broker.md:53`, "Create the module and a minimal broker
+> executable.", moves **+2 -> −2**. `00-running-broker.md` moves **8 -> 4**, the main path
+> moves **112 -> 108**, and the course total moves **132 -> 128**, exactly as the open
+> question predicted — a prediction this report re-added element by element rather than
+> trusted. Section 4 now records one confirmed toil site instead of none.
+>
+> **This report disagrees with one row of the rubric that rules it.** The worked table in
+> that rubric section lists `durable-event-broker` as sole-served and therefore as taking
+> the exception. Applying the rubric's own operational test to this bundle's element list
+> gives the opposite answer, for the reasons set out in section 4. The rubric's residual-hole
+> paragraph asks a reviewer who suspects a mis-applied exception to say so in the report
+> rather than adjust a number silently, so it is said here, in the loudest place available:
+> **if the author prefers the table's reading, the single edit is `00:53` back to +2, and
+> every other figure in this report follows from that one cell — L00 returns to 8, the main
+> path to 112, the course to 132.**
 
 Audited read-only on 2026-09-13 against
 `tutorail-authoring:course-quality` 0.3.0 and its `references/rubric.md`.
@@ -112,7 +164,7 @@ unusually even, which is why the figures cluster between 5 and 9.
 Main-path lesson sum:
 
 ```
-L00  8
+L00  4
 L01  7
 L02  5
 L03  6
@@ -128,7 +180,7 @@ L12  7
 L13  8
 L14  9
 ---------
-     112
+     108
 ```
 
 Optional lesson sum:
@@ -144,18 +196,22 @@ tcp-transport             7
 Course-level penalties, each named:
 
 ```
-lesson sum (main path 112 + optional 20)          132
+lesson sum (main path 108 + optional 20)          128
 unserved objectives and anchors    0 gaps x -3      0
 required_for gates on optional lessons  0 x -3      0
 --------------------------------------------------------
-COURSE TOTAL                                      132
+COURSE TOTAL                                      128
 ```
 
-**Main path alone: 112.** That figure is the one a learner who declines every offer earns,
+The confirmed toil site found in section 4 is **not** a course-level penalty row. Toil is an
+element score, so its −2 is already inside `00-running-broker.md`'s figure of 4 and inside
+the main-path sum above. Adding it again here would charge the course twice.
+
+**Main path alone: 108.** That figure is the one a learner who declines every offer earns,
 and it is reported because it is the honest number for that learner — not because prose and
 manifest disagree (they do not; see section 6).
 
-**132 is a summary of the inventory in sections 2 to 4, and must not be quoted without it.**
+**128 is a summary of the inventory in sections 2 to 4, and must not be quoted without it.**
 
 ### Note on the two counts in the evidence header
 
@@ -169,7 +225,7 @@ the rows cover main path plus optional. The toil scan covered all 18. Confirmed.
 
 | Lesson | Score | Objectives served | Toil found |
 |---|---|---|---|
-| `00-running-broker.md` | **8** | 3 of 3 | none |
+| `00-running-broker.md` | **4** | 3 of 3 | 1 confirmed, `:53` (§4) |
 | `01-offsets-and-replay.md` | **7** | 4 of 4 | none |
 | `02-record-framing.md` | **5** | 4 of 4 | none |
 | `03-recovery.md` | **6** | 4 of 4 | none |
@@ -198,18 +254,22 @@ Every element carries its `file:line` and the sentence it scored. Paths are rela
 summarised as a count rather than listed line by line, except where they are the only thing
 holding a figure down.
 
-#### `00-running-broker.md` — 8
+#### `00-running-broker.md` — 4
 
 | file:line | Sentence | Score |
 |---|---|---|
-| `00-running-broker.md:53` | "Create the module and a minimal broker executable." | +2 |
+| `00-running-broker.md:53` | "Create the module and a minimal broker executable." | **−2** |
 | `00-running-broker.md:53` | "Add a directly testable record and log implementation." | +2 |
 | `00-running-broker.md:54` | "Append several opaque records, fetch them, and verify insertion order and copying behaviour." | +1 |
 | `00-running-broker.md:54` | "Keep the executable on the same path by making it exercise the API." | +1 |
 | `00-running-broker.md:61` | "A test proves mutation of caller or returned byte slices cannot alter stored records." | +2 |
 | `:59`, `:60`, `:62`, `:63`, `:67` | validators; order test; executable-on-path check; no-dead-code check; persist | 0 x 5 |
 
-Sum: 2+2+1+1+2 = **8**. The +2 at `:61` is the aliasing proof: it is a distinct piece of
+Sum: −2+2+1+1+2 = **4**. The −2 at `:53` is the project skeleton, scored under the ruling
+of 2026-09-13 recorded at the top of this report; the reasoning and the exception check are
+in section 4. It is the lowest figure in the course, and unlike `02-record-framing.md`'s 5
+that is a finding rather than a granularity artefact: this lesson loses four points to one
+clause the bundle could have handed over. The +2 at `:61` is the aliasing proof: it is a distinct piece of
 adversarial construction the progression only gestured at, and a wrong answer (retaining
 the caller's slice) is exactly the instructive bug.
 
@@ -225,7 +285,7 @@ the caller's slice) is exactly the instructive bug.
 
 Sum: **7**.
 
-#### `02-record-framing.md` — 5 (lowest figure in the course)
+#### `02-record-framing.md` — 5 (lowest figure not caused by a toil charge)
 
 | file:line | Sentence | Score |
 |---|---|---|
@@ -531,7 +591,13 @@ four I would look at first if the author wants the margin widened.
 
 ## 4. The toil inventory
 
-**Confirmed toil sites: none. 0 x −2 = 0.**
+**Confirmed toil sites: one, `lessons/00-running-broker.md:53`. 1 x −2 = −2, charged
+inside `00-running-broker.md`'s figure and not again at course level.**
+
+This section was published on 2026-09-13 with the site rejected and the question left open.
+The author ruled the same day; the rejection below is replaced by the ruling it asked for,
+and the reasoning that led to the wrong answer is kept beneath it so a reader can see what
+moved.
 
 ### The one script candidate, examined
 
@@ -558,17 +624,81 @@ about the pattern, not about the course, so I read all 18 lessons looking for as
 that is deterministic, decision-free, and shippable.
 
 - **`lessons/00-running-broker.md:53`** — "Create the module and a minimal broker
-  executable." **Rejected because the bundle could not have supplied the result.** A Go
-  module needs the toolchain and the network; `go.mod` is `learner_owned`
-  (`tutorial.yaml:60`), `workspace_kind` is `new-repository` (`:58`), and the module path is
-  a decision the learner records at `:67`. This is the learner's setup, scored as what it
-  actually is (+2), not charged as toil. This rejection is the same shape as the `npm
-  install` case the rubric's last clause exists for.
+  executable." **CONFIRMED TOIL, −2.** Under the ruling of 2026-09-13, a project skeleton
+  is toil: the bundle could have shipped a `go.mod` and a minimal `main.go`, one set per
+  supported language, and let the tutor place the set after the learner picks. `go mod init`
+  is a toolchain command, and the two tests therefore disagreed; the ruling says the
+  shippability test wins. The element moves +2 -> −2.
 
-> **OPEN, `tutorail-authoring#11` — the `00:53` rejection above.** A single-language course
-> can ship a `go.mod` and a `main.go` skeleton outright, so "could not have supplied" is too
-> strong here as well. If the author rules the step toil, the element goes +2 -> -2 and the
-> course scores **128**, not 132 (`skomp/tutorail-bundles#3`).
+  **The exception was checked before the number moved, and it does not apply.** No
+  `DESIGN.md` anchor in this bundle describes project setup — the 15 anchors are listed in
+  section 3 and every one is about the broker, not about assembling a Go project. So the
+  check comes down to one objective, `lessons/00-running-broker.md:21`: *"Create a small Go
+  module and executable without speculative package structure."* The rubric's operational
+  test asks whether the setup step is the **only** element serving it. Here is every element
+  that does, under this report's own scoring frame:
+
+  | Element | What it serves in `:21` | Scored |
+  |---|---|---|
+  | `:53` "Create the module and a minimal broker executable." | the first half — *create a small Go module and executable* | the element under judgement |
+  | `:63` "No declared production function or type is disconnected from the running path." | the second half — *without speculative package structure*. A declared type nothing uses **is** speculative structure; this condition is the rule's enforcement | 0 (evidence) |
+  | `:53` "Add a directly testable record and log implementation." | the moment the package-boundary decision is actually taken, governed by Theory `:31`, "Introduce Go packages only when both executable and tests need the code" | +2 |
+  | `:67` "Record the chosen module path, package boundary, …" | records the decision `:21` asks for | 0 (evidence) |
+
+  **`:53` is not the sole server, so the answer is "No" and the skeleton is toil.** That a
+  completion condition counts as a server is this report's own established practice, not a
+  convenience adopted here: section 3 credits `09-retention.md:20` to the "several
+  deletions" case at `:50`, and the bounding half of `11-http-api.md:23` to `:53`/`:62`.
+
+  **The stranding test, which is what the exception exists to prevent, confirms it.** The
+  rubric is explicit that the exception fires exactly where the −2 and the −3 would
+  contradict each other — a bundle cannot be charged −2 for assigning a step and −3 for
+  supplying it. So: if this bundle shipped `go.mod` and a minimal `main.go` tomorrow, would
+  `:21` be stranded? **No.** `:63` would still forbid speculative structure, and `:53`'s
+  second clause would still make the learner decide where the record and log code lives.
+  There is no −3 waiting on the other side of the hand-over, so there is no contradiction
+  for the exception to resolve.
+
+  **On the "it carries a decision" argument, which cuts the other way on inspection.** The
+  toil row is conjunctive and its first clause is *deterministic and unambiguous; no
+  decision*, so a step carrying a real judgement fails the toil test before shippability is
+  reached. The judgement in `:21` is *which package structure is speculative* — but that
+  judgement is not exercised at `:53`'s skeleton clause. `go mod init <path>` plus a
+  `main.go` with a `main` function has one conventional answer and the rubric says the
+  learner who types it "learns nothing that the next lesson uses". The judgement arrives one
+  clause later, when the record and log implementation needs a home, and is checked at
+  `:63`. **That the decision lives in a different element than the skeleton step is the same
+  finding as the sole-server answer, reached from the other direction.** The module path is
+  a choice, but it is a naming choice, not a teaching decision.
+
+  Only the skeleton clause moves. The second clause at `:53`, "Add a directly testable
+  record and log implementation.", keeps +2: it is the broker API, it is not shippable, and
+  nothing in the ruling touches it. The objective at `:21` stays served in section 3's
+  "69 of 69" — the learner still performs the task, and scoring it toil says the bundle
+  should have handed the result over, not that no task exists.
+
+  **Recorded disagreement with the rubric's worked table.** That table lists this bundle as
+  sole-served — *"yes — and it carries a decision, which package structure is speculative"*
+  — and therefore as taking the exception, which would keep `:53` at +2 and the course at
+  132. The element list above is the reason this report does not follow it: the table's cell
+  states a conclusion without naming the elements, and the two grounds it gives — sole
+  service, and the decision — both resolve against the exception once `:63` and `:53`'s
+  second clause are on the page. The rubric's own residual-hole paragraph instructs a
+  reviewer who suspects a mis-applied exception to say so in the report rather than adjust a
+  number silently. **The author can overrule this with one edit**: put `:53` back to +2 and
+  L00 returns to 8, the main path to 112, the course to 132. Every other figure in this
+  report follows from that one cell.
+
+> **The reasoning this replaces, kept for the record.** As published, this site was
+> *"rejected because the bundle could not have supplied the result"*, on the grounds that a
+> Go module needs the toolchain and the network, that `go.mod` is `learner_owned`
+> (`tutorial.yaml:60`), that `workspace_kind` is `new-repository` (`:58`), and that the
+> module path is a decision the learner records at `:67`. The rejection treated the case as
+> the same shape as `npm install`. It is not: `node_modules` cannot ship under any language
+> and a skeleton can. The open note filed as `tutorail-authoring#11` predicted that a toil
+> ruling would move the element +2 -> −2 and the course to **128**, not 132
+> (`skomp/tutorail-bundles#3`). It did, subject to the exception check above. The
+> prediction was re-added element by element rather than trusted, and it holds.
 
 - **`lessons/13-observability-and-load.md:52`** — "then add a JSON log producer representing
   several fictional services." The closest thing in this course to shippable material:
@@ -590,11 +720,13 @@ that is deterministic, decision-free, and shippable.
 
 ### On the absent `supplies:` block
 
-`audit.py` reports 0 supplies entries and the bundle ships no data files at all. **That is
-coherent for this course, not an omission.** Every artefact in it is either the learner's
-toolchain or code the learner writes; there is nothing a supplies entry could hand over.
-A bundle with no supplies and no toil is the expected shape for a build-it-from-nothing
-course.
+`audit.py` reports 0 supplies entries and the bundle ships no data files at all. Before the
+ruling of 2026-09-13 this read as coherent rather than as an omission. **It no longer does,
+in one place.** Every other artefact in the bundle is either the learner's toolchain or code
+the learner writes, and there is nothing a supplies entry could hand over — but the project
+skeleton at `00-running-broker.md:53` is exactly what a supplies entry is for, and its
+absence is now the confirmed toil site above. A build-it-from-nothing course may legitimately
+ship no data; it should still ship the skeleton it asks the learner to type.
 
 ### Statement required by the skill
 
@@ -668,10 +800,23 @@ way: `:52` would change from "add a JSON log producer representing several ficti
 services" to "drive the supplied service-log corpus through the broker", and the generator
 requirement at `:46` stays.
 
-**P5 — No lesson scores at or below zero**, so no lesson is carried back to the author with
-"what is this for?". The lowest figure is `02-record-framing.md` at 5, and section 2
-explains at length why that number is a clause-granularity artefact rather than a weakness.
-I would refuse a proposal to split L02's progression purely to raise it.
+**P5 — Hand over the Go project skeleton, and no lesson scores at or below zero.** The one
+confirmed toil site is `00-running-broker.md:53`; the concrete action is to ship a minimal
+`go.mod` and `main.go` as a supplies entry, one set per supported language, and to change
+`:53` from "Create the module and a minimal broker executable" to a sentence that starts the
+learner at the supplied skeleton. That recovers the four points and removes the step the
+learner in `skomp/tutorail-bundles#3` refused to type. **Reword objective `:21` in the same
+change.** It currently reads "Create a small Go module and executable without speculative
+package structure"; once the module is supplied, its first verb is no longer something the
+learner performs, and an objective left that way is an unserved-objective row waiting to
+happen at the next audit. "Extend the supplied module without speculative package
+structure" keeps the half that `:63` and `:53`'s second clause actually serve, and is the
+half this course teaches. Even with the charge, no lesson
+scores at or below zero, so no lesson is carried back to the author with "what is this
+for?". The lowest figure is now `00-running-broker.md` at 4, for the toil charge; the lowest
+figure with no toil in it is `02-record-framing.md` at 5, and section 2 explains at length
+why that number is a clause-granularity artefact rather than a weakness. I would refuse a
+proposal to split L02's progression purely to raise it.
 
 **P6 — No `required_for` gate exists, so the rubric's warning is not triggered.** See the
 next section; this contradicts an expectation in the audit brief and is worth the author's
@@ -731,7 +876,7 @@ is the shape the format wants when the gate is not genuinely load-bearing.
   `## Optional deeper paths` and all conditional ("when the learner accepts it").
 
 This is the opposite of the failure the rubric records from the webgl bundle. The
-main-path-only figure of **112** is reported in section 1 because it is genuinely useful,
+main-path-only figure of **108** is reported in section 1 because it is genuinely useful,
 not because the manifest and the prose disagree.
 
 ### The completability invariant

@@ -5,6 +5,10 @@ Audited 2026-09-13 against `tutorail-authoring:course-quality` 0.3.0 and its
 `/Users/robert/src/github.com/skomp/tutorail-bundles` was created, edited, staged or deleted.
 `git status --porcelain` was empty at the start and at the end of the audit.
 
+**Re-checked 2026-09-13 against the author's ruling "A project skeleton is toil"**, added to
+`references/rubric.md` after this report was written. **No score changed**; one piece of reasoning
+did. Section 4 shows the check element by element.
+
 **This bundle is the rubric's own worked example, and it has changed since the rubric was
 written.** The rubric describes lesson 14 as prose-optional while sitting in `lessons:`, and
 publishes totals of 194 / 183 for that state. Commit `49af681` repaired it. Those two figures
@@ -68,10 +72,19 @@ clauses, `## Completion conditions` enumerates conditions. I scored:
 - **not** `## Optional deeper paths` — explicitly beyond the required path;
 - **not** bare prohibitions ("Do not introduce a framework") where no separate act is assigned.
 
-One further ruling, applied throughout: **writing renderer code is never toil.** The toil row
-requires that the bundle could have shipped the result instead of assigning it. A course whose
-premise is "the learner writes the renderer" cannot ship the renderer, so renderer code scores
-+2 or +1, never −2. Toil in this bundle is confined to moving files the bundle already contains.
+One further ruling, applied throughout: **writing renderer code is never toil.** The toil row is
+conjunctive — deterministic, no decision, a mistake teaches nothing, **and** the bundle could have
+handed the result over. Renderer code fails the first three clauses: the learner decides and
+constructs, and a wrong answer is instructive on screen. So it scores +2 or +1 on the teaching
+row's own test, and the toil row is out before its last clause is reached.
+
+Stated that way deliberately. An earlier draft of this report rested the same conclusion on "the
+bundle cannot ship the renderer", and the author's ruling of 2026-09-13 shows why that ground is
+unsafe: asked in its full form — *could the bundle have shipped one set of files for each language
+the course supports?* — the shippability question would answer **yes, a bundle can ship TypeScript
+source**. What excludes renderer code from the toil row is what the learner does with it, not the
+format's reach. The figures are unchanged either way; the argument is now the one that survives the
+ruling. Toil in this bundle is confined to moving files the bundle already contains.
 
 ---
 
@@ -182,7 +195,7 @@ every lesson whose figure is not obvious from its row. `L` = line number in that
 |---|---|---:|
 | 34–36 | "Copy `starter/package.json`, `starter/package-lock.json`, `starter/tsconfig.json`, `starter/index.html` and `starter/src/main.ts` into their corresponding repository-root paths, preserving `src/`." | **−2** toil |
 | 37–38 | "Read `starter/README.md` before giving the first task" | 0 — tutor prep; the learner does nothing |
-| 42 | "Install dependencies" | 0 — learner setup; no bundle can ship `node_modules` |
+| 42 | "Install dependencies" | 0 — learner setup; no bundle can ship `node_modules`, and the 2026-09-13 ruling names `npm install` as expressly unaffected |
 | 42 | "inspect each supplied file" | +1 — applies the TypeScript/npm prerequisite; serves "Distinguish type checking, bundling and static serving" |
 | 42 | "type-check" | 0 evidence |
 | 42 | "build" | 0 evidence |
@@ -483,6 +496,31 @@ objective while keeping the work was the right shape and it was done cleanly.
 **Two confirmed toil spans, −2 each, −4 in total. Both are the same defect: the bundle ships
 nine files for the learner's workspace and declares no `supplies:` entry for any of them.**
 
+### Checked against the ruling of 2026-09-13 — no score moves
+
+`references/rubric.md` now rules that **a project skeleton is toil** where the two tests disagree,
+and asks the shippability question in full: *could the bundle have shipped one set of files for
+each language the course supports?* Re-checked here:
+
+- **This course's skeleton is finding 1 below**, and it was already toil. The learner copies a
+  shipped `starter/` set at `00:34–36`; the five files sit in the bundle, so the plain
+  shippability test already answered yes and the tiebreak never has to fire. −2 before the ruling,
+  −2 after it.
+- **No lesson asks the learner to create a skeleton with a toolchain command.** Searching
+  `COURSE.md` and all nineteen lessons for `init`, `scaffold` and `skeleton` returns no such
+  instruction: the skeleton arrives in this course as files to move, never as `npm init`. There is
+  no second, unscored skeleton site.
+- **The exception does not apply to `00`.** Its three objectives are "Distinguish type checking,
+  bundling and static serving", "Run a TypeScript entry point in a plain HTML page" and "Use the
+  console and page as separate sources of evidence"; `#platform-toolchain` describes the target
+  platform and the tools, not the act of assembling the project. No objective and no anchor makes
+  placing the files the subject, so it stays toil — which is also what P1 proposes to remove.
+- **`npm install` at `00:42` stays the learner's work**, named in the ruling as unaffected.
+
+**Section 1 is unchanged: 243 main-path, 260 across all 19 scored rows.** What the ruling did
+change here is an *argument*, not a figure — see the protocol note in the rubric section above and
+the renderer-code entry under "Additional sites" below.
+
 ### Confirmed
 
 **1. `lessons/00-project-setup/LESSON.md:34` (sentence spans lines 34–36)** — the exact sentence:
@@ -521,7 +559,8 @@ it survives the supplies entry, and it must stay in the lesson.
   > server, and verify both page output and the absence of console errors."
   > *(physical line 42 ends at "development"; the sentence continues on line 43)*
 
-  **Rejected, on the rubric's stated ground: no bundle can ship `node_modules`.** There is no
+  **Rejected, on the rubric's stated ground: no bundle can ship `node_modules`**, which the
+  2026-09-13 skeleton ruling restates and preserves by name. There is no
   `supplies:` entry to write, because the result has to come off a package registry. This is the
   learner's setup and it is scored as what it actually is — evidence, 0 — not as toil. The rest
   of the sentence is the lesson itself. I am not reopening this.
@@ -538,9 +577,12 @@ considered and rejected:
 
 - Every `npm run typecheck` / `npm run build` / `npm run serve` instruction — evidence, 0.
 - `13:40–41` "retain all four files together" — a licence obligation, not toil.
-- `15:45` "Allocate attachments", `16:42` "validate the HDR target" and similar — renderer code;
-  the bundle cannot ship it without destroying the course, so the toil row's last clause
-  excludes them by construction.
+- `15:45` "Allocate attachments", `16:42` "validate the HDR target" and similar — renderer code.
+  Each is a decision the learner makes and a mistake that shows on screen, so the toil row is
+  already out at its first three clauses and its shippability clause is never reached.
+  `COURSE.md:24` ("The learner writes the renderer") and `#api-boundary` make that the subject of
+  the course. **Not** rejected on the ground that the bundle could not ship the files — it could,
+  and per the 2026-09-13 ruling that would not have saved them.
 - `11:31–32` and `12:30–31`, the instructions to read `effect-menu.md` and
   `transition-menu.md` — the tutor reads them; no file is moved and no learner act is assigned.
 

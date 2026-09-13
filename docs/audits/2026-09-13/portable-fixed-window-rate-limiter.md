@@ -1,15 +1,16 @@
 # Course quality audit — `portable-fixed-window-rate-limiter`
 
-> ## OPEN QUESTION, raised 2026-09-13 after publication — the project-skeleton rulings are unsettled
+> ## RULED 2026-09-13 — a project skeleton is toil. This report HAS been re-scored.
 >
-> `skomp/tutorail-bundles#3` reports a learner who reached this class of step, said *"can
-> you create the base setup for me, there is no learning in that"*, and changed
-> `ownership_policy` in their own instance so the tutor would do it. That happened twice, in
-> two different courses.
+> **What was asked.** `skomp/tutorail-bundles#3` reports a learner who reached this class of
+> step, said *"can you create the base setup for me, there is no learning in that"*, and
+> changed `ownership_policy` in their own instance so the tutor would do it. That happened
+> twice, in two different courses.
 >
-> This report rejected the step as toil on the ground that **the bundle could not have
-> supplied the result**. That reasoning is incomplete, and the rubric is the reason: it
-> carries two tests that disagree here.
+> As first published, this report rejected the step at `00:51-52` as toil on the ground that
+> **the bundle could not have supplied the result**, and scored it practice, +1. That
+> reasoning was incomplete, and the rubric was the reason: it carried two tests that
+> disagree here.
 >
 > - *"could this bundle have shipped the result?"* — for a project skeleton, **yes**. It is
 >   a handful of files. A portable bundle can ship one set per supported language and let
@@ -19,12 +20,51 @@
 >   **also yes**. `go mod init`, `cargo new` and `npm init` all need the toolchain.
 >
 > `npm install` is unambiguous under both tests, because `node_modules` cannot ship. A
-> project skeleton is not, and the rubric does not say which test wins. Filed as
+> project skeleton was not, and the rubric did not say which test wins. Filed as
 > `skomp/tutorail-authoring#11`.
 >
-> **The score consequence is stated below with each affected element.** Nothing is
-> re-scored here: the ruling belongs to the author, and a report patched to agree with a
-> ruling that has not been made would be worse than one that says it is open.
+> **What the author ruled, 2026-09-13.** When the two tests disagree, **the shippability
+> test wins, and a project skeleton is toil**. The shippability question is asked in its
+> full form: not *"could the bundle have shipped one file?"* but **"could the bundle have
+> shipped one set of files for each language the course supports?"** A portable bundle can
+> — the tutor selects the set after the learner selects the language — and the toolchain is
+> what *runs* the project, not what writes `go.mod`. `npm install` is unaffected and stays
+> the learner's work, because `node_modules` cannot ship under any language. There is one
+> exception: a setup step is **teaching**, not toil, when the course's own objectives make
+> the setup the thing being taught. The test is the objective, not the author's intent and
+> not the difficulty, and it is operational — **is the setup step the ONLY element serving
+> the objective that names it?** If it is, handing the result over would strand that
+> objective and cost −3, so the setup is the subject and scores as what it teaches. If other
+> elements serve it too, the skeleton is a *part* of a larger goal and stays toil.
+>
+> **The ruling lives in the rubric, not here.** `skills/course-quality/references/rubric.md`
+> now carries it, in the section *"A project skeleton is toil — the tiebreak, ruled
+> 2026-09-13"*. That section is the authority; this block records only what was open, why,
+> and how it closed, so a later reader can still see the question.
+>
+> **This course was tested against the exception and did not take it.** The objective that
+> names the setup is `lessons/00-contract-and-language.md:22`, "Establish a fast run-and-test
+> feedback loop", and **four** elements serve it, not one:
+>
+> - `00:51-52` "Create the smallest conventional runnable project and initialise version
+>   control if the learner wants it." — the step under test;
+> - `00:54` "Add one focused test or executable example covering the budget within one
+>   window.";
+> - `00:58` "The project runs using the normal toolchain for the selected language.";
+> - `01:65` "The relevant test suite passes without real-time waiting."
+>
+> Hand the skeleton over and the objective still has three servers, so it is not stranded
+> and no −3 falls due. The skeleton is a part of that objective, not its subject. No
+> `DESIGN.md` anchor names setup, toolchain or project layout either. **The exception does
+> not apply here — but it does apply in other bundles of this catalogue**, and a reader
+> comparing the five reports of 2026-09-13 should expect them to differ. The catalogue
+> splits on the lesson-00 objective lists: `rust-automaton-db` and `durable-event-broker`
+> each carry a sole-served setup objective and take the exception; this course does not.
+> The rubric's worked table names all five.
+>
+> **This report HAS been re-scored accordingly.** `00:51-52` moves from practice, +1 to
+> **toil, −2**; lesson 00 moves from +9 to **+6**; the course total moves from 35 to **32**;
+> and the total a learner who declines every offer earns moves from 27 to **24**.
 
 Audited 2026-09-13 against `tutorail-authoring:course-quality` v0.3.0 and its
 `references/rubric.md`. Read-only: no file in the bundle was created, edited or staged.
@@ -120,12 +160,12 @@ this finely are not on the same ruler as a fifteen-lesson course.
 **Arithmetic**
 
 ```
-lesson 00-contract-and-language    +9
+lesson 00-contract-and-language    +6
 lesson 01-windowed-counting       +10
 lesson 02-boundaries-and-evidence  +8
 lesson concurrent-callers (opt)    +8
                                   ----
-sum of lessons                     35
+sum of lessons                     32
 
 course-level penalties:
   unserved objectives        0 x -3 =  0
@@ -133,20 +173,25 @@ course-level penalties:
   required_for gates on an
     optional lesson          0 x -3 =  0
                                   ----
-COURSE TOTAL                       35
+COURSE TOTAL                       32
 ```
 
-**Total as a learner who declines every offer earns it: 27.** The optional lesson banks 8
+**Total as a learner who declines every offer earns it: 24.** The optional lesson banks 8
 points that such a learner never sees. Reported separately, per the rubric's
 prose-optionality section, so the headline figure cannot be mistaken for what the main path
 alone teaches. Here the manifest and the prose agree that the lesson is optional (see
-section 6), so the 35 is not the inflated figure that section warns about — but 27 is the
+section 6), so the 32 is not the inflated figure that section warns about — but 24 is the
 number to quote when comparing the main path against anything.
+
+Both figures are **after** the project-skeleton ruling recorded at the top of this report.
+Before it they were 35 and 27; the single element at `00:51-52` moved by 3 points, from
+practice, +1 to toil, −2.
 
 **Two statements the skill asks for plainly:** the bundle loads cleanly and would almost
 certainly pass the structural validator; that is not what this report measures. And the
 script's toil scanner returned zero candidates; that is a fact about the scanner's verb
-list, not about the course. The zero in section 4 is mine, from the lessons.
+list, not about the course. The one toil site in section 4 is mine, from the lessons, and
+the scanner played no part in finding it.
 
 ---
 
@@ -154,28 +199,29 @@ list, not about the course. The zero in section 4 is mine, from the lessons.
 
 | Lesson | Score | Objectives served | Toil found |
 |---|---|---|---|
-| `lessons/00-contract-and-language.md` — Make the decision precise | **+9** | 3 of 3 | none |
+| `lessons/00-contract-and-language.md` — Make the decision precise | **+6** | 3 of 3 | 1 (`:51-52`, the project skeleton) |
 | `lessons/01-windowed-counting.md` — Count requests in deterministic windows | **+10** | 4 of 4 | none |
 | `lessons/02-boundaries-and-evidence.md` — Attack the boundaries | **+8** | 4 of 4 | none |
 | `lessons/concurrent-callers.md` *(optional)* — Make one decision atomic | **+8** | 4 of 4 | none |
 
 No lesson scores at or below zero, so no lesson triggers the rubric's "what is this lesson
 for?" question. Full element breakdowns follow for all four anyway, because three of the
-four figures (9, 8, 8) are not obvious from their rows.
+four figures (6, 8, 8) are not obvious from their rows — and lesson 00's is the one the
+project-skeleton ruling moved.
 
-### `lessons/00-contract-and-language.md` — +9
+### `lessons/00-contract-and-language.md` — +6
 
 | `file:line` | Sentence scored | Element | Score |
 |---|---|---|---|
 | `:50` | "Ask which language the learner wants and why; adapt all later guidance to it." | teaching | +2 |
-| `:51-52` | "Create the smallest conventional runnable project and initialise version control if the learner wants it." | practice | +1 |
+| `:51-52` | "Create the smallest conventional runnable project and initialise version control if the learner wants it." | **toil** | **−2** |
 | `:53` | "Define the public contract in prose and then as an API signature or stub." | teaching | +2 |
 | `:54` | "Add one focused test or executable example covering the budget within one window." | teaching | +2 |
 | `:58` | "The project runs using the normal toolchain for the selected language." | evidence | 0 |
 | `:59` | "The public API accepts a client key and exposes an allow/reject decision." | evidence | 0 |
 | `:60-61` | "A test or executable example states that the first `N` requests are allowed and request `N + 1` is rejected." | evidence | 0 |
 | `:62-63` | "The learner can explain which parts are contract and which remain implementation choices." | teaching | +2 |
-| | | **sum** | **+9** |
+| | | **sum** | **+6** |
 
 
 Notes on the two elements most easily scored differently:
@@ -186,9 +232,13 @@ Notes on the two elements most easily scored differently:
   in the course scores it, and the learner must justify it ("and why"). It is a decision
   whose wrong answer is instructive (a language with no concurrency model makes the optional
   lesson meaningless, per `lessons/concurrent-callers.md:16-17`). Teaching, +2.
-- `:51-52` is setup, and setup is not automatically practice. It scores +1 rather than 0
-  because "smallest **conventional**" requires the learner to apply their own language's
-  conventions, and rather than −2 because the bundle cannot ship the result — see section 4.
+- `:51-52` is **toil, −2, under the ruling of 2026-09-13** recorded at the top of this
+  report. As first published it scored +1, on the reasoning that "smallest **conventional**"
+  makes the learner apply their own language's conventions and that the bundle could not
+  ship the result. The second half of that is what the ruling overturned: a portable bundle
+  can ship one skeleton per supported language and let the tutor choose after `00:50`, and
+  where the two toil tests disagree the shippability test wins. The exception does not
+  reach this lesson — see section 4.
 
 ### `lessons/01-windowed-counting.md` — +10
 
@@ -330,9 +380,12 @@ propose sharpening.
 **`algorithmic trade-offs`, and why it is not a −3.** A sceptical reading says a trade-off
 needs an alternative to trade against, and every comparison with sliding logs, sliding
 counters and token buckets is fenced behind "if asked" (`01:75-76`) or "discuss—but do not
-implement" (`02:77-78`). On that reading the topic is unserved and the course total is 32,
-not 35. I rule it served because the course's own definition of the phrase is narrower and
-is stated twice: `COURSE.md:30-31` glosses lesson 02 as "explain the trade-offs" and
+implement" (`02:77-78`). On that reading the topic is unserved, a −3 falls due, and the
+course total is 29 rather than 32. (Before the project-skeleton ruling those two figures
+read 32 and 35; the −3 gap between them is the point and is unchanged.)
+
+I rule it served because the course's own definition of the phrase is narrower and is
+stated twice: `COURSE.md:30-31` glosses lesson 02 as "explain the trade-offs" and
 `COURSE.md:38-39` as "the learner can explain what the algorithm does not guarantee". That
 is exercised by required tasks — `02:57` and `02:67-68` make the learner name the `2N` burst
 and unbounded key retention as costs of *this* algorithm, and `02:26-30` insists the burst
@@ -360,12 +413,62 @@ it — the exact pattern the rubric warns not to decide by grep.
 
 ## 4. The toil inventory
 
-**Confirmed toil sites: none. −2 was applied zero times.**
+**Confirmed toil sites: one. −2 was applied once.**
 
 `audit.py` returned `(none found)` for toil candidates. As the skill and the script both
 say, that is evidence about the scanner's fixed verb list, not about the course. **This
 inventory comes from opening all four lessons and reading every element**, all 36 of them,
-listed with `file:line` in section 2. The scanner's silence played no part in the ruling.
+listed with `file:line` in section 2. The scanner's silence played no part in the ruling,
+and the one site below is not on its verb list.
+
+### The confirmed toil site
+
+| `file:line` | Sentence | Why it is toil |
+|---|---|---|
+| `00:51-52` | "Create the smallest conventional runnable project and initialise version control if the learner wants it." | **Toil, −2, under the ruling of 2026-09-13.** The bundle could have shipped one skeleton per supported language and let the tutor place the set after the learner picks at `00:50`. The first publication of this report rejected it on the ground that a portable bundle has no single fixed `--from` path; the ruling asks the shippability question in its full form — one set of files *per language* — and the answer is yes. `go mod init` and `cargo new` need the toolchain, but where the two tests disagree the shippability test wins. |
+
+### The exception was tested here, and this course did not take it
+
+The ruling exempts a setup step whose own subject is the setup, and it settles that with an
+operational test rather than with a reading of the prose:
+
+> **Is the setup step the ONLY element serving the objective that names it?** If yes, the
+> setup is the subject — handing the result over would strand the objective and cost −3, so
+> score the step as what it teaches. If no, other elements serve that objective too, the
+> skeleton is a *part* of a larger goal rather than the goal, and it is toil.
+
+Lesson 00 declares three objectives at `lessons/00-contract-and-language.md:20-22`:
+"Separate a behavioural contract from an implementation strategy", "Choose an API shape that
+is idiomatic in the selected language", and — the only one that reaches the setup —
+**`:22` "Establish a fast run-and-test feedback loop"**. Four elements serve `:22`, and the
+element list in section 3 has said so since the first publication:
+
+| `file:line` | Sentence | How it serves `00:22` |
+|---|---|---|
+| `00:51-52` | "Create the smallest conventional runnable project and initialise version control if the learner wants it." | creates the thing that runs — **the step under test** |
+| `00:54` | "Add one focused test or executable example covering the budget within one window." | makes the loop a *test* loop rather than a run loop |
+| `00:58` | "The project runs using the normal toolchain for the selected language." | requires the loop to actually run |
+| `01:65` | "The relevant test suite passes without real-time waiting." | requires it to stay **fast**, which is the word the objective turns on |
+
+**The answer is no, so the exception does not apply.** Supply the skeleton and `00:22` keeps
+three servers: it is not stranded, no −3 falls due, and the rubric's two rows do not
+contradict each other. `00:51-52` is a part of that objective, not its subject, and it
+scores toil, −2.
+
+No `DESIGN.md` anchor reaches the setup either. All five are about the limiter — contract,
+window semantics, state model, time source, concurrency boundary (section 3) — and none
+mentions project layout, build files or version control.
+
+`initialise version control if the learner wants it` is inside the same element and does not
+change the ruling: it is conditional on the learner asking and is not a second element.
+
+**Expect the sibling reports to differ, and that is not an inconsistency.** The catalogue
+splits on the lesson-00 objective lists, and nothing in the lesson text shows it.
+`rust-automaton-db` ("Create and run a Cargo binary project") and `durable-event-broker`
+("Create a small Go module and executable without speculative package structure") each have
+a setup objective with a single server, so both take the exception and their skeleton steps
+are not toil. This course's setup objective has four servers, so it does not. The rubric's
+worked table for 2026-09-13 lists all five bundles and their rulings.
 
 ### Candidates I examined myself and rejected, so the next reader need not re-litigate
 
@@ -373,32 +476,35 @@ The scanner produced nothing to reject, so these are mine, taken from the lesson
 
 | `file:line` | Sentence | Why it is not toil |
 |---|---|---|
-| `00:51-52` | "Create the smallest conventional runnable project and initialise version control if the learner wants it." | **Rejected because the bundle could not have supplied the result.** This is a portable bundle: the language is unknown until `00:50` executes, so there is no `--from` path that could ship a `go.mod`, a `package.json`, a `Cargo.toml` or a `pyproject.toml`. Setup needing a toolchain is the learner's work under the toil row's last clause. Scored +1 for what it is. |
-
 | `00:54`, `01:58`, `02:54` | "Add one focused test…", "Add a test that advances into a new window…", "Add or sharpen the smallest set of tests…" | The learner chooses the assertions and, in `02:54`, which tests are worth having at all. Not deterministic, not unambiguous, and a mistake is instructive. |
 | `01:57` | "Make the existing budget example pass." | The implementation being made to pass is the learner's own and does not exist yet. Practice, +1. |
 | `02:56` | "Run the complete test suite and a small demonstration." | This is the evidence step the format is built around, not a result the bundle could have shipped. Scored 0. |
 | `opt:58` | "Confirm exactly `N` successes, then rerun the sequential suite." | Same: reading a result, scored 0. |
 | `00:67-68`, `01:70-71`, `02:72-73`, `opt:71-72` | the four `## On completion, persist` blocks | Addressed to the tutor and writing into `tutor_owned` files (`tutorial.yaml:26`). They assign the learner nothing, so there is no learner task to call toil. |
 
-### Why there is nothing to propose a `supplies.py` command for
+### What the `supplies:` count now means
 
-`audit.py` reports **0 `supplies:` entries**, and that is correct rather than an omission.
-The skill notes that "`--from` naming a file the bundle does not contain is the tell that
-this was never toil". Here the bundle contains no source file at all — only `COURSE.md`,
-`DESIGN.md`, `STATE.template.md`, `tutorial.yaml` and four lessons. Every artifact the
-course produces is language-dependent and chosen at runtime by the learner, so there is
-nothing the author could have shipped and did not. **No supplies proposal is made in
-section 5, deliberately**, and the absence of `supplies:` is not a finding against this
-bundle.
+`audit.py` reports **0 `supplies:` entries**. The first publication of this report read that
+as correct rather than as an omission, on the ground that every artifact the course produces
+is language-dependent and chosen at runtime, so there was nothing the author could have
+shipped. The ruling of 2026-09-13 says otherwise for the skeleton: a portable bundle ships
+one set per supported language and the tutor places the set that matches. The absence of a
+`supplies:` entry for the skeleton is therefore the counterpart of the −2 above, and
+Proposal 5 states the action.
+
+Nothing else in the bundle is affected. It contains no source file — only `COURSE.md`,
+`DESIGN.md`, `STATE.template.md`, `tutorial.yaml` and four lessons — and every other
+artifact is the learner's own code, which no `supplies:` entry could or should pre-empt.
 
 ---
 
-> **OPEN, `tutorail-authoring#11` — the `00:51-52` rejection above.** It assumed one fixed
-> `--from` path. A portable bundle can ship one skeleton per supported language and let the
-> tutor choose after `00:50`. If the author rules the step toil, the element goes +1 -> -2
-> and the course scores **32**, not 35. A learner hit exactly this step and asked for the
-> setup (`skomp/tutorail-bundles#3`).
+> **SETTLED, `tutorail-authoring#11` — the `00:51-52` rejection above is overturned.** The
+> rejection assumed one fixed `--from` path. A portable bundle can ship one skeleton per
+> supported language and let the tutor choose after `00:50`. The author ruled on 2026-09-13
+> that the step is toil: the element has moved +1 -> −2 and the course scores **32**, not
+> 35. A learner hit exactly this step and asked for the setup
+> (`skomp/tutorail-bundles#3`). The rule now lives in
+> `skills/course-quality/references/rubric.md`.
 
 ## 5. Proposals
 
@@ -483,18 +589,44 @@ tasks.
 — fold it into `02:57` as "…and explain what evidence would convince a reviewer that the
 limiter is correct". The first is the smaller change and is probably right.
 
-### Proposal 5 — no toil fix, and no `supplies:` entry, on purpose
+### Proposal 5 — hand over the project skeleton, one set of files per supported language
 
-Stated as a proposal so it is not mistaken for an omission: **there is nothing to propose
-here.** Section 4 explains why a portable bundle that ships no source file has no toil the
-rubric can charge it for. If a future revision starts shipping a reference test harness or
-a language-specific starter, this row becomes live again.
+**Finding** (section 4). `lessons/00-contract-and-language.md:51-52` assigns the learner the
+smallest conventional runnable project for the language they chose at `:50`. Under the
+ruling of 2026-09-13 that is toil, −2, and it is the course's only toil site.
+
+**Action.** Through `tutorail-authoring`, add the skeletons to the bundle and declare them,
+one `supplies:` entry per supported language, then delete the clause from `:51-52`. For
+example, for a Go learner:
+
+```
+python3 scripts/supplies.py add <bundle> \
+  --from lessons/00-contract-and-language/skeleton-go/ \
+  --to . \
+  --describe "Go module and test skeleton for the rate limiter" \
+  --lesson 00-contract-and-language --check
+```
+
+with the same shape for each other language the course intends to support. The
+lesson-scoped `--from` must sit inside that lesson's own folder, per the skill's
+`supplies.py` guidance.
+
+**One question the author must answer before running it**, because this report cannot:
+a `supplies:` entry places its files when its scope opens, and this bundle needs *one of
+several* sets placed, chosen after `00:50` decides the language. Either the runner already
+supports that selection, or the toolkit needs a way to express it. The ruling states the
+tutor selects the set after the learner selects the language; how that is declared is a
+`tutorail-authoring` question, not a scoring one. **The −2 stands either way** — the rubric
+charges what the bundle could have shipped, not what today's toolkit makes convenient.
+
+The learner keeps the language decision at `:50`, which is `teaching`, +2, and keeps
+`:53`'s contract and `:54`'s first test. What they stop doing is typing `go mod init`.
 
 ### Not proposed: any lesson deletion or restructure
 
 No lesson scores at or below zero, no lesson is far outside the course's usual size, and
-the course's ratio of decisions to evidence steps is high — 17 of 36 elements are `teaching`.
-There is no structural proposal worth making.
+the course's ratio of decisions to evidence steps is high — 16 of 36 elements are `teaching`,
+and exactly one is toil. There is no structural proposal worth making.
 
 ### One observation, below the level of a proposal
 
@@ -560,7 +692,7 @@ tasks.
 
 | Lesson | Lines | Scored elements | Score |
 |---|---|---|---|
-| `00-contract-and-language.md` | 73 | 8 | +9 |
+| `00-contract-and-language.md` | 73 | 8 | +6 |
 | `01-windowed-counting.md` | 76 | 10 | +10 |
 | `02-boundaries-and-evidence.md` | 78 | 10 | +8 |
 | `concurrent-callers.md` | 77 | 8 | +8 |
@@ -635,8 +767,8 @@ keyed off the key's presence in the manifest, not off `optional_lesson_count`.
    under `optional_lessons:` in `tutorial.yaml:18`, is listed under `## Optional lessons` in
    `COURSE.md:41-44` and is marked *(optional)* in that entry's own text. No main-path lesson
    calls itself optional anywhere in its prose. There is no disagreement to report, so the
-   35 in section 1 is not the inflated figure the rubric's prose-optionality section warns
-   about. The 27 that a declining learner earns is reported alongside it regardless.
+   32 in section 1 is not the inflated figure the rubric's prose-optionality section warns
+   about. The 24 that a declining learner earns is reported alongside it regardless.
 
 ### 6.6 `required_for`, `anticipates` and `repair_in` — read from the manifest directly
 
@@ -665,10 +797,14 @@ way. The absence of one is not evidence the course completes; it is an absence.
 
 The validator would almost certainly pass this bundle, and that is not an argument about
 anything above. What the lessons show is a small course with an unusually high proportion of
-learner decisions — 17 of 36 scored elements are `teaching` — that honours all five of its
-design anchors and serves all 15 of its lesson objectives, and whose weakest points are a
-citation that does not answer its lesson's question, one objective promised more broadly
-than its task delivers, and one must-cover topic parked behind an optional offer.
+learner decisions — 16 of 36 scored elements are `teaching` — that honours all five of its
+design anchors and serves all 15 of its lesson objectives, and whose weakest points are one
+toil site the bundle should hand over instead of assigning, a citation that does not answer
+its lesson's question, one objective promised more broadly than its task delivers, and one
+must-cover topic parked behind an optional offer.
+
+The scores here are those of 2026-09-13, after the project-skeleton ruling. The block at the
+top of this report records what the figures were before it and why they moved.
 
 Every finding above is a proposal the author may refuse, and every one carries a `file:line`
 and a quoted sentence so it can be checked rather than believed.
