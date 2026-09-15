@@ -1,6 +1,6 @@
 {
   "name": "tutorail-authoring",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Two skills for tutorAIl bundles. tutorail-authoring interviews you about a course, then builds or changes a bundle correctly, ending the interview with a spec you approve before any lesson file is written. course-quality audits a bundle for what it teaches and where its toil is, and proposes rather than edits.",
   "author": {
     "name": "skomp",
