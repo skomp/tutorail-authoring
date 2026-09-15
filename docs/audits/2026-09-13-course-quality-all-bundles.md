@@ -1,5 +1,15 @@
 # Course-quality audit, 2026-09-13 — every bundle in `skomp/tutorail-bundles`
 
+> **SUPERSEDED on 2026-09-15.** The catalogue changed after this audit: five of its six
+> confirmed toil sites were repaired, two portable bundles moved their setup step to the
+> tutor, and two bundles began shipping a skeleton. The current audit is
+> [`2026-09-15-course-quality-all-bundles.md`](2026-09-15-course-quality-all-bundles.md).
+>
+> This report stays as the audit of record for `skomp/tutorail-bundles` as it stood on
+> 2026-09-13, and for the project-skeleton ruling made that day. Its figures are correct for
+> the files it audited and are **not** current. Its `file:line` citations have moved.
+
+
 Five courses, audited against `skills/course-quality/references/rubric.md` as it stands
 today. The repository was at `4df2624` and **no bundle was changed**: everything below is a
 proposal the author accepts or refuses.
