@@ -562,9 +562,10 @@ def cli_case_lesson_unknown() -> None:
     with Workspace() as ws:
         bundle = ws.copy("rust-automaton-db")
         # A LESSON-scope 'from' must resolve inside lessons/, so the sample
-        # lives in the lesson's own folder rather than in supplies/ at the
-        # bundle root. supplies/ is for MANIFEST-scope entries, which are
-        # placed while the bundle source is still in reach.
+        # cannot live in supplies/ at the bundle root: supplies/ is for
+        # MANIFEST-scope entries, which are placed while the bundle source is
+        # still in reach. This fixture uses the lesson's own folder; a loose
+        # file directly under lessons/ would resolve just as well.
         lesson_from = folder_a_lesson(bundle, "00-foundations", "model.txt")
         h.git_init(bundle)
 
@@ -753,11 +754,14 @@ def folder_a_lesson(bundle: Path, slug: str, material: str) -> str:
 
     A lesson-scope supplies entry's `from` must resolve inside `lessons/`,
     because the entry is placed when that lesson opens - from the instance,
-    which carries only `lessons/`. The one place under `lessons/` that may
-    hold a non-lesson file is a lesson's own folder: a bare directory under
-    `lessons/` with no LESSON.md is refused by check 4. So a lesson that
-    supplies files of its own is a lesson with material, which is what a
-    lesson folder is for.
+    which carries only `lessons/`. A FOLDER IS NOT REQUIRED TO SATISFY THAT.
+    Measured against the pinned validator: a loose file directly under
+    `lessons/` passes check 4, and a single-file lesson declaring
+    `from: lessons/seed.txt` passes in bundle mode and in instance mode.
+    Only a bare DIRECTORY under `lessons/` with no LESSON.md is refused by
+    check 4, because nothing can reach what is inside it. This helper builds
+    the FOLDERED case on purpose - it is the case check 6 also reaches - and
+    that is a fixture choice, not a rule the format imposes.
 
     Returns the bundle-relative `from` for the material file. The LESSON.md
     body names the file as well, so the fixture is valid BEFORE the supplies
@@ -798,9 +802,11 @@ def folder_a_lesson(bundle: Path, slug: str, material: str) -> str:
 def cli_case_list() -> None:
     with Workspace() as ws:
         bundle = ws.copy("rust-automaton-db")
-        # One entry per scope, each taking its 'from' from the only place
-        # that scope may: supplies/ at the bundle root for the manifest, the
-        # lesson's own folder for the lesson.
+        # One entry per scope, each taking its 'from' from a place that
+        # scope may use: supplies/ at the bundle root for the manifest, the
+        # lesson's own folder for the lesson. The lesson scope is only
+        # required to stay under lessons/; the folder is this fixture's
+        # choice, not the rule.
         (bundle / "supplies").mkdir()
         (bundle / "supplies" / "a.txt").write_text("a\n", encoding="utf-8")
         lesson_from = folder_a_lesson(bundle, "00-foundations", "b.txt")

@@ -68,9 +68,10 @@ sentence — the `text` field tells you where it starts, not where it ends.
 
 ### What the script does not give you, and you must fetch yourself
 
-- **`required_for`, `anticipates` and `repair_in` are not in its output.** The `−3` row of
-  the rubric needs them, so open `tutorial.yaml` and work through its `optional_lessons`
-  block yourself. Key that off **the presence of an `optional_lessons:` key in the
+- **`required_for`, `anticipates` and `repair_in` are not in its output.** Two rubric rows
+  need them — the scored `−3` `required_for` row, and the reader-answered row asking
+  whether an anticipated failure is ever repaired — so open `tutorial.yaml` and work
+  through its `optional_lessons` and `failure_modes` blocks yourself. Key that off **the presence of an `optional_lessons:` key in the
   manifest**, never off `optional_lesson_count`: that count is of optional lessons found
   **on disk**, so an `optional_lessons` entry naming a file that does not exist counts
   zero. Trusting the count there would tell you not to look at precisely the manifest most
@@ -112,7 +113,7 @@ The script says this about itself in its own output, and the report must repeat 
 The rubric is in `references/rubric.md`. Load it, apply it per element, and print it in
 the report so the author can argue with the scoring rather than with a number.
 
-**The rubric is more than its scored table.** It also carries six rows a reader answers
+**The rubric is more than its scored table.** It also carries seven rows a reader answers
 and a scored table cannot reach, one course-level invariant no structural check can reach,
 and two elements — a branch point, and an instruction addressed to the tutor — that are
 easy to score wrong and are settled there rather than left to you. Those are not optional reading and they are not footnotes: section 6 of the report
@@ -182,7 +183,7 @@ scanner is a candidate generator and that this inventory came from the lessons.
 Silence is not an answer here, and neither is "nothing found" with nothing underneath it.
 None of these is scored; all of them change what the author does next.
 
-- **Each of the rubric's six reader-answered rows**, answered explicitly, with a
+- **Each of the rubric's seven reader-answered rows**, answered explicitly, with a
   `file:line` for every instance found and an explicit "none found" where none was:
   - a `design_refs` entry that does not answer the question its lesson raises;
   - a lesson that introduces a type or concept nothing later uses;
@@ -199,6 +200,16 @@ None of these is scored; all of them change what the author does next.
     evidence about the file, and an author cannot change a tutor's behaviour from this
     repository, so a finding against live behaviour is one its reader cannot fix;
   - a lesson far outside the course's usual size, in either direction;
+  - an optional lesson that anticipates a failure mode no lesson repairs — name the
+    failure-mode id and give the `file:line` of the `anticipates` entry in `tutorial.yaml`.
+    Answer it from what the lessons make the learner do, not from whether `repair_in` is
+    present: a `repair_in` naming a lesson that never touches the failure fails the row,
+    and a course with no `repair_in` passes it when a lesson repairs the failure anyway.
+    This is **not** the −3 `required_for` row, which fires on a gate and scores; this one
+    needs no gate and scores nothing. A bundle declaring no `failure_modes` and no
+    `optional_lessons` answers "none found", and that is a real answer rather than an
+    empty one — as of the audit of 2026-09-15 it is the answer for all five catalogue
+    bundles;
   - a must-cover topic that only an optional lesson teaches — acceptable for this course,
     given that a learner who declines every offer never meets it? This one is a **question
     and not a score**, deliberately and permanently; the rubric says why.
@@ -247,12 +258,14 @@ files live in the course. `--to` is relative to the learner's workspace root, an
 that root itself. Quoting a workspace path as `--from` is the easiest way to get this
 wrong.
 
-**With `--lesson`, the `--from` must be inside `lessons/`** — in that lesson's own folder.
-A lesson's entries are placed when the lesson opens, from the instance, and materialization
-copies only `lessons/` into it, so a lesson-scope file kept anywhere else is not there when
-the lesson needs it and the validator reports the entry. A manifest-scope `--from` has no
-such limit. If the files sit at the bundle root and belong to one lesson, propose moving
-them into that lesson's folder as part of the same fix.
+**With `--lesson`, the `--from` must be inside `lessons/`.** A lesson's entries are placed
+when the lesson opens, from the instance, and materialization copies only `lessons/` into
+it, so a lesson-scope file kept anywhere else is not there when the lesson needs it and the
+validator reports the entry. Anywhere under `lessons/` satisfies the rule: a loose file
+directly under `lessons/` does, so a single-file lesson need not become a folder to supply
+one. A manifest-scope `--from` has no such limit. If the files sit at the bundle root and
+belong to one lesson, propose moving them under `lessons/` as part of the same fix — into
+that lesson's own folder by convention, which keeps the material beside its `LESSON.md`.
 
 `--from` naming a file the bundle does not contain is the tell that this was never toil:
 if the result has to come off the network, out of a package registry or from an account the

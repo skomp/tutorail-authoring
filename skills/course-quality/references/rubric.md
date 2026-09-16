@@ -299,6 +299,12 @@ that **the gate is on the failure** — it binds once the failure is observed, a
 lifted by the repair, not by taking the lesson. No script can tell a justified gate from
 an unjustified one.
 
+**This row is not the reader-answered repair row below**, and the two are easy to merge by
+accident because both mention an anticipated failure. This one fires on the presence of a
+`required_for` gate and costs −3 whether or not the failure is ever repaired. That one
+fires with no gate anywhere in sight, asks whether a lesson repairs the failure an
+`anticipates` entry declares, and scores nothing at all.
+
 **Print this warning beside the score, in these words or better:**
 
 > This gate cost the course 3 points and may still be correct. If the lesson genuinely
@@ -341,6 +347,19 @@ judgement belongs. Each one is raised in the report as a question, with its `fil
 - **a lesson far outside the course's usual size.** Both directions matter: one that is
   much larger is usually two lessons, and one that is much smaller is usually a paragraph
   of the lesson beside it.
+- **an optional lesson that anticipates a failure mode no lesson repairs.** `anticipates`
+  names a failure the course expects a learner to hit; the repair is what turns that
+  expectation into teaching, and without one the learner is left standing in the failure
+  the author saw coming. Check 19 proves the opposite direction only — that every
+  `failure_modes` entry is named by some optional lesson's `anticipates`, or it is dead
+  weight — and no check anywhere asks whether a repair exists. Judge it the way the anchor
+  row is judged, by what a lesson makes the learner **do**: a `repair_in` naming a lesson
+  whose prose never touches the failure fails this row, and a course carrying no
+  `repair_in` at all passes it when some lesson repairs the failure anyway. Report the
+  failure-mode id and the `file:line` of the `anticipates` entry in `tutorial.yaml`.
+  **This is not the −3 `required_for` row above.** That row fires on a gate, costs the
+  course 3 points, and fires whether or not a repair exists; this row needs no gate, asks
+  only whether the anticipated failure is ever repaired, and scores nothing.
 - **a must-cover topic that only an optional lesson teaches.** Ask it as a question, in
   these words or better: *is that acceptable for this course, given that a learner who
   declines every offer never meets it?* Some courses will answer yes with good reason.

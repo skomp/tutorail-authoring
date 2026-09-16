@@ -921,6 +921,16 @@ def set_frontmatter_field(text: str, key: str, value: str) -> tuple[str, bool]:
 # flow indicator INSIDE the value ('the model, which is a duck') is ordinary
 # text and stays unquoted.
 #
+# THE MEASUREMENT IS BOUNDED, SO THE CLAIM IS. 20454 values is every string of
+# at most THREE characters over ONE 27-character alphabet - it is not every
+# value, and 'all 20454 round-trip' must not be read as 'everything does'.
+# Longer values, and characters outside that alphabet, were never emitted.
+# Known survivors, all longer than three characters and so outside the
+# measured population: js-yaml still retypes `0x1f`, `.inf`, `.nan` and a date
+# such as `2026-09-12`, each of which yamlite keeps as text. The previous
+# emitter fails those four in the same way, so they are a standing limit of
+# this guard rather than a defect it introduced.
+#
 # Quoting is always safe, so the guard errs towards quoting: it never has to
 # decide that an unusual value is FINE, only that a value is plainly plain.
 # --------------------------------------------------------------------------

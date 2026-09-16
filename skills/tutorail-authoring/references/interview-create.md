@@ -143,8 +143,12 @@ manifest-scope entry is placed during materialization, while the bundle source i
 reach, so its file may sit anywhere in the bundle — `supplies/` at the bundle root by
 convention. A lesson-scope entry is placed when that lesson opens, from the instance, and
 the instance carries only `lessons/` — so a lesson-scope `from` **MUST** be inside
-`lessons/`, which in practice means the lesson's own folder. Put a lesson's supplied files
-beside its `LESSON.md`, and give the lesson a folder if it does not have one.
+`lessons/`. That is the whole rule. Anywhere under `lessons/` satisfies it, a loose file
+directly under `lessons/` included, so a single-file lesson can supply a file without
+becoming a folder; only a bare directory under `lessons/` with no `LESSON.md` is refused,
+because nothing can reach what is inside it. Putting a lesson's supplied files beside its
+`LESSON.md` in the lesson's own folder is the convention, not a requirement, and it earns
+its place by keeping the lesson and its material together as the course grows.
 
 Under `tutor-must-not-edit-learner-owned` **and under `on-request`** the tutor may
 **create** a declared target that does not exist; under `on-request` it does not ask first,
@@ -275,8 +279,10 @@ Order matters, because the format's invariants are easier to keep than to repair
 3. **Put the supplied files in the bundle and declare every one of them.** The files the
    course hands over go inside the bundle first. A manifest-scope file may sit anywhere in
    the bundle, and `supplies/` at the bundle root is the convention. A lesson-scope file
-   **MUST** be inside `lessons/` — put it in that lesson's own folder, and add `--folder`
-   to the lesson if it does not have one. Materialization copies only `lessons/` into the
+   **MUST** be inside `lessons/`, and anywhere under `lessons/` will do — a single-file
+   lesson needs no folder to supply one. By convention, put it in that lesson's own folder
+   and add `--folder` to the lesson if it does not have one, so the material stays beside
+   the `LESSON.md` that uses it. Materialization copies only `lessons/` into the
    instance, so a lesson-scope file kept in `supplies/` is not there when the lesson opens,
    and the validator reports it. Then declare each with
    `python3 scripts/supplies.py add <bundle> --from <path> --to <path> --describe <text>`,

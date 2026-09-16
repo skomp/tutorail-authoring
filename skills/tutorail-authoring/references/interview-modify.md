@@ -84,9 +84,12 @@ same every time.
    *Suggested progression*, and it usually names a `starter/` directory.
 2. Put the files inside the bundle if they are not there already. A manifest-scope file
    may sit anywhere in the bundle, and `supplies/` at the bundle root is the convention. A
-   file that arrives with one lesson **MUST** be inside `lessons/` — put it in that
-   lesson's own folder, because materialization copies only `lessons/` into the instance
-   and the lesson is opened from there. Then declare them:
+   file that arrives with one lesson **MUST** be inside `lessons/`, because materialization
+   copies only `lessons/` into the instance and the lesson is opened from there. Anywhere
+   under `lessons/` satisfies that, a loose file directly under `lessons/` included, so a
+   single-file lesson does not have to become a folder to supply one. The lesson's own
+   folder is the convention, and it keeps the material beside its `LESSON.md`. Then
+   declare them:
    `python3 scripts/supplies.py add <bundle> --from <path> --to <path> --describe <text>`,
    with `--lesson <lesson-id>` when they should arrive with that lesson rather than at the
    start. Show the `--check` run first.
