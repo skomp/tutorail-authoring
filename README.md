@@ -26,12 +26,18 @@ document beats revising twenty lesson files.
 ## Requires the runner
 
 This plugin **depends on the tutorAIl runner being installed**, because the toolkit invokes
-its validator rather than shipping a second, weaker copy. Install that first:
+its validator rather than shipping a second, weaker copy. Install that first, by the route
+that matches your host:
 
 ```
 /plugin marketplace add skomp/tutorAIl
 /plugin install tutorail@tutorail
 ```
+
+On Codex, install the runner the way its own README describes — a symlink into
+`~/.agents/skills/tutorail`. The toolkit searches `~/.agents/skills/tutorail/scripts/` before
+it searches the Claude Code plugin directories, so that install is what makes the validator
+findable there. `$TUTORAIL_VALIDATOR` overrides the search on either host.
 
 ## Install
 
@@ -42,19 +48,55 @@ its validator rather than shipping a second, weaker copy. Install that first:
 /plugin install tutorail-authoring@tutorail-authoring
 ```
 
-**Codex**
+Update it with both commands:
 
 ```
-git clone git@github.com:skomp/tutorail-authoring.git ~/src/tutorail-authoring
-mkdir -p ~/.agents/skills
-ln -s ~/src/tutorail-authoring/skills/tutorail-authoring ~/.agents/skills/tutorail-authoring
-ln -s ~/src/tutorail-authoring/skills/course-quality ~/.agents/skills/course-quality
+claude plugin marketplace update tutorail-authoring
+claude plugin update tutorail-authoring@tutorail-authoring
 ```
+
+The second alone compares manifest **versions**, not commits, and will report that you are
+already current while new work sits unreachable behind the old version number. So a change
+pushed here is invisible to an install that already holds the version until
+`.claude-plugin/plugin.json` is bumped and pushed too. That is not hypothetical: on
+2026-09-15 work committed in this repository was unreachable from Claude Code until the
+plugin was bumped to 0.4.0 and pushed, while Codex had been running it all along.
+
+**Codex — to use the plugin**
+
+Codex follows symlinks in `~/.agents/skills/`, its documented user skills scope. Clone
+somewhere you do not work in:
+
+```
+git clone git@github.com:skomp/tutorail-authoring.git ~/.local/share/tutorail-authoring
+mkdir -p ~/.agents/skills
+ln -s ~/.local/share/tutorail-authoring/skills/tutorail-authoring ~/.agents/skills/tutorail-authoring
+ln -s ~/.local/share/tutorail-authoring/skills/course-quality ~/.agents/skills/course-quality
+```
+
+Update it with `git -C ~/.local/share/tutorail-authoring pull`.
 
 Both symlinks. This plugin ships two skills, and this install path never reads a manifest,
 so a missing symlink is a missing skill with nothing to warn you.
 
-Not `codex plugin add` — see the runner's README for why that path does not work yet.
+Not `codex plugin add` — see the runner's README, under *Installing on Codex*, for why that
+path does not work yet. It fails silently on both plugins, for the same reasons.
+
+**Codex — to develop the plugin**
+
+Point the same two symlinks at the checkout you work in:
+
+```
+ln -s <your checkout>/skills/tutorail-authoring ~/.agents/skills/tutorail-authoring
+ln -s <your checkout>/skills/course-quality ~/.agents/skills/course-quality
+```
+
+**The two hosts do not run the same copy, and that is what the choice above is between.**
+Claude Code installs a published version from the marketplace: it changes only when you
+update it, and it never contains uncommitted work. Codex follows the symlink into a
+checkout, so it runs whatever is checked out there — including a half-finished edit
+mid-save. That is the right arrangement while developing this plugin and the wrong one for
+someone who only wants to use it.
 
 ## Use
 

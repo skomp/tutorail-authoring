@@ -10,11 +10,15 @@ already paid for once:
     beside it - the same probe, on an input that differs only in the thing
     under test, reporting the opposite. A refusal that fires for the wrong
     reason looks identical to one that fires for the right reason;
-  * no filename is asserted with `.exists()`. THIS FILESYSTEM IS
-    CASE-INSENSITIVE, so `(folder / "LESSON.md").exists()` is True for a
-    folder holding `lesson.md`. Every filename assertion goes through
-    `listing()` / `has_exactly()`, and the folder case also asserts
-    `has_miscased(...) is None`;
+  * no filename is asserted with `.exists()`. Where the filesystem folds
+    case, `(folder / "LESSON.md").exists()` is True for a folder holding
+    `lesson.md`; where it does not, the same call is False and still says
+    nothing about the `lesson.md` beside it. Neither answer names what is on
+    disk, so every filename assertion goes through `listing()` /
+    `has_exactly()`, and the folder case also asserts
+    `has_miscased(...) is None`. The control for that probe (case A2) is
+    written against `folds_case()`, so it makes the same claim on a
+    case-sensitive filesystem as on this one;
   * every refusal is followed by a `tree_digest` comparison, not by "the new
     file is absent". A half-written tutorial.yaml would pass the weaker
     check. The digest oracle itself is shown FIRING in case 5, where a real
@@ -38,6 +42,7 @@ from harness import (  # noqa: E402
     check,
     check_in,
     check_not_in,
+    folds_case,
     has_exactly,
     has_miscased,
     git_init,
@@ -375,11 +380,13 @@ def case_folder() -> None:
             f"--folder: the folder holds an entry named exactly LESSON.md, "
             f"listing is {listing(folder)!r}",
         )
-        # On this case-insensitive filesystem a mis-cased body resolves
-        # through exists() and through open(), so it would be invisible to
-        # every check except a listing comparison. bundle-format section 6
-        # requires the exact name; assert no other-cased twin is what proves
-        # the exact name was actually written.
+        # Where the filesystem folds case a mis-cased body resolves through
+        # exists() and through open(), so it would be invisible to every
+        # check except a listing comparison; where it does not, it resolves
+        # nowhere and the bundle breaks on the learner's machine instead.
+        # bundle-format section 6 requires the exact name; assert no
+        # other-cased twin is what proves the exact name was actually
+        # written.
         check(
             has_miscased(folder, "LESSON.md") is None,
             f"--folder: no differently-cased LESSON.md twin "
@@ -400,11 +407,43 @@ def case_folder() -> None:
         )
         check(
             not has_exactly(decoy, "LESSON.md"),
-            "--folder control: and has_exactly refuses it, where exists() would not",
+            "--folder control: and has_exactly refuses it, where exists() cannot",
+        )
+        # AND WHY exists() cannot, said so that it is true on every
+        # filesystem. This assertion used to read `(decoy / "LESSON.md")
+        # .exists()`, which asserts the PLATFORM and not the behaviour: True
+        # where the filesystem folds case, False where it does not, so the
+        # control failed on Linux - the platform the rest of this case exists
+        # to defend against (tutorail-authoring#17). What holds on both is
+        # that exists() collides: where case is folded it cannot tell the
+        # mis-cased body from a correct one, and where it is not it cannot
+        # tell the mis-cased body from no body at all. listing() separates
+        # all three either way, and that is the whole reason the production code in
+        # bundlelib compares against list_dir() instead of resolving a path.
+        empty = ws.path("decoy-empty-folder")
+        empty.mkdir()
+        exact = ws.path("decoy-exact-folder")
+        exact.mkdir()
+        (exact / "LESSON.md").write_text("# exact body\n", encoding="utf-8")
+        insensitive = folds_case(ws.root)
+        seen = {
+            "mis-cased": (decoy / "LESSON.md").exists(),
+            "no body": (empty / "LESSON.md").exists(),
+            "exact": (exact / "LESSON.md").exists(),
+        }
+        indistinguishable = "exact" if insensitive else "no body"
+        check(
+            seen["mis-cased"] == seen[indistinguishable],
+            f"--folder control: exists() cannot tell a mis-cased body from "
+            f"{indistinguishable!r} on this filesystem "
+            f"(case-folding={insensitive}, exists() says {seen!r})",
         )
         check(
-            (decoy / "LESSON.md").exists(),
-            "--folder control: exists() really is fooled here - the reason for listing()",
+            [listing(decoy), listing(empty), listing(exact)]
+            == [["lesson.md"], [], ["LESSON.md"]],
+            f"--folder control: listing() separates all three on either filesystem "
+            f"({listing(decoy)!r}, {listing(empty)!r}, {listing(exact)!r}) - "
+            f"the reason for listing()",
         )
         check(
             listing(folder) == ["LESSON.md"],

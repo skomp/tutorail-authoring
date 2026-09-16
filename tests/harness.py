@@ -12,11 +12,15 @@ bundle BYTE-IDENTICAL when it fails. A test that only checked "the lesson
 file is still absent" would pass against a half-edited tutorial.yaml, so the
 check hashes every path, every mode bit and every byte.
 
-`listing` - the case-insensitivity trap. THIS FILESYSTEM IS CASE-INSENSITIVE.
-`Path("lessons/lesson.md").exists()` is True in a directory holding
+`listing` - the case-insensitivity trap. A macOS or Windows filesystem folds
+case: `Path("lessons/lesson.md").exists()` is True in a directory holding
 `LESSON.md`, so a fixture built with a rename that only changes case is a
-silent no-op that tests nothing. Every assertion about a filename goes
-through os.listdir.
+silent no-op that tests nothing. A Linux filesystem does not fold case, and
+answers False to the same question - which is no better, because it says
+nothing about the mis-cased entry that is really there. Every assertion about
+a filename goes through os.listdir, which reports the same truth on both.
+`folds_case` says which kind of filesystem the suite is running on, for the
+one case that has to assert something about exists() itself.
 
 `no_runner_env` - the false-oracle guard. A test that shows a failure path
 firing is worth nothing unless the same probe can be shown reporting the
@@ -148,10 +152,13 @@ class _Case:
 def listing(directory: Path) -> list[str]:
     """os.listdir, sorted. NEVER use exists() to assert a filename.
 
-    This filesystem is case-insensitive: `(d / "lesson.md").exists()` is True
-    in a directory holding `LESSON.md`. A fixture or an assertion built on
-    exists() therefore cannot tell the two apart, and the mistake has already
-    been made once in this project.
+    Where the filesystem folds case, `(d / "lesson.md").exists()` is True in
+    a directory holding `LESSON.md`; where it does not, the same call is
+    False and reports nothing about the mis-cased entry beside it. Neither
+    answer names what is actually on disk, so a fixture or an assertion built
+    on exists() cannot tell the two apart on EITHER kind of filesystem, and
+    the mistake has already been made once in this project. os.listdir gives
+    the same answer everywhere.
     """
     return sorted(os.listdir(directory))
 
@@ -167,6 +174,29 @@ def has_miscased(directory: Path, name: str) -> str | None:
         if entry != name and entry.lower() == name.lower():
             return entry
     return None
+
+
+def folds_case(directory: Path) -> bool:
+    """True when the filesystem under `directory` resolves a path case-blind.
+
+    macOS and Windows resolve `LESSON.md` in a directory holding
+    `lesson.md`; a case-sensitive Linux filesystem does not. That is a
+    property of the machine the suite runs on, so the one control that has to
+    assert something about `exists()` asserts it against this answer instead
+    of against the filesystem the suite happened to be written on. Before
+    this existed, that control failed on Linux - the platform the rest of the
+    case defends against.
+
+    The probe writes its own file in its own directory rather than reading
+    the caller's fixture, so a case that compares its fixture against this
+    answer is not asking the fixture to grade itself.
+    """
+    probe = Path(tempfile.mkdtemp(prefix="tutorail-casefold-", dir=directory))
+    try:
+        (probe / "casefold.probe").write_text("", encoding="utf-8")
+        return (probe / "CASEFOLD.PROBE").exists()
+    finally:
+        shutil.rmtree(probe, ignore_errors=True)
 
 
 def tree_digest(root: Path) -> str:
