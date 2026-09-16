@@ -161,6 +161,40 @@ Every operation that changes a bundle:
 - refuses on a dirty working tree unless forced, so `git diff` is a clean record
 - leaves the bundle **unchanged** on failure, never half-edited
 
+## Tests
+
+```
+python3 tests/run_all.py            every suite
+python3 tests/run_all.py renumber   only suites whose name matches
+```
+
+Stdlib only — no pytest, no install. Each suite is also a plain runner on its own.
+
+**Pin the validator when a result has to be attributable.** The suites run the runner's
+`validate_bundle.py`, and on a developer machine the search leads to a checkout somebody may
+be editing. Copy the whole scripts directory — `validate_bundle.py` imports `yamlite` and
+`catalogs` from beside itself, so a single-file pin produces a validator that cannot run, and
+it fails in a way that reads as product defects:
+
+```
+mkdir -p /tmp/pin && cp <tutorAIl>/skills/tutorail/scripts/*.py /tmp/pin/
+TUTORAIL_VALIDATOR=/tmp/pin/validate_bundle.py python3 tests/run_all.py
+```
+
+Every suite prints the validator it used, so the pin is visible rather than assumed.
+
+### CI
+
+`.github/workflows/tests.yml` runs the whole suite on `ubuntu-latest` and `macos-latest` for
+every push and pull request. The Linux job is the one that earns it: `ubuntu-latest` has a
+case-sensitive filesystem, and an assertion that encodes the developer's filesystem reads as
+correct on every macOS machine (tutorail-authoring#17).
+
+The workflow checks out `skomp/tutorAIl` **at a commit sha**, not at `main`, so that a red
+suite always means a defect in this repository and never an upstream change. The cost is that
+somebody must bump the pin by hand. **The sha lives in one place — the `ref:` in that
+workflow — and the file's own header comment holds the bump procedure and the reasoning.**
+
 ## Design
 
 `docs/superpowers/specs/2026-09-12-bundle-authoring-design.md` records the architecture, why

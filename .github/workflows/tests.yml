@@ -1,0 +1,219 @@
+# Run the whole test suite on Linux and on macOS, for every push and pull
+# request. Issue tutorail-authoring#22.
+#
+# WHAT THE LINUX JOB IS FOR. The work on this repository is done on macOS, so
+# the macOS job only holds the line on a platform that was already covered.
+# The Linux job is the one that earns this workflow: `ubuntu-latest` has a
+# CASE-SENSITIVE filesystem, and this repository has already shipped one
+# assertion that encoded the developer's filesystem instead of the behaviour
+# under test (tutorail-authoring#17 - `(decoy / "LESSON.md").exists()`, true
+# on macOS, false on Linux). Four more suites - test_catalog.py,
+# test_promote.py, test_lesson_renumber.py and test_validator_discovery.py -
+# carry comments that say they know the filesystem folds case. Nothing proved
+# any of them portable until this job existed.
+#
+# ---------------------------------------------------------------------------
+# WHY THE RUNNER IS PINNED TO A COMMIT SHA, AND NOT TO `main`
+# ---------------------------------------------------------------------------
+# Every suite here runs the tutorAIl runner's `validate_bundle.py`. That file
+# lives in another repository, so it is an input this repository does not
+# control.
+#
+# A red suite must always mean a defect in THIS repository. Against a floating
+# `main`, red is ambiguous between our defect and an upstream change - and
+# that is not hypothetical. tutorail-authoring#19 was exactly it: the runner
+# changed `yamlite.py`, this repository went red for a reason that was not in
+# its own diff, and untangling it cost a misdiagnosed issue
+# (tutorail-authoring#20).
+#
+# THE ACCEPTED COST. A pin has to be bumped by hand when the runner changes,
+# and until someone does, this workflow is blind to upstream drift. That is
+# the deliberate trade: drift that is invisible for a while beats red builds
+# nobody can attribute.
+#
+# HOW TO BUMP THE PIN (the whole procedure - do not reconstruct it):
+#
+#   1. Pick the new sha:
+#        git -C <your tutorAIl checkout> fetch origin
+#        git -C <your tutorAIl checkout> rev-parse origin/main
+#   2. Reproduce that sha locally BEFORE changing this file, so a red CI run
+#      after the bump is known to be a real finding and not a surprise:
+#        rm -rf /tmp/pin && mkdir -p /tmp/pin
+#        cp <tutorAIl>/skills/tutorail/scripts/*.py /tmp/pin/
+#        TUTORAIL_VALIDATOR=/tmp/pin/validate_bundle.py python3 tests/run_all.py
+#   3. Edit the single `ref:` below, and say in the commit message which
+#      upstream commits the bump takes in. The sha is written in exactly one
+#      place in this repository - this file - on purpose.
+#
+# If the suite goes red only after a bump, the runner changed; that belongs in
+# an issue against the change, not in a workaround here.
+#
+# ---------------------------------------------------------------------------
+# PIN THE WHOLE DIRECTORY, NEVER ONE FILE
+# ---------------------------------------------------------------------------
+# `validate_bundle.py` imports `yamlite` and `catalogs` from beside itself, and
+# the toolkit also reads the runner's `references/` through the same search.
+# Copying one file produces a validator that CANNOT RUN, and it fails in a way
+# that reads as product defects. The tell is `FAIL - 0 finding(s)`: a validator
+# that fails while reporting nothing did not run. So the step below copies the
+# whole `skills/tutorail` skill directory - scripts, references and all. This
+# is the same discipline CLAUDE.md and the header of tests/run_all.py describe.
+#
+# ---------------------------------------------------------------------------
+# WHY THE RUNNER IS ALSO INSTALLED AT ~/.agents/skills/tutorail
+# ---------------------------------------------------------------------------
+# `$TUTORAIL_VALIDATOR` alone is NOT enough. Two suites measure the validator
+# SEARCH rather than using its result - test_validator_discovery.py and
+# test_yamlite_drift.py - and tests/run_all.py deliberately unsets
+# `$TUTORAIL_VALIDATOR` for exactly those two, so that an ambient pin cannot
+# answer search location 1 and decide what they measure. They then need the
+# runner to be findable the way a real install makes it findable, and
+# test_yamlite_drift.py refuses to pass when it cannot find one, on purpose: a
+# silently skipped drift check reads as "no drift" forever.
+#
+# Search location 2 is `~/.agents/skills/tutorail/scripts/validate_bundle.py`,
+# which is the install route the README documents for Codex. The symlink below
+# points it at the SAME pinned copy `$TUTORAIL_VALIDATOR` names, so all twelve
+# suites see one validator and no unpinned one exists on the machine.
+#
+# Verified before this file was written: with the symlink removed and
+# `$TUTORAIL_VALIDATOR` still set, test_validator_discovery.py exits 1 and
+# test_yamlite_drift.py exits 2. The install step is load-bearing, not
+# ceremony.
+#
+# ---------------------------------------------------------------------------
+# PYTHON, AND READING THE OUTPUT
+# ---------------------------------------------------------------------------
+# The suite and the toolkit are stdlib-only, so there is nothing to install and
+# no lockfile to honour. 3.11 is chosen because it is what the code says it
+# needs - `skills/tutorail-authoring/scripts/bundlelib.py` and the runner's
+# `validate_bundle.py` both document "Stdlib only. Python 3.11." - and it is
+# the version the work is done and verified on. (The suite also passes under
+# 3.12.5 and 3.14.2 locally, so the pin is a statement of the supported
+# version, not a ceiling.) `tests/run_all.py` launches each suite with
+# `sys.executable`, so this one interpreter runs everything.
+#
+# NOISE ON STDERR IS NOT A FAILURE. The header of tests/run_all.py documents a
+# `ERROR:root:code for hash blake2s was not found.` traceback that one
+# developer machine's pyenv CPython 3.11.9 prints on `import hashlib`. It does
+# not appear on the hosted runners, but the general rule is what matters to a
+# reader here: the VERDICT of this workflow is the exit code and the per-suite
+# `ok` / `FAIL` table that run_all.py prints at the end. Interpreter chatter on
+# stderr, above or between suites, is not a finding. Every suite also prints
+# the validator it used, so the pin is visible in the log rather than assumed.
+#
+# ---------------------------------------------------------------------------
+# THE POSITIVE CONTROL - RUN THIS ONCE, AFTER THE FIRST GREEN BUILD
+# ---------------------------------------------------------------------------
+# A green matrix does not prove the Linux job can SEE the defect class it was
+# added for. Prove it once, on a throwaway branch, and record the run:
+#
+#   1. In tests/test_lesson_add.py, in case A2 ("--folder control"), replace
+#      the portable assertion - the one that builds `empty` / `exact` and
+#      compares `seen["mis-cased"] == seen[indistinguishable]` against
+#      `folds_case(ws.root)` - with the pre-#17 assertion it replaced:
+#
+#         check(
+#             (decoy / "LESSON.md").exists(),
+#             "--folder control: exists() cannot tell a mis-cased body from a "
+#             "correct one",
+#         )
+#
+#   2. Push the branch and read the matrix. EXPECTED: the ubuntu-latest job
+#      fails with `--folder control: exists() cannot tell a mis-cased body
+#      from a correct one`, and the macos-latest job passes. `fail-fast: false`
+#      below exists so that both halves of that split are actually visible in
+#      one run.
+#   3. Link the run from tutorail-authoring#22 and delete the branch. Do not
+#      merge the revert.
+#
+# ALREADY DEMONSTRATED LOCALLY, on macOS, before this workflow was committed -
+# because a workflow cannot be run from a developer machine. The split was
+# reproduced on a case-sensitive APFS sparse image, which needs no sudo:
+#
+#     hdiutil create -size 300m -fs "Case-sensitive APFS" \
+#         -volname CSCTRL -type SPARSE cs.sparseimage
+#     hdiutil attach cs.sparseimage          # mounts at /Volumes/CSCTRL
+#     mkdir -p /Volumes/CSCTRL/tmp
+#
+# With the reverted assertion above, in a scratch copy of this repository:
+#   * normal macOS filesystem   - `python3 tests/test_lesson_add.py` passes,
+#                                 291 of 291 assertions;
+#   * TMPDIR=/Volumes/CSCTRL/tmp - the same command FAILS, 1 of 291, on
+#                                 `--folder control: exists() cannot tell a
+#                                 mis-cased body from a correct one`.
+# And unreverted, the whole suite - all 12 of 12 - passes with TMPDIR on that
+# case-sensitive volume, so the Linux job is expected green today. What could
+# NOT be done from here is the run on GitHub Actions itself; step 2 above is
+# that missing half.
+
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: suite (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Never cancel the other platform. The whole point of the matrix is the
+      # difference between the two, and a cancelled macOS job turns "Linux
+      # only" into "no information".
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Check out tutorail-authoring
+        uses: actions/checkout@v7
+        with:
+          # Into a subdirectory, so the runner checkout beside it is never an
+          # untracked entry inside this repository's working tree.
+          path: authoring
+
+      - name: Check out the pinned tutorAIl runner
+        uses: actions/checkout@v7
+        with:
+          repository: skomp/tutorAIl
+          # THE PIN. A commit sha, never a tag and never a branch - see "WHY
+          # THE RUNNER IS PINNED TO A COMMIT SHA" at the top of this file, and
+          # the bump procedure there.
+          # skomp/tutorAIl main @ 2026-09-16: "Design the disclosure block's
+          # derivation, and drop section 10".
+          ref: f612ddc866d712ad7c259dfff97726e0625053e7
+          path: runner-pin
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Install the pinned runner
+        run: |
+          set -euo pipefail
+          # The WHOLE skill directory, never a single file: validate_bundle.py
+          # imports yamlite and catalogs from beside itself, and the toolkit
+          # reads references/ from the directory above.
+          mkdir -p "${RUNNER_TEMP}/tutorail-pin"
+          cp -R runner-pin/skills/tutorail "${RUNNER_TEMP}/tutorail-pin/tutorail"
+          # Search location 2, pointed at that same copy, for the two suites
+          # that measure the search with $TUTORAIL_VALIDATOR unset.
+          mkdir -p "${HOME}/.agents/skills"
+          ln -s "${RUNNER_TEMP}/tutorail-pin/tutorail" "${HOME}/.agents/skills/tutorail"
+          echo "pinned runner scripts:"
+          ls -l "${RUNNER_TEMP}/tutorail-pin/tutorail/scripts"
+          echo "search location 2:"
+          ls -l "${HOME}/.agents/skills/tutorail/scripts/validate_bundle.py"
+
+      - name: Run the suite
+        working-directory: authoring
+        env:
+          TUTORAIL_VALIDATOR: ${{ runner.temp }}/tutorail-pin/tutorail/scripts/validate_bundle.py
+        # Stdlib only - nothing to install. Every suite prints the validator it
+        # used; the table at the end is the verdict.
+        run: python3 tests/run_all.py
