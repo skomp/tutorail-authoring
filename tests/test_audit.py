@@ -57,6 +57,7 @@ from harness import (  # noqa: E402
     case,
     check,
     check_in,
+    check_not_in,
     report,
     run,
 )
@@ -1593,6 +1594,453 @@ def case_channels_are_named_on_every_row_and_in_the_markdown() -> None:
     check_in("Rows by channel:", done.stdout, "and states the per-channel counts a reader is spending attention on")
 
 
+# --------------------------------------------------------------------------
+# The unsupplied setup step (tutorail-authoring#11, item 3)
+#
+# The detector finds NOTHING in all five bundles of the catalogue today, and
+# that is the expected result: two of them supply the file, two hand the
+# step to the tutor, and the fifth supplies a lesson-scope starter. A
+# detector verified only against five courses that all pass is a detector
+# nobody has watched work, so the controls below are the whole of its
+# evidence.
+#
+# `unsupplied-setup-course` reproduces the shape the learner hit in
+# skomp/tutorail-bundles#3 - lesson 00 assigns creating the project, no
+# `supplies` entry, no declared hand-over - and MUST fire. Every near-miss
+# is derived from that one fixture by a single edit, so a near-miss that
+# stays silent is silent because of the edit and not because the fixture
+# never fired.
+# --------------------------------------------------------------------------
+
+SETUP_FIXTURE = "unsupplied-setup-course"
+SETUP_LESSON = "lessons/00-language-and-contract.md"
+
+
+def setup_evidence(bundle: Path) -> dict:
+    return audit_json(bundle)["unsupplied_setup"]
+
+
+def _edit(path: Path, old: str, new: str, what: str) -> None:
+    """Replace `old` with `new`, proving `old` was really there first."""
+    text = path.read_text(encoding="utf-8")
+    check(old in text, f"fixture sanity: {what} is there to edit")
+    edited = text.replace(old, new, 1)
+    check(edited != text, f"the edit actually changed the fixture copy: {what}")
+    path.write_text(edited, encoding="utf-8")
+
+
+def case_unsupplied_setup_fires() -> None:
+    """FIRING (#11 item 3): all three conditions hold, so one finding."""
+    done = run(AUDIT, FIXTURES / SETUP_FIXTURE, "--json")
+    check(done.returncode == 0, f"audit.py still exits 0 with a finding (got {done.returncode})")
+
+    ev = setup_evidence(FIXTURES / SETUP_FIXTURE)
+    check(ev["status"] == "checked", f"status is 'checked' (got {ev['status']!r})")
+    check(ev["warnings"] == [], f"and no channel was blind (got {ev['warnings']})")
+    check(len(ev["findings"]) == 1, f"exactly one finding (got {len(ev['findings'])})")
+    if not ev["findings"]:
+        return
+    finding = ev["findings"][0]
+    check(finding["rel"] == SETUP_LESSON, f"it names the first lesson (got {finding['rel']!r})")
+    check(
+        finding["ownership_policy"] == "tutor-must-not-edit-learner-owned",
+        f"and the policy that did not permit a hand-over (got {finding['ownership_policy']!r})",
+    )
+    check(finding["handover_cues"] == [], f"and that no cue was found (got {finding['handover_cues']})")
+
+    scan = ev["scan"]
+    cues = {step["cue"] for step in scan["setup_steps"]}
+    check(
+        cues == {"verb-object", "scaffold-command"},
+        f"condition 1 fired on BOTH channels, prose and command (got {sorted(cues)})",
+    )
+    check(scan["supplies_in_scope"] == [], "condition 2: no supplies entry is in scope")
+    check(scan["handover_declared"] is False, "condition 3: no hand-over is declared")
+    for step in scan["setup_steps"]:
+        line = step["line"]
+        check(isinstance(line, int) and line > 0, f"every step carries a 1-indexed line (got {line})")
+        # The prose hit and the command hit sit on the two halves of one
+        # hard-wrapped bullet, so line attribution across the wrap is the
+        # thing being checked, not decoration.
+        source = (FIXTURES / SETUP_FIXTURE / SETUP_LESSON).read_text(encoding="utf-8").splitlines()
+        check(
+            step["match"].lower() in source[line - 1].lower(),
+            f"and the line it names really holds the match {step['match']!r}",
+        )
+
+
+def case_unsupplied_setup_negative_controls_inside_the_fixture() -> None:
+    """NEGATIVE CONTROLS living in the firing fixture itself.
+
+    Two sentences in the same lesson look like the two halves of the check
+    and are neither:
+
+      * "Do not create the counting algorithm yet" - a creation verb whose
+        object is not a project. A detector that matched the verb alone
+        would pass the case above and still be useless.
+      * "Offer to explain the project structure if the learner asks" - an
+        "Offer to ..." sentence that offers no creation. A hand-over cue
+        that matched "offer to" alone would CLEAR the finding above, which
+        is the worse failure of the two: the course would go unreported.
+    """
+    text = (FIXTURES / SETUP_FIXTURE / SETUP_LESSON).read_text(encoding="utf-8")
+    check(
+        "create the counting algorithm yet" in text,
+        "control: the non-project creation sentence is really in the fixture",
+    )
+    check(
+        "Do not\ncreate a second project for the tests either" in text,
+        "control: the NEGATED creation sentence is really in the fixture",
+    )
+    check(
+        "Offer to explain the project structure" in text,
+        "control: the offer-that-is-not-a-hand-over is really in the fixture",
+    )
+
+    ev = setup_evidence(FIXTURES / SETUP_FIXTURE)
+    matches = [step["match"].lower() for step in ev["scan"]["setup_steps"]]
+    check(
+        not any("algorithm" in m for m in matches),
+        f"'create the counting algorithm' is NOT a project-creation step (got {matches})",
+    )
+    check(
+        not any("second project" in m for m in matches),
+        f"'Do NOT create a second project' is NOT a project-creation step (got {matches})",
+    )
+    check(
+        ev["scan"]["handover_cues"] == [],
+        f"'Offer to explain ...' is NOT a hand-over cue (got {ev['scan']['handover_cues']})",
+    )
+
+    # POSITIVE CONTROL for the negation guard. Without it, "second project"
+    # being absent above is equally consistent with a pattern that never
+    # matched that sentence at all, and the guard would be untested.
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "un-negated")
+        _edit(
+            bundle / SETUP_LESSON,
+            "Do not\ncreate a second project for the tests either",
+            "Create a second project for the tests",
+            "the negation in front of the creation verb",
+        )
+        matches = [
+            step["match"].lower() for step in setup_evidence(bundle)["scan"]["setup_steps"]
+        ]
+        check(
+            any("second project" in m for m in matches),
+            f"and the same sentence WITHOUT 'Do not' does fire (got {matches})",
+        )
+
+
+def case_near_miss_supplied_stays_silent() -> None:
+    """NEAR MISS 1: the bundle ships the file. Condition 2 does not hold."""
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "supplied")
+        (bundle / "supplies").mkdir()
+        (bundle / "supplies" / "package.json").write_text("{}\n", encoding="utf-8")
+        _edit(
+            bundle / "tutorial.yaml",
+            "ownership_policy: tutor-must-not-edit-learner-owned\n",
+            "ownership_policy: tutor-must-not-edit-learner-owned\n"
+            "supplies:\n"
+            "  - from: supplies/package.json\n"
+            "    to: package.json\n"
+            "    describe: \"package.json: so lesson 00 starts at the contract\"\n",
+            "the manifest supplies block",
+        )
+        ev = setup_evidence(bundle)
+        check(ev["findings"] == [], f"a supplied skeleton produces no finding (got {ev['findings']})")
+        check(ev["status"] == "checked", f"and the result is 'checked', not blind (got {ev['status']!r})")
+        check(
+            len(ev["scan"]["supplies_in_scope"]) == 1,
+            f"the entry is recorded as in scope (got {ev['scan']['supplies_in_scope']})",
+        )
+        check(
+            len(ev["scan"]["setup_steps"]) >= 1,
+            "and condition 1 still fired - the silence comes from condition 2, "
+            "not from a scanner that stopped seeing the step",
+        )
+
+
+def case_near_miss_lesson_scope_supplies_stays_silent() -> None:
+    """NEAR MISS 1b: a lesson-scope entry on lesson 00 also clears it.
+
+    webgl-typescript-scene declares its starter this way, in the lesson's
+    own frontmatter rather than in the manifest, so a check that read only
+    the manifest would report it.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "lesson-scope-supplies")
+        _edit(
+            bundle / SETUP_LESSON,
+            "validators: [manual]\n",
+            "validators: [manual]\n"
+            "supplies:\n"
+            "  - from: lessons/00-language-and-contract/starter/\n"
+            "    to: .\n"
+            "    describe: \"the starter project\"\n",
+            "the lesson-scope supplies block",
+        )
+        ev = setup_evidence(bundle)
+        check(ev["findings"] == [], f"a lesson-scope entry clears it too (got {ev['findings']})")
+        check(
+            [e["scope"] for e in ev["scan"]["supplies_in_scope"]] == ["lesson"],
+            f"and it is recorded with its scope (got {ev['scan']['supplies_in_scope']})",
+        )
+
+
+def case_supplies_on_a_later_lesson_does_not_clear_it() -> None:
+    """DISCRIMINATION: an entry on lesson 01 is not in scope for lesson 00.
+
+    Without this, "the bundle declares a supplies entry somewhere" would
+    pass for "the setup step is supplied", and webgl-typescript-scene -
+    which declares one on lesson 13 as well - would have taught this check
+    the wrong lesson.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "late-supplies")
+        _edit(
+            bundle / "lessons" / "01-counting.md",
+            "validators: [manual]\n",
+            "validators: [manual]\n"
+            "supplies:\n"
+            "  - from: lessons/01-counting/fixtures/\n"
+            "    to: testdata/\n"
+            "    describe: \"recorded windows to test against\"\n",
+            "the later lesson's supplies block",
+        )
+        ev = setup_evidence(bundle)
+        check(len(ev["findings"]) == 1, f"the finding still stands (got {len(ev['findings'])})")
+        check(
+            ev["scan"]["supplies_in_scope"] == [] and ev["scan"]["supplies_elsewhere"] == 1,
+            f"and the entry is counted as declared elsewhere (got {ev['scan']})",
+        )
+
+
+def case_near_miss_tutor_handover_stays_silent() -> None:
+    """NEAR MISS 2: the tutor is given the step, in the text AND the policy.
+
+    This is the case the ORIGINAL shape in the issue would have got wrong:
+    the bundle still declares zero supplies entries and still contains a
+    create-the-project step, and it is correct.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "handed-to-the-tutor")
+        _edit(
+            bundle / "tutorial.yaml",
+            "ownership_policy: tutor-must-not-edit-learner-owned",
+            "ownership_policy: on-request",
+            "the ownership policy",
+        )
+        _edit(
+            bundle / SETUP_LESSON,
+            "- Have the learner create the smallest conventional runnable project for that",
+            "- Offer to set the project up yourself, and say what you would create before\n"
+            "  you create it: the smallest conventional runnable project for that",
+            "the progression bullet",
+        )
+        ev = setup_evidence(bundle)
+        check(ev["findings"] == [], f"a declared hand-over produces no finding (got {ev['findings']})")
+        check(ev["status"] == "checked", f"and the result is 'checked' (got {ev['status']!r})")
+        check(
+            len(ev["scan"]["setup_steps"]) >= 1,
+            "condition 1 still fires - the silence is condition 3 doing its work",
+        )
+        check(
+            ev["scan"]["handover_declared"] is True,
+            f"and the hand-over is recorded as declared (got {ev['scan']})",
+        )
+        check(
+            [c["cue"] for c in ev["scan"]["handover_cues"]] != [],
+            f"with the cue that found it named (got {ev['scan']['handover_cues']})",
+        )
+
+
+def case_guard_two_needs_the_policy_as_well_as_the_text() -> None:
+    """GUARD 2 IS AN 'AND': the lesson text alone does not clear it.
+
+    rubric.md, "A step the tutor performs is not an element", guard 2: the
+    hand-over must be declared in the lesson text AND in `ownership_policy`.
+    A bundle whose first lesson offers the work to the tutor while its
+    policy forbids the tutor to create an undeclared path has declared a
+    hand-over an unmodified runner cannot perform.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "text-only-handover")
+        _edit(
+            bundle / SETUP_LESSON,
+            "- Have the learner create the smallest conventional runnable project for that",
+            "- Offer to set the project up yourself: the smallest conventional project for that",
+            "the progression bullet",
+        )
+        ev = setup_evidence(bundle)
+        check(len(ev["findings"]) == 1, f"the text alone does not clear it (got {len(ev['findings'])})")
+        check(
+            ev["scan"]["handover_cues"] != [] and ev["scan"]["handover_declared"] is False,
+            f"the cue IS seen, and the policy is what withholds the declaration (got {ev['scan']})",
+        )
+        if ev["findings"]:
+            check(
+                "ownership_policy" in ev["findings"][0]["why"],
+                f"and the finding says which half is missing (got {ev['findings'][0]['why']!r})",
+            )
+
+
+def case_guard_two_needs_the_text_as_well_as_the_policy() -> None:
+    """GUARD 2, the other half: a permissive policy alone does not clear it.
+
+    The mirror of the case above, and the reason both exist: either one on
+    its own would let a single condition masquerade as the conjunction.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "policy-only-handover")
+        _edit(
+            bundle / "tutorial.yaml",
+            "ownership_policy: tutor-must-not-edit-learner-owned",
+            "ownership_policy: on-request",
+            "the ownership policy",
+        )
+        ev = setup_evidence(bundle)
+        check(len(ev["findings"]) == 1, f"the policy alone does not clear it (got {len(ev['findings'])})")
+        check(
+            ev["scan"]["policy_permits_handover"] is True
+            and ev["scan"]["handover_cues"] == []
+            and ev["scan"]["handover_declared"] is False,
+            f"the policy permits, the lesson text says nothing, so nothing is declared (got {ev['scan']})",
+        )
+
+
+def case_near_miss_no_setup_step_is_nothing_to_check() -> None:
+    """NEAR MISS 3: no setup step at all - and that is NOT 'checked and clean'.
+
+    A first lesson that never asks anyone to create a project produces no
+    finding, but the reason is that condition 1 never fired, and this
+    scanner's condition-1 vocabulary is a candidate generator like every
+    other channel in this file. The status says so and the warning says why.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "no-setup-step")
+        _edit(
+            bundle / SETUP_LESSON,
+            "- Have the learner create the smallest conventional runnable project for that\n"
+            "  language with `cargo new`, `go mod init` or `npm init`, whichever the chosen\n"
+            "  language uses, before any contract work begins.\n",
+            "- Work inside the repository the learner already has, and write the contract\n"
+            "  before anything else.\n",
+            "the project-creation bullet",
+        )
+        ev = setup_evidence(bundle)
+        check(ev["findings"] == [], f"no step, no finding (got {ev['findings']})")
+        check(
+            ev["status"] == "nothing-to-check",
+            f"and the status is 'nothing-to-check', NOT 'checked' (got {ev['status']!r})",
+        )
+        check(
+            any("NO project-creation step" in w for w in ev["warnings"]),
+            f"with a warning saying condition 1 never fired (got {ev['warnings']})",
+        )
+
+
+def case_unreadable_first_lesson_is_not_clean() -> None:
+    """A bundle whose first lesson cannot be read must not come back clean."""
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "unreadable-lesson")
+        (bundle / SETUP_LESSON).write_bytes(b"---\nid: 00\n---\n\n\xff\xfe not utf-8\n")
+        ev = setup_evidence(bundle)
+        check(
+            ev["status"] == "nothing-to-check",
+            f"an unreadable first lesson is 'nothing-to-check' (got {ev['status']!r})",
+        )
+        check(ev["findings"] == [], "and produces no finding")
+        check(
+            ev["scan"]["lesson_readable"] is False
+            and any("COULD NOT BE READ" in w for w in ev["warnings"]),
+            f"and says so, naming the lesson (got {ev['warnings']})",
+        )
+
+
+def case_blind_channels_are_named_not_swallowed() -> None:
+    """A blind channel downgrades the status even when the finding stands.
+
+    Two of them, one for each half of condition 2 and 3: a first lesson
+    with NO frontmatter (where a lesson-scope `supplies` entry would live)
+    and an `ownership_policy` value this script does not know.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "no-frontmatter")
+        path = bundle / SETUP_LESSON
+        body = path.read_text(encoding="utf-8").split("---\n", 2)[2]
+        path.write_text(body, encoding="utf-8")
+        ev = setup_evidence(bundle)
+        check(
+            ev["status"] == "checked-with-blind-channels",
+            f"a lesson with no frontmatter is blind, not clean (got {ev['status']!r})",
+        )
+        check(len(ev["findings"]) == 1, f"and the finding still stands (got {len(ev['findings'])})")
+        check(
+            any("frontmatter" in w for w in ev["warnings"]),
+            f"with the blind channel named (got {ev['warnings']})",
+        )
+
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "unknown-policy")
+        _edit(
+            bundle / "tutorial.yaml",
+            "ownership_policy: tutor-must-not-edit-learner-owned",
+            "ownership_policy: tutor-may-scaffold-on-monday",
+            "the ownership policy",
+        )
+        ev = setup_evidence(bundle)
+        check(
+            ev["status"] == "checked-with-blind-channels",
+            f"an unknown policy value is a blind channel (got {ev['status']!r})",
+        )
+        check(
+            any("does not know" in w for w in ev["warnings"]),
+            f"named in the warnings (got {ev['warnings']})",
+        )
+        check(
+            ev["scan"]["policy_permits_handover"] is False,
+            "and it is treated as NOT permitting a hand-over, which is how guard 2 "
+            "tells a reviewer to score a declaration they cannot point at",
+        )
+
+
+def case_setup_section_renders_in_markdown() -> None:
+    """The Markdown report carries the section, its status and its reason.
+
+    "(none)" would be the same text for a supplied course, a handed-over
+    course and a scanner that never ran, so every branch has to name the
+    condition that did not hold.
+    """
+    done = run(AUDIT, FIXTURES / SETUP_FIXTURE)
+    check(done.returncode == 0, f"audit.py exits 0 (got {done.returncode})")
+    check_in("## Unsupplied setup step", done.stdout, "the report carries the section")
+    check_in("status: checked", done.stdout, "and its status")
+    check_in("A step the tutor performs is not an element", done.stdout, "and the rubric section to apply")
+    check_in("all three conditions hold", done.stdout, "and says the three conditions held")
+    check_in("evidence, not a verdict", done.stdout, "and states that it is evidence, not a verdict")
+
+    with Workspace() as ws:
+        bundle = ws.copy(SETUP_FIXTURE, "markdown-clean")
+        _edit(
+            bundle / "tutorial.yaml",
+            "ownership_policy: tutor-must-not-edit-learner-owned",
+            "ownership_policy: on-request",
+            "the ownership policy",
+        )
+        _edit(
+            bundle / SETUP_LESSON,
+            "- Have the learner create the smallest conventional runnable project for that",
+            "- Offer to set the project up yourself, and create the project for that",
+            "the progression bullet",
+        )
+        done = run(AUDIT, bundle)
+        check_in("CHECKED AND CLEAN: condition 3 does not hold", done.stdout,
+                 "a clean result names the condition that cleared it")
+        check_not_in("all three conditions hold", done.stdout, "and reports no finding")
+
+
 def main() -> int:
     print(f"audit.py  ({AUDIT})")
     print()
@@ -1680,6 +2128,30 @@ def main() -> int:
         case_a_noun_is_not_a_defining_verb_for_a_bare_word()
     with case("#18: every row names its channel, and the report states the per-channel counts"):
         case_channels_are_named_on_every_row_and_in_the_markdown()
+    with case("FIRING (#11 item 3): lesson 00 assigns the project, nothing supplies it, nobody declared a hand-over"):
+        case_unsupplied_setup_fires()
+    with case("NEGATIVE CONTROLS (#11): 'create the counting algorithm' and 'Offer to explain ...' stay silent"):
+        case_unsupplied_setup_negative_controls_inside_the_fixture()
+    with case("NEAR MISS (#11): a manifest supplies entry clears it, and condition 1 still fired"):
+        case_near_miss_supplied_stays_silent()
+    with case("NEAR MISS (#11): a lesson-scope supplies entry on lesson 00 clears it too"):
+        case_near_miss_lesson_scope_supplies_stays_silent()
+    with case("DISCRIMINATION (#11): a supplies entry on a LATER lesson does not clear it"):
+        case_supplies_on_a_later_lesson_does_not_clear_it()
+    with case("NEAR MISS (#11): a hand-over declared in the text AND the policy clears it"):
+        case_near_miss_tutor_handover_stays_silent()
+    with case("GUARD 2 (#11): the lesson text alone does not clear it"):
+        case_guard_two_needs_the_policy_as_well_as_the_text()
+    with case("GUARD 2 (#11): a permissive ownership_policy alone does not clear it"):
+        case_guard_two_needs_the_text_as_well_as_the_policy()
+    with case("NEAR MISS (#11): no setup step at all is 'nothing-to-check', not 'checked and clean'"):
+        case_near_miss_no_setup_step_is_nothing_to_check()
+    with case("#11: a first lesson that cannot be read never comes back clean"):
+        case_unreadable_first_lesson_is_not_clean()
+    with case("#11: a blind frontmatter or an unknown ownership_policy downgrades the status"):
+        case_blind_channels_are_named_not_swallowed()
+    with case("#11: the Markdown report carries the section, and a clean result names its reason"):
+        case_setup_section_renders_in_markdown()
     return report("audit.py")
 
 

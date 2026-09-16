@@ -52,7 +52,7 @@ use that path. Do not reimplement what it does because you could not find it.
 | Command | Gives you |
 |---|---|
 | `python3 scripts/audit.py <bundle>` | a Markdown evidence skeleton: course id and lesson counts, the `COURSE.md` coverage list with candidate lesson matches per topic, the lesson list, candidate toil sites as `file:line` with the whole line, every declared `supplies:` entry with its scope, and the `DESIGN.md` anchor names |
-| `python3 scripts/audit.py <bundle> --json` | the same data as one JSON object — `course`, `coverage_list`, `anchors`, `lessons`, `supplies`, `candidates`, `topic_candidates`, `notes` |
+| `python3 scripts/audit.py <bundle> --json` | the same data as one JSON object — `course`, `coverage_list`, `anchors`, `lessons`, `supplies`, `candidates`, `topic_candidates`, `symbol_evidence`, `unsupplied_setup`, `notes`. Three of those carry a `status` that separates **`nothing-to-check`** from **`checked`**, with any blind channel named in `warnings`: `coverage_list`, `symbol_evidence` and `unsupplied_setup`. **A `nothing-to-check` is not a pass.** It means the script could not see, and the row is yours to answer by hand |
 
 Those are the only two forms. There is no `--score` and no `--fix`; the script computes no
 score and changes nothing.

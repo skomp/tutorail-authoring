@@ -46,6 +46,18 @@ THE DISCIPLINE THAT MATTERS MOST HERE: this script never rules on anything.
     uppercase-only rule here. Its `status` separates "nothing to check" from
     "checked and clean", and its `warnings` name any evidence channel that
     was blind.
+  * `unsupplied_setup` answers THREE conditions about the first lesson and
+    reports a finding only when all three hold (tutorail-authoring#11, item
+    3): the lesson contains a project-creation step, no `supplies` entry is
+    in scope for it, and no hand-over to the tutor is declared - in the
+    lesson text AND in `ownership_policy`, which is guard 2 of the rubric
+    section "A step the tutor performs is not an element". The third
+    condition is the whole design: a course that correctly hands its setup
+    to the TUTOR also declares zero `supplies` entries, so the shape the
+    issue originally described would have flagged the courses that do the
+    right thing. It carries the same `status` and `warnings` pair as the
+    two sections below, and a first lesson that could not be read reports
+    `nothing-to-check`, never an empty finding list that reads as clean.
   * `coverage_list` reads the topics `COURSE.md` declares, from Markdown
     list items OR from a fenced block (one topic per non-empty line) - the
     corpus uses both, and reading only the first form made this script state
@@ -639,6 +651,437 @@ def gather_supplies(bundle: bl.Bundle) -> list[dict]:
                 }
             )
     return entries
+
+
+# --------------------------------------------------------------------------
+# The unsupplied setup step (tutorail-authoring#11, item 3)
+#
+# A learner reached the first lesson of a portable course, found that it
+# assigned creating the project skeleton, and asked for the files instead
+# (skomp/tutorail-bundles#3). Neither instrument saw it: the validator does
+# not require a `supplies` entry, and the toil scanner above holds a fixed
+# verb list that produced no candidate for two of the five catalogue
+# bundles.
+#
+# The shape the issue first described - "0 supplies entries plus a
+# create-the-project step in the first lesson" - DOES NOT DISCRIMINATE.
+# Implementing it would have flagged the two courses that do the right
+# thing, because a course that hands the setup to the TUTOR also declares
+# zero `supplies` entries. The separator is already written down:
+# `references/rubric.md`, section "A step the tutor performs is not an
+# element". Its guard 2 requires the hand-over to be declared in the lesson
+# text AND in the `ownership_policy` the bundle sets, and rules that a
+# reviewer who cannot point at the declaration scores the step as assigned
+# to the learner, because that is what an unmodified runner will do. This
+# scanner is that reviewer, so THREE conditions must hold together:
+#
+#   1. the first lesson contains a project-creation step;
+#   2. no `supplies` entry is in scope for that lesson;
+#   3. no hand-over is declared - the lesson text does not say the tutor
+#      creates it, or `ownership_policy` does not permit the tutor to.
+#
+# Conditions 1 and 3 are deliberately separate, and not folded into one
+# "assigned to the learner" test. Condition 1 finds the STEP, whoever is to
+# perform it; condition 3 asks whether the bundle declared that it changes
+# hands. That is the rubric's own structure, and it is why the two
+# tutor-handled courses in the catalogue produce a condition-1 hit and no
+# finding, rather than no hit at all - a reader can see the guard doing
+# work instead of taking a silent scanner on trust.
+#
+# `on-request` and `unrestricted` are the two policies that permit the
+# tutor to build a skeleton it invents. `tutor-must-not-edit-learner-owned`
+# does not: the create-only exemption in the runner's `bundle-format.md`,
+# section "The ownership exemption", reaches DECLARED paths only, and a
+# layout the tutor works out for a language the bundle never heard of
+# declares none. (Cite that file by section name and never by line number -
+# the released plugin copy and the repository source disagree.)
+#
+# Like every other section in this file, this is EVIDENCE and never a
+# verdict, and it computes no score. It reports which of the three
+# conditions it could answer, and names the rubric section a reader applies
+# to the answers.
+# --------------------------------------------------------------------------
+
+SETUP_DISCLAIMER = (
+    "This is evidence, not a verdict and not a score. A finding here says "
+    "only that a project-creation step was found in the first lesson, that "
+    "no supplies entry is in scope for it, and that no hand-over to the "
+    "tutor was declared - the three conditions rubric.md, 'A step the tutor "
+    "performs is not an element', requires before a step counts as assigned "
+    "to the learner. Read the lesson and rule yourself."
+)
+
+SETUP_RULE = (
+    "condition 1: a project-creation verb next to a project-shaped noun, or "
+    "a known scaffolding command; condition 2: no manifest-scope supplies "
+    "entry and none on this lesson; condition 3: no tutor hand-over cue in "
+    "the lesson text, or an ownership_policy that does not permit one."
+)
+
+# Policies under which the tutor may create a project layout it invents.
+# See the module comment above for why the strict policy is not one of them.
+SETUP_POLICIES_PERMITTING_HANDOVER = ("on-request", "unrestricted")
+SETUP_POLICIES_KNOWN = SETUP_POLICIES_PERMITTING_HANDOVER + (
+    "tutor-must-not-edit-learner-owned",
+)
+
+# A creation verb and the thing it creates. Both halves are required and
+# they must be close together: "project" alone is one of the commonest
+# words in a course, and a verb alone fires on every "create a struct".
+_SETUP_VERB = (
+    r"(?:creat(?:e|es|ing)|set(?:s|ting)?\s+up|scaffold(?:s|ing)?|"
+    r"initiali[sz]e[sd]?|generat(?:e|es|ing)|bootstrap(?:s|ped|ping)?|"
+    r"establish(?:es|ing)?)"
+)
+_SETUP_OBJECT = (
+    r"(?:project|crate|package|module|repository|repo|workspace|solution|"
+    r"skeleton|scaffold|codebase)"
+)
+# Up to six intervening words, because the real corpus writes "create the
+# smallest conventional runnable project for that track" - four adjectives
+# between the verb and its object.
+#
+# The second alternative is the SPLIT PARTICLE, and it is load-bearing:
+# `portable-fixed-window-rate-limiter` writes "Offer to set the project up
+# yourself", where "set" and "up" sit either side of the object. Without it
+# the step reads as a step and the hand-over cue below does not read as a
+# hand-over, which is the exact shape that turns a correct course into a
+# false positive.
+_SETUP_ACT = (
+    r"(?:"
+    + _SETUP_VERB
+    + r"\b(?:\s+[\w`'\"./,-]+){0,6}?\s+(?:the\s+|a\s+|an\s+|its\s+)?"
+    + _SETUP_OBJECT
+    + r"\b"
+    r"|set(?:s|ting)?\s+(?:the\s+|a\s+|an\s+|its\s+)?(?:\w+\s+){0,4}?"
+    + _SETUP_OBJECT
+    + r"\b(?:\s+\w+){0,3}?\s+up\b"
+    r")"
+)
+_SETUP_PROSE_RE = re.compile(r"\b" + _SETUP_ACT, re.IGNORECASE)
+
+# The unambiguous half: a command whose whole job is to make a new project.
+# `git init` is deliberately absent - it creates a repository, not a
+# project skeleton, and this scanner is about the skeleton the issue is
+# about. A toolchain install command is absent for the same reason the
+# rubric gives: setup that needs the network, a toolchain or an account is
+# the learner's work and is not toil under it.
+_SCAFFOLD_COMMANDS = (
+    r"cargo\s+(?:new|init)",
+    r"go\s+mod\s+init",
+    r"npm\s+init",
+    r"npm\s+create",
+    r"npx\s+create-",
+    r"create-react-app",
+    r"yarn\s+(?:init|create)",
+    r"pnpm\s+(?:init|create)",
+    r"dotnet\s+new",
+    r"gradle\s+init",
+    r"mvn\s+archetype:generate",
+    r"poetry\s+(?:new|init)",
+    r"uv\s+init",
+    r"rails\s+new",
+    r"mix\s+new",
+    r"sbt\s+new",
+    r"stack\s+new",
+    r"swift\s+package\s+init",
+    r"zig\s+init",
+    r"dune\s+init",
+    r"bundle\s+gem",
+    r"django-admin\s+startproject",
+)
+_SCAFFOLD_COMMAND_SRC = r"(?:" + r"|".join(_SCAFFOLD_COMMANDS) + r")"
+_SCAFFOLD_COMMAND_RE = re.compile(_SCAFFOLD_COMMAND_SRC, re.IGNORECASE)
+
+# Guard 2's first half: the lesson text says the TUTOR does it. The cue is
+# looked for across the whole lesson and not inside the step's own
+# paragraph, because that is what the rubric asks - the hand-over is
+# declared "in the lesson text", and a course that states it once in its
+# progression has declared it for the lesson.
+_HANDOVER_CUES = (
+    (
+        "offer-to-create",
+        re.compile(
+            r"\boffer(?:s|ing)?\s+to\s+(?:\w+\s+){0,3}?"
+            + r"(?:" + _SETUP_ACT + r"|" + _SCAFFOLD_COMMAND_SRC + r")",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "create-it-yourself",
+        re.compile(_SETUP_ACT + r"[^.!?]{0,100}?\byourself\b", re.IGNORECASE),
+    ),
+    (
+        "the-tutor-creates",
+        re.compile(
+            r"\bthe\s+tutor\s+(?:\w+\s+){0,3}?"
+            + r"(?:" + _SETUP_ACT + r"|" + _SCAFFOLD_COMMAND_SRC + r")",
+            re.IGNORECASE,
+        ),
+    ),
+)
+
+
+# "Do not create a second project" is an instruction NOT to create one, and
+# the word before the verb is the whole difference. The toil scanner solves
+# the same problem with its `_LEAD` positions; this scanner cannot require a
+# lead, because the corpus writes the step mid-sentence ("Choose the
+# implementation language, establish its smallest conventional project"), so
+# it looks backwards instead.
+_NEGATION_RE = re.compile(r"\b(?:not|never|without|avoid(?:s|ing)?)\s+(?:\w+\s+){0,2}$", re.IGNORECASE)
+
+
+def _is_negated(joined: str, start: int) -> bool:
+    return _NEGATION_RE.search(joined[max(0, start - 30) : start]) is not None
+
+
+def scan_setup_steps(rel: str, text: str) -> list[dict]:
+    """Condition 1: project-creation steps in one lesson's text.
+
+    Matched against the word-unwrapped PARAGRAPH, for the reason
+    `scan_toil` gives - prose here is hard-wrapped, so a verb and its
+    object are routinely split across two physical lines - while still
+    reporting the single physical line a reader opens their editor to.
+    """
+    lines = text.splitlines()
+    hits: list[dict] = []
+    for indices in _paragraph_blocks(lines):
+        joined, spans = _join_block(lines, indices)
+        for cue, pattern in (
+            ("verb-object", _SETUP_PROSE_RE),
+            ("scaffold-command", _SCAFFOLD_COMMAND_RE),
+        ):
+            for m in pattern.finditer(joined):
+                if _is_negated(joined, m.start()):
+                    continue
+                line_idx = _line_for_offset(spans, m.start())
+                hits.append(
+                    {
+                        "rel": rel,
+                        "line": line_idx + 1,
+                        "text": lines[line_idx].strip(),
+                        "cue": cue,
+                        "match": m.group(0).strip(),
+                    }
+                )
+    hits.sort(key=lambda h: (h["line"], h["cue"], h["match"]))
+    return hits
+
+
+def scan_handover_cues(rel: str, text: str) -> list[dict]:
+    """Guard 2, first half: does the lesson text hand the step to the tutor?"""
+    lines = text.splitlines()
+    found: list[dict] = []
+    for indices in _paragraph_blocks(lines):
+        joined, spans = _join_block(lines, indices)
+        for cue, pattern in _HANDOVER_CUES:
+            for m in pattern.finditer(joined):
+                line_idx = _line_for_offset(spans, m.start())
+                found.append(
+                    {
+                        "rel": rel,
+                        "line": line_idx + 1,
+                        "text": lines[line_idx].strip(),
+                        "cue": cue,
+                        "match": m.group(0).strip(),
+                    }
+                )
+    found.sort(key=lambda h: (h["line"], h["cue"], h["match"]))
+    return found
+
+
+def build_unsupplied_setup(bundle: bl.Bundle) -> dict:
+    """The three conditions, answered for the bundle's first lesson.
+
+    `status` carries the same vocabulary as `symbol_evidence` and
+    `coverage_list`, for the same reason: an empty `findings` list from a
+    bundle whose first lesson could not be read means something entirely
+    different from an empty list produced with every channel alive, and a
+    reader must be able to tell them apart without asking. Every blind
+    channel is named in `warnings`.
+    """
+    warnings: list[str] = []
+    ordered = bundle.ordered
+
+    scan: dict = {
+        "first_lesson": None,
+        "first_lesson_id": None,
+        "lesson_readable": False,
+        "setup_steps": [],
+        "supplies_in_scope": [],
+        "supplies_elsewhere": 0,
+        "ownership_policy": None,
+        "policy_permits_handover": False,
+        "handover_cues": [],
+        "handover_declared": False,
+        "scaffold_commands_known": len(_SCAFFOLD_COMMANDS),
+    }
+
+    if not ordered:
+        warnings.append(
+            "The bundle has NO lesson this script could order, so there was no "
+            "first lesson to read and NOTHING was checked. This is not a clean "
+            "result."
+        )
+        return {
+            "status": "nothing-to-check",
+            "rule": SETUP_RULE,
+            "disclaimer": SETUP_DISCLAIMER,
+            "rubric_section": "A step the tutor performs is not an element",
+            "warnings": warnings,
+            "scan": scan,
+            "findings": [],
+        }
+
+    lesson = ordered[0]
+    scan["first_lesson"] = lesson.rel
+    text = bl.read_text(lesson.path)
+    if text is None:
+        warnings.append(
+            f"The first lesson, {lesson.rel}, COULD NOT BE READ. Conditions 1 "
+            f"and 3 both depend on its text, so neither was answered and "
+            f"NOTHING was checked. This is not a clean result."
+        )
+        return {
+            "status": "nothing-to-check",
+            "rule": SETUP_RULE,
+            "disclaimer": SETUP_DISCLAIMER,
+            "rubric_section": "A step the tutor performs is not an element",
+            "warnings": warnings,
+            "scan": scan,
+            "findings": [],
+        }
+
+    scan["lesson_readable"] = True
+    fm = frontmatter_of(lesson)
+    scan["first_lesson_id"] = fm.get("id", lesson.slug)
+
+    # The frontmatter is a channel of its own: a lesson-scope `supplies`
+    # block lives there, and `frontmatter_of` returns {} for a lesson whose
+    # frontmatter is absent or unparseable. An empty dict from an
+    # unparseable block would otherwise read exactly like a lesson that
+    # declares no supplies - which is condition 2 satisfied, on no evidence.
+    raw_fm, _ = bl.split_frontmatter(text)
+    if raw_fm is None:
+        warnings.append(
+            f"{lesson.rel} has NO frontmatter block. A lesson-scope `supplies` "
+            f"entry lives in frontmatter, so condition 2 was answered from the "
+            f"manifest alone and that channel is BLIND here."
+        )
+    else:
+        try:
+            parsed = bl.load_yaml(raw_fm, lesson.rel + " frontmatter")
+        except bl.YamlError as exc:
+            parsed = None
+            warnings.append(
+                f"{lesson.rel}: its frontmatter could not be parsed ({exc}). A "
+                f"lesson-scope `supplies` entry lives there, so condition 2 was "
+                f"answered from the manifest alone and that channel is BLIND here."
+            )
+        if parsed is not None and not isinstance(parsed, dict):
+            warnings.append(
+                f"{lesson.rel}: its frontmatter is not a mapping, so a "
+                f"lesson-scope `supplies` entry could not be read from it. "
+                f"That channel is BLIND here."
+            )
+
+    manifest_supplies = bundle.manifest.get("supplies")
+    if manifest_supplies is not None and not isinstance(manifest_supplies, list):
+        warnings.append(
+            "The manifest has a `supplies` key that is NOT a list, so no entry "
+            "could be read from it. Condition 2 is BLIND for manifest scope - "
+            "do not read an empty list below as 'the bundle declares none'."
+        )
+
+    entries = gather_supplies(bundle)
+    in_scope = [
+        entry
+        for entry in entries
+        if entry["scope"] == "manifest" or entry["lesson"] == lesson.slug
+    ]
+    scan["supplies_in_scope"] = in_scope
+    scan["supplies_elsewhere"] = len(entries) - len(in_scope)
+
+    steps = scan_setup_steps(lesson.rel, text)
+    scan["setup_steps"] = steps
+
+    cues = scan_handover_cues(lesson.rel, text)
+    scan["handover_cues"] = cues
+
+    policy = bundle.manifest.get("ownership_policy")
+    policy = str(policy) if policy is not None else None
+    scan["ownership_policy"] = policy
+    permits = policy in SETUP_POLICIES_PERMITTING_HANDOVER
+    scan["policy_permits_handover"] = permits
+    if policy is None:
+        warnings.append(
+            "The manifest declares NO `ownership_policy`. Guard 2 of the rubric "
+            "section requires the hand-over to be declared in the policy as well "
+            "as in the lesson text, and a policy that is not declared cannot "
+            "permit anything - so this reads as no hand-over, exactly as a "
+            "reviewer who cannot point at the declaration must score it."
+        )
+    elif policy not in SETUP_POLICIES_KNOWN:
+        warnings.append(
+            f"`ownership_policy: {policy}` is a value this script does not know. "
+            f"It is treated as NOT permitting a tutor hand-over, because only "
+            f"{' and '.join(SETUP_POLICIES_PERMITTING_HANDOVER)} are known to. "
+            f"That half of guard 2 is BLIND here - read the policy yourself."
+        )
+
+    declared = bool(cues) and permits
+    scan["handover_declared"] = declared
+
+    findings: list[dict] = []
+    if steps and not in_scope and not declared:
+        findings.append(
+            {
+                "rel": lesson.rel,
+                "id": scan["first_lesson_id"],
+                "steps": steps,
+                "ownership_policy": policy,
+                "handover_cues": cues,
+                "why": (
+                    "The first lesson contains a project-creation step, no "
+                    "`supplies` entry is in scope for it, and no hand-over to "
+                    "the tutor is declared"
+                    + (
+                        " - the lesson text carries no cue that the tutor creates it"
+                        if not cues
+                        else f" - the lesson text carries a tutor cue, but "
+                        f"`ownership_policy: {policy}` does not permit the tutor "
+                        f"to create a layout it invents"
+                    )
+                    + ". Under rubric.md, 'A step the tutor performs is not an "
+                    "element', guard 2, the step scores as assigned to the learner."
+                ),
+            }
+        )
+
+    if not steps:
+        status = "nothing-to-check"
+        warnings.append(
+            f"NO project-creation step was found in {lesson.rel}, so conditions "
+            f"2 and 3 were never reached. 'No step found' is NOT 'this course "
+            f"supplies its setup' - this scanner knows "
+            f"{len(_SCAFFOLD_COMMANDS)} scaffolding commands and one "
+            f"verb-plus-noun shape, and a course can assign the work in words "
+            f"neither of them matches. Read the first lesson."
+        )
+    elif warnings:
+        status = "checked-with-blind-channels"
+    else:
+        status = "checked"
+
+    return {
+        "status": status,
+        "rule": SETUP_RULE,
+        "disclaimer": SETUP_DISCLAIMER,
+        "rubric_section": "A step the tutor performs is not an element",
+        "warnings": warnings,
+        "scan": scan,
+        "findings": findings,
+    }
 
 
 # --------------------------------------------------------------------------
@@ -2091,10 +2534,12 @@ def build(bundle: bl.Bundle) -> dict:
         "candidates": candidates,
         "topic_candidates": topic_candidates,
         "symbol_evidence": build_symbol_evidence(bundle),
+        "unsupplied_setup": build_unsupplied_setup(bundle),
         "notes": {
             "toil_scanner": CANDIDATE_DISCLAIMER,
             "topic_matching": TOPIC_DISCLAIMER,
             "symbol_evidence": SYMBOL_DISCLAIMER,
+            "unsupplied_setup": SETUP_DISCLAIMER,
         },
     }
 
@@ -2204,8 +2649,120 @@ def render_markdown(data: dict) -> str:
 
     out.extend(render_symbol_evidence(data["symbol_evidence"]))
 
+    out.extend(render_unsupplied_setup(data["unsupplied_setup"]))
+
     out.append(f"DESIGN.md anchors ({len(data['anchors'])}): {', '.join(data['anchors']) or '(none)'}")
     return "\n".join(out)
+
+
+def render_unsupplied_setup(ev: dict) -> list[str]:
+    """The three conditions, rendered so a CLEAN result names its reason.
+
+    "(none)" under this heading would be unreadable: it is the same text
+    for a course that supplies its skeleton, a course that hands it to the
+    tutor, and a scanner that never ran. Every branch below therefore says
+    which condition did not hold, or says that nothing was checked.
+    """
+    scan = ev["scan"]
+    out: list[str] = []
+    out.append("## Unsupplied setup step")
+    out.append("")
+    out.append(f"status: {ev['status']}")
+    out.append("")
+    out.append(f"Rule: {ev['rule']}")
+    out.append("")
+    out.append(ev["disclaimer"])
+    out.append("")
+    out.append(
+        f"Apply: references/rubric.md, section \"{ev['rubric_section']}\", guard 2 - "
+        f"the hand-over must be declared in the lesson text AND in "
+        f"`ownership_policy`."
+    )
+    out.append("")
+    if scan["first_lesson"] is None:
+        out.append("No first lesson could be ordered, so nothing was read.")
+        out.append("")
+    else:
+        out.append(
+            f"Checked {scan['first_lesson']} (id {scan['first_lesson_id']}), "
+            f"readable={scan['lesson_readable']}: "
+            f"{len(scan['setup_steps'])} project-creation step(s) [condition 1]; "
+            f"{len(scan['supplies_in_scope'])} supplies entry/entries in scope, "
+            f"{scan['supplies_elsewhere']} declared elsewhere [condition 2]; "
+            f"ownership_policy={scan['ownership_policy']!r} "
+            f"(permits a hand-over: {scan['policy_permits_handover']}), "
+            f"{len(scan['handover_cues'])} tutor hand-over cue(s) in the lesson "
+            f"text [condition 3]."
+        )
+        out.append("")
+        for step in scan["setup_steps"]:
+            out.append(
+                f"  step: {step['rel']}:{step['line']} [{step['cue']}] "
+                f"{step['match']!r} - {step['text']}"
+            )
+        for cue in scan["handover_cues"]:
+            out.append(
+                f"  hand-over cue: {cue['rel']}:{cue['line']} [{cue['cue']}] "
+                f"{cue['match']!r} - {cue['text']}"
+            )
+        for entry in scan["supplies_in_scope"]:
+            scope = "manifest" if entry["scope"] == "manifest" else f"lesson {entry['lesson']}"
+            out.append(f"  supplies in scope: [{scope}] {entry.get('from')} -> {entry.get('to')}")
+        if scan["setup_steps"] or scan["handover_cues"] or scan["supplies_in_scope"]:
+            out.append("")
+
+    if ev["warnings"]:
+        out.append("NOTHING-TO-CHECK / BLIND-CHANNEL WARNINGS - read these before")
+        out.append("reading an empty result below as a clean one:")
+        for text in ev["warnings"]:
+            out.append(f"  !! {text}")
+        out.append("")
+
+    if ev["status"] == "nothing-to-check":
+        out.append(
+            "This section checked NOTHING. That is a different result from "
+            "'checked and clean', and the warnings above say why."
+        )
+        out.append("")
+        return out
+
+    if ev["findings"]:
+        for finding in ev["findings"]:
+            out.append(f"### {finding['rel']} - all three conditions hold")
+            out.append("")
+            out.append(finding["why"])
+            out.append("")
+            for step in finding["steps"]:
+                out.append(
+                    f"- {step['rel']}:{step['line']} [{step['cue']}] {step['text']}"
+                )
+            out.append("")
+        return out
+
+    if scan["supplies_in_scope"]:
+        out.append(
+            f"CHECKED AND CLEAN: condition 2 does not hold. "
+            f"{len(scan['supplies_in_scope'])} `supplies` entry/entries are in "
+            f"scope for this lesson. This script does NOT decide whether they "
+            f"cover the step it found - it declines to report one when the "
+            f"bundle ships anything for that lesson, and a reader checks the "
+            f"match."
+        )
+    elif scan["handover_declared"]:
+        out.append(
+            f"CHECKED AND CLEAN: condition 3 does not hold. The lesson text "
+            f"hands the step to the tutor and `ownership_policy: "
+            f"{scan['ownership_policy']}` permits it, which is the declaration "
+            f"guard 2 requires. Guard 1 is NOT mechanical: read what the lesson "
+            f"asks of the learner AFTER the tutor finishes - a step the learner "
+            f"must still review, repair or complete is an element again."
+        )
+    else:
+        out.append(
+            "CHECKED AND CLEAN: no condition held together. See the counts above."
+        )
+    out.append("")
+    return out
 
 
 _CHANNEL_LABELS = {

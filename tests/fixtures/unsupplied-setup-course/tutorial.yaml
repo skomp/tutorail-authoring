@@ -1,0 +1,31 @@
+bundle_format: 1
+id: unsupplied-setup-course
+title: A Fixture Course That Assigns Its Own Setup
+description: >
+  A minimal course reproducing the shape a learner hit in
+  skomp/tutorail-bundles#3: the first lesson tells the learner to create the
+  project, the bundle declares no supplies entry, and no hand-over to the
+  tutor is declared anywhere.
+subjects: [fixtures, testing]
+level: beginner
+style: [project-driven]
+
+lessons:
+  - lessons/00-language-and-contract.md
+  - lessons/01-counting.md
+
+workspace_kind: new-repository
+tutor_owned: [tutorial/STATE.md, tutorial/DESIGN.md]
+learner_owned:
+  - src/**
+  - '*.toml'
+  - '*.json'
+  - '*.mod'
+ownership_policy: tutor-must-not-edit-learner-owned
+
+validators:
+  manual: { kind: manual }
+
+one_task_at_a_time: true
+solution_code: on-request-only
+advance_on: validated-evidence-only
