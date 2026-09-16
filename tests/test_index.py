@@ -385,9 +385,47 @@ def case_frontmatter_only() -> None:
 
 
 def case_no_purpose_section() -> None:
-    """A lesson with no ## Purpose at all falls back to the title."""
+    """A lesson with no ## Purpose at all falls back to the title.
+
+    This case carries a SECOND, DELIBERATE job, and it must not be tidied away.
+
+    `foldered-bundle/lessons/00-start.md` writes its title as an UNQUOTED
+    scalar containing a colon followed by a space. Plain YAML does not permit
+    that; the runner's restricted reader accepts it. After
+    tutorail-authoring#21 quoted the two titles in the rust-automaton-db
+    fixture - where they were wrong, because the live bundle quotes them -
+    this is the ONLY place in the suite where that lenient path is exercised,
+    and the only place where a lesson title's parsed value is asserted
+    verbatim. It lives here rather than in a bundle copy because
+    foldered-bundle is synthetic: nothing ever synchronises it against a live
+    bundle, so the colon cannot be "corrected" away by a later sync.
+
+    If the reader is changed to reject an unquoted colon scalar - a question
+    that belongs to skomp/tutorAIl, which owns it - this case is what fails,
+    and it is meant to fail rather than be quietly re-quoted.
+    """
     with Workspace() as ws:
         bundle = ws.copy("foldered-bundle", "no-purpose")
+        # The construct under test, asserted on disk rather than assumed: the
+        # title line must really be unquoted and must really contain ": ".
+        # Without this the assertion below could pass against a quoted title
+        # and the lenient path would be uncovered with nobody told.
+        raw = (bundle / "lessons" / "00-start.md").read_text(encoding="utf-8")
+        title_line = next(
+            (ln for ln in raw.splitlines() if ln.startswith("title:")), ""
+        )
+        check(
+            title_line == "title: Getting started: the naming rule",
+            f"DELIBERATE COVERAGE: the fixture's title is an unquoted scalar "
+            f"holding ': ' (got {title_line!r}; see the docstring above and the "
+            f"note in the fixture before changing either)",
+        )
+        check(
+            '"' not in title_line and "'" not in title_line,
+            f"DELIBERATE COVERAGE: that title carries no quotes, so the reader "
+            f"is really taking the lenient path (got {title_line!r})",
+        )
+
         edit(
             bundle / "lessons" / "00-start.md",
             "## Purpose\n\nEstablish the vocabulary the rest of the course uses.\n\n## Prerequisites",
@@ -402,8 +440,16 @@ def case_no_purpose_section() -> None:
         check(row is not None, "the purpose-less lesson still gets a row")
         if row is not None:
             check(
-                row.group(7) == "Getting started",
+                row.group(7) == "Getting started: the naming rule",
                 f"the row falls back to the frontmatter title (got {row.group(7)!r})",
+            )
+            # The discriminating half. A reader that stopped at the colon would
+            # return "Getting started" and still look like a plausible title,
+            # so assert the text AFTER the colon survived the parse.
+            check(
+                row.group(7).endswith(": the naming rule"),
+                f"the unquoted colon scalar parsed whole, not truncated at the "
+                f"colon (got {row.group(7)!r})",
             )
         # The other lesson still shows its own purpose, so the fallback is
         # per-lesson rather than a whole-bundle collapse to titles.
