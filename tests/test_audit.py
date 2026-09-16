@@ -837,6 +837,328 @@ def case_json_and_markdown_agree_on_shape() -> None:
     )
 
 
+# --------------------------------------------------------------------------
+# A coverage list written inside a fenced block (tutorail-authoring#10).
+#
+# The measured defect: `audit.py` read the coverage list as Markdown list
+# items ONLY. `rust-automaton-db/COURSE.md:225` opens a ```text fence holding
+# 45 topics, so the script returned `topics: []` AND the Markdown report said
+# the author "never filled it in" - a false statement that, believed, would
+# have suppressed five real coverage gaps.
+#
+# The fixture is `tests/fixtures/rust-automaton-db`, which is IN THIS REPO
+# and whose COURSE.md is the real one byte for byte. The sibling
+# tutorail-bundles checkout is deliberately not read from here: it moves.
+#
+# Four cases, and each is a control on its neighbour:
+#
+#   * the fence IS read, and the count is exact (45, not 0 and not 46 - two
+#     earlier write-ups said 46 and both were wrong);
+#   * deleting the fence from a COPY drops the count to zero, so the 45
+#     above cannot be a constant;
+#   * list items still win where a course uses them, and an unread fence
+#     beside them is announced as a blind channel rather than dropped;
+#   * "could not read it" and "the author left it empty" are different
+#     results, and both are different from "there is no coverage list".
+# --------------------------------------------------------------------------
+
+FENCED_TOPIC_COUNT = 45
+
+# The status vocabulary `symbol_evidence` established. The coverage list is
+# required to reuse it rather than invent a second one for the same idea, so
+# this set is asserted against BOTH sections below.
+_SYMBOL_STATUSES = {"checked", "checked-with-blind-channels", "nothing-to-check"}
+
+
+def case_fenced_coverage_list_is_read() -> None:
+    """FIRING (#10): the 45 topics inside a ```text fence are read."""
+    data = audit_json(FIXTURES / "rust-automaton-db")
+    cov = data["coverage_list"]
+    check(cov is not None, "the fenced coverage list is not reported as absent")
+    if cov is None:
+        return
+    check(
+        cov["heading"] == "Rust coverage requirements",
+        f"the heading is reported (got {cov['heading']!r})",
+    )
+    check(
+        len(cov["topics"]) == FENCED_TOPIC_COUNT,
+        f"exactly {FENCED_TOPIC_COUNT} topics are read (got {len(cov['topics'])})",
+    )
+    check(
+        cov["topics"][:2] == ["Cargo and crates", "variables and mutability"],
+        f"in document order, verbatim, from the first line of the fence "
+        f"(got {cov['topics'][:2]!r})",
+    )
+    check(
+        cov["topics"][-1] == "platform/FFI APIs if naturally required",
+        f"through to the last line of the fence (got {cov['topics'][-1]!r})",
+    )
+    check(
+        "```text" not in cov["topics"] and "```" not in cov["topics"],
+        "and the fence markers themselves are not topics",
+    )
+    check(
+        cov["scan"]["topic_source"] == "fenced-block",
+        f"the report says which channel they came from (got {cov['scan']['topic_source']!r})",
+    )
+    check(cov["status"] == "checked", f"status is 'checked' (got {cov['status']!r})")
+    check(cov["warnings"] == [], f"with no blind channel to warn about (got {cov['warnings']})")
+
+    # The five topics the 2026-09-15 audit found unserved are the reason this
+    # defect cost anything. If the parser loses any of them the -15 vanishes
+    # again, so name them here rather than trusting the count alone.
+    for topic in (
+        "interior mutability",
+        "atomics",
+        "associated types",
+        "Cargo workspaces",
+        "refactoring across crate boundaries",
+    ):
+        check(topic in cov["topics"], f"the unserved topic {topic!r} is among them")
+
+    # Controls on the fixture: the topics really are in a fence and really
+    # are not list items, or this case proves nothing about fences.
+    course = (FIXTURES / "rust-automaton-db" / "COURSE.md").read_text(encoding="utf-8")
+    lines = course.splitlines()
+    heading_at = lines.index("## Rust coverage requirements")
+    section = lines[heading_at + 1 :]
+    section = section[: next(i for i, l in enumerate(section) if l.startswith("## "))]
+    check(
+        any(l.startswith("```") for l in section),
+        "control: the fixture's coverage section really does open a fence",
+    )
+    check(
+        not any(l.lstrip().startswith(("- ", "* ")) for l in section),
+        "control: and it carries NO Markdown list item, so list-item parsing "
+        "cannot be what produced the topics above",
+    )
+    check(
+        len([l for l in section if l.strip()]) > FENCED_TOPIC_COUNT,
+        "control: the section holds more non-empty lines than topics (the prose "
+        "line and the two fence markers), so a naive line count would not give 45",
+    )
+
+
+def case_fenced_topics_are_not_a_constant() -> None:
+    """NEGATIVE CONTROL (#10): delete the fence and the 45 topics go away.
+
+    Without this, `len(topics) == 45` above is equally consistent with a
+    parser that reads the fence and with one that hard-codes the corpus.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy("rust-automaton-db", "no-fence")
+        path = bundle / "COURSE.md"
+        lines = path.read_text(encoding="utf-8").splitlines()
+        heading_at = lines.index("## Rust coverage requirements")
+        opens = next(i for i in range(heading_at, len(lines)) if lines[i].startswith("```"))
+        closes = next(i for i in range(opens + 1, len(lines)) if lines[i].startswith("```"))
+        kept = lines[:opens] + lines[closes + 1 :]
+        check(closes - opens - 1 == FENCED_TOPIC_COUNT, f"control: the fence really holds {FENCED_TOPIC_COUNT} lines (got {closes - opens - 1})")
+        path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+
+        cov = audit_json(bundle)["coverage_list"]
+        check(cov is not None, f"the heading alone still reports a section (got {cov!r})")
+        if cov is None:
+            return
+        check(cov["topics"] == [], f"and with the fence gone there are no topics (got {len(cov['topics'])})")
+        check(
+            cov["scan"]["fenced_blocks"] == 0,
+            f"the scan says no fenced block was found (got {cov['scan']['fenced_blocks']})",
+        )
+
+
+def case_list_items_win_and_an_unread_fence_is_announced() -> None:
+    """NO REGRESSION (#10): list items still win, and a fence beside them is
+    reported as a BLIND CHANNEL rather than silently dropped.
+
+    The four bundles that use list items must not change, so list items take
+    precedence. That precedence can lose topics, and the rule in this file is
+    that a channel nobody read is named, never passed over in silence.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy("toil-course", "both-forms")
+        path = bundle / "COURSE.md"
+        text = path.read_text(encoding="utf-8")
+        check("- texture sampling" in text, "fixture sanity: the last list item is where expected")
+        edited = text.replace(
+            "- texture sampling",
+            "- texture sampling\n\n```text\nframebuffer objects\nmipmapping\n```",
+            1,
+        )
+        check(edited != text, "the edit actually changed the fixture copy")
+        path.write_text(edited, encoding="utf-8")
+
+        cov = audit_json(bundle)["coverage_list"]
+        check(cov is not None, "the section is still found")
+        if cov is None:
+            return
+        check(
+            cov["topics"] == ["shader compilation", "depth testing", "texture sampling"],
+            f"the list items still win, unchanged (got {cov['topics']!r})",
+        )
+        check(
+            cov["scan"]["topic_source"] == "list-items",
+            f"and the report says so (got {cov['scan']['topic_source']!r})",
+        )
+        check(
+            cov["status"] == "checked-with-blind-channels",
+            f"but the status is NOT a clean 'checked' (got {cov['status']!r})",
+        )
+        joined = " ".join(cov["warnings"])
+        check(
+            "BLIND" in joined,
+            f"a warning names the channel that went unread (got {cov['warnings']!r})",
+        )
+        check(
+            "fenced" in joined.lower(),
+            f"and says it was the fenced block (got {cov['warnings']!r})",
+        )
+
+
+def _coverage_of(ws: "Workspace", name: str, replacement: str) -> dict | None:
+    """Build a bundle whose coverage section is `replacement`, and audit it."""
+    bundle = ws.copy("toil-course-no-coverage", name)
+    path = bundle / "COURSE.md"
+    text = path.read_text(encoding="utf-8")
+    assert "## Optional lessons" in text
+    path.write_text(
+        text.replace("## Optional lessons", replacement + "\n## Optional lessons", 1),
+        encoding="utf-8",
+    )
+    return audit_json(bundle)["coverage_list"]
+
+
+def case_unreadable_is_not_absent_and_not_empty() -> None:
+    """#10, the requirement added on 2026-09-15: "no coverage list" and "a
+    coverage list I could not read" must be different results.
+
+    All THREE states are built from ONE fixture in ONE case, so the only
+    variable between them is what sits under the heading:
+
+      absent     -> null, no dict at all
+      empty      -> nothing-to-check, scan.body_lines == 0
+      unreadable -> nothing-to-check, scan.body_lines  > 0
+
+    The vocabulary is `symbol_evidence`'s (`status` + `warnings`), not a
+    second one invented for this field.
+    """
+    with Workspace() as ws:
+        absent = audit_json(FIXTURES / "toil-course-no-coverage")["coverage_list"]
+        empty = _coverage_of(ws, "empty-section", "## Topics this course must cover\n\n")
+        unreadable = _coverage_of(
+            ws,
+            "unreadable-section",
+            "## Topics this course must cover\n\n"
+            "Shader compilation, depth testing and texture sampling, in a paragraph\n"
+            "this parser does not know how to split into topics.\n\n",
+        )
+
+        check(absent is None, f"ABSENT is null (got {absent!r})")
+        for name, cov in (("EMPTY", empty), ("UNREADABLE", unreadable)):
+            check(cov is not None, f"{name} is a dict, not null - it is NOT the absent case")
+        if empty is None or unreadable is None:
+            return
+
+        check(empty["topics"] == [] and unreadable["topics"] == [], "neither reports a topic")
+        check(
+            empty["status"] == "nothing-to-check",
+            f"EMPTY status is 'nothing-to-check' (got {empty['status']!r})",
+        )
+        check(
+            unreadable["status"] == "nothing-to-check",
+            f"UNREADABLE status is 'nothing-to-check' too - nothing WAS read "
+            f"(got {unreadable['status']!r})",
+        )
+        check(
+            empty["status"] in _SYMBOL_STATUSES and unreadable["status"] in _SYMBOL_STATUSES,
+            f"and both use symbol_evidence's vocabulary, not a second one "
+            f"(got {empty['status']!r}, {unreadable['status']!r})",
+        )
+        # Control on that claim: `_SYMBOL_STATUSES` must really be the symbol
+        # section's own words, not a list this test made up to agree with
+        # itself. Take one from a live symbol_evidence run.
+        live = audit_json(FIXTURES / "toil-course")["symbol_evidence"]["status"]
+        check(
+            live in _SYMBOL_STATUSES,
+            f"control: symbol_evidence really does use these words (got {live!r})",
+        )
+
+        # The discriminator, machine-readable.
+        check(
+            empty["scan"]["body_lines"] == 0,
+            f"EMPTY has nothing under the heading (got {empty['scan']['body_lines']})",
+        )
+        check(
+            unreadable["scan"]["body_lines"] > 0,
+            f"UNREADABLE has content under the heading (got {unreadable['scan']['body_lines']})",
+        )
+        check(
+            empty["scan"] != unreadable["scan"],
+            "so the two scans are not the same object with the same numbers",
+        )
+
+        # And in prose, because a human reads the warning, not the scan.
+        empty_says = " ".join(empty["warnings"])
+        unreadable_says = " ".join(unreadable["warnings"])
+        check(
+            "never filled it in" in empty_says,
+            f"EMPTY warns that the author never filled the section in (got {empty_says!r})",
+        )
+        check(
+            "never filled it in" not in unreadable_says,
+            f"UNREADABLE must NOT say that - it is the false statement #10 is about "
+            f"(got {unreadable_says!r})",
+        )
+        check(
+            "NOTHING WAS READ" in unreadable_says,
+            f"UNREADABLE says nothing was read (got {unreadable_says!r})",
+        )
+        check(
+            "by hand" in unreadable_says,
+            f"and sends the reader to COURSE.md (got {unreadable_says!r})",
+        )
+
+
+def case_markdown_never_claims_an_unread_section_is_empty() -> None:
+    """#10 in the Markdown report, which is what the auditor of 2026-09-15
+    actually read. The false sentence must be gone for a fenced list and must
+    not reappear for an unreadable one."""
+    done = run(AUDIT, FIXTURES / "rust-automaton-db")
+    check(done.returncode == 0, f"the Markdown report exits 0 (got {done.returncode}; {done.output!r})")
+    check(
+        "never filled it in" not in done.stdout,
+        "the report NO LONGER says the author never filled the section in",
+    )
+    check_in("Rust coverage requirements", done.stdout, "it names the heading")
+    check_in("interior mutability", done.stdout, "and prints a topic that was invisible before")
+    check_in("status: checked", done.stdout, "with the coverage-list status alongside it")
+
+    with Workspace() as ws:
+        bundle = ws.copy("toil-course-no-coverage", "unreadable-md")
+        path = bundle / "COURSE.md"
+        text = path.read_text(encoding="utf-8")
+        path.write_text(
+            text.replace(
+                "## Optional lessons",
+                "## Topics this course must cover\n\nA paragraph, not a list.\n\n## Optional lessons",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        done = run(AUDIT, bundle)
+        check(done.returncode == 0, f"and on an unreadable section it still exits 0 (got {done.returncode})")
+        check_in("COULD NOT READ A TOPIC", done.stdout, "the report says it could not read the section")
+        check(
+            "never filled it in" not in done.stdout,
+            "and does NOT tell the reader the author left it empty",
+        )
+        check(
+            "declares no coverage list at all" not in done.stdout,
+            "nor that the course declares no coverage list at all",
+        )
+
+
 def main() -> int:
     print(f"audit.py  ({AUDIT})")
     print()
@@ -858,6 +1180,16 @@ def main() -> int:
         case_no_coverage_reports_null()
     with case("a coverage heading with no topics is a third case, distinct from null"):
         case_coverage_heading_with_no_topics()
+    with case("FIRING (#10): a coverage list inside a ```text fence is read - 45 topics"):
+        case_fenced_coverage_list_is_read()
+    with case("NEGATIVE CONTROL (#10): delete the fence and the 45 topics go away"):
+        case_fenced_topics_are_not_a_constant()
+    with case("NO REGRESSION (#10): list items still win; an unread fence is announced"):
+        case_list_items_win_and_an_unread_fence_is_announced()
+    with case("#10: 'could not read it', 'left it empty' and 'there is none' are three results"):
+        case_unreadable_is_not_absent_and_not_empty()
+    with case("#10: the Markdown report never calls an unread section an empty one"):
+        case_markdown_never_claims_an_unread_section_is_empty()
     with case("an optional lesson is inventoried, not reported as unreachable"):
         case_optional_lesson_inventoried()
     with case("each lesson row carries id, title, form, design_refs, validators, objectives"):

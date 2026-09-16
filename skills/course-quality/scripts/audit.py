@@ -41,6 +41,18 @@ THE DISCIPLINE THAT MATTERS MOST HERE: this script never rules on anything.
     makes it, so there is no keyword denylist and no uppercase-only rule
     here. Its `status` separates "nothing to check" from "checked and
     clean", and its `warnings` name any evidence channel that was blind.
+  * `coverage_list` reads the topics `COURSE.md` declares, from Markdown
+    list items OR from a fenced block (one topic per non-empty line) - the
+    corpus uses both, and reading only the first form made this script state
+    that rust-automaton-db's author "never filled it in" over a fence
+    holding 45 topics (tutorail-authoring#10). It carries the SAME `status`
+    and `warnings` pair as `symbol_evidence`, for the same reason: an empty
+    `topics` must never be mistaken for a course that declared none. THREE
+    results are distinct - `null` (no heading at all), a `nothing-to-check`
+    dict with `scan.body_lines == 0` (heading, nothing under it), and a
+    `nothing-to-check` dict with `scan.body_lines > 0` (a coverage list this
+    parser COULD NOT READ, which is a fact about this script and not about
+    the course).
 
 This script computes no score. Scoring is judgement (the rubric in
 `references/rubric.md`, applied by the skill this script serves); this
@@ -312,6 +324,11 @@ def scan_toil(rel: str, text: str) -> list[dict]:
 _HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$", re.MULTILINE)
 _BULLET_RE = re.compile(r"^[ \t]*[-*][ \t]+(.+?)[ \t]*$")
 
+# One definition, used by BOTH readers of fenced blocks in this file: the
+# coverage-list parser below, which reads what is INSIDE a fence, and
+# `strip_fenced_blocks`, which blanks the same thing for the symbol scanner.
+_FENCE_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})")
+
 
 def _sections(text: str) -> list[tuple[str, str]]:
     """Split `text` into (heading text, body text) pairs, in document order."""
@@ -326,6 +343,145 @@ def _sections(text: str) -> list[tuple[str, str]]:
 
 def _bullets(body: str) -> list[str]:
     return [m.group(1).strip() for m in map(_BULLET_RE.match, body.splitlines()) if m]
+
+
+def _fenced_blocks(body: str) -> tuple[list[list[str]], bool]:
+    """(the content of every fenced code block in `body`, was one left open).
+
+    Each block comes back as its list of non-empty, whitespace-stripped
+    lines - nothing else is interpreted, because a course that writes its
+    coverage list in a fence writes one topic per line and no markers.
+
+    The open-fence flag is not decoration. `_sections` ends a section at the
+    next ATX heading, and a `#`-commented line INSIDE a fence looks exactly
+    like one, so a fence can be cut in half by the section splitter. When
+    that happens the lines gathered so far are still returned - losing them
+    would reproduce the very failure this parser exists to fix - and the
+    caller warns that the block was not closed.
+    """
+    blocks: list[list[str]] = []
+    fence: str | None = None
+    current: list[str] = []
+    for line in body.splitlines():
+        marker = _FENCE_RE.match(line)
+        if fence is None:
+            if marker:
+                fence = marker.group(1)[0]
+                current = []
+            continue
+        if marker and marker.group(1)[0] == fence:
+            blocks.append(current)
+            fence = None
+            current = []
+            continue
+        if line.strip():
+            current.append(line.strip())
+    if fence is not None:
+        blocks.append(current)
+        return blocks, True
+    return blocks, False
+
+
+def _coverage_section(heading: str, body: str) -> dict:
+    """One "cover" heading, read as a coverage list, with its own status.
+
+    The status vocabulary is `symbol_evidence`\'s, deliberately - `checked`,
+    `checked-with-blind-channels`, `nothing-to-check`, plus a `warnings`
+    list naming any channel that was blind. There is no second vocabulary in
+    this file for the same idea.
+
+      * `checked` - topics were read and no other topic-bearing channel
+        under this heading went unread.
+      * `checked-with-blind-channels` - topics were read, but something else
+        under the same heading that could ALSO hold topics was not read.
+        `warnings` say what, so a short list can never pass for a whole one.
+      * `nothing-to-check` - no topic could be read. `warnings` then say
+        WHICH of the two very different reasons applies, and
+        `scan["body_lines"]` is the machine-readable form of the same split:
+
+          - `body_lines == 0`: the section is empty. The author started it
+            and never filled it in. That is a finding about the COURSE.
+          - `body_lines > 0`: there IS content under the heading and this
+            parser could not read a topic out of it. That is a finding about
+            THIS PARSER, and a reader must not report it as "no topics
+            declared" - which is exactly the false statement
+            tutorail-authoring#10 caught this script making about
+            rust-automaton-db, where 45 topics sat in a ```text fence.
+
+    Both of those are different again from "no matching heading at all",
+    which `coverage_list` reports as None and never as a dict.
+    """
+    bullets = _bullets(body)
+    blocks, unclosed = _fenced_blocks(body)
+    filled = [block for block in blocks if block]
+    body_lines = len([line for line in body.splitlines() if line.strip()])
+    warnings: list[str] = []
+
+    if bullets:
+        topics = bullets
+        source: str | None = "list-items"
+        if filled:
+            warnings.append(
+                f"The {len(bullets)} topic(s) were read from Markdown list items, and "
+                f"{len(filled)} fenced code block(s) under the same heading, holding "
+                f"{sum(len(b) for b in filled)} non-empty line(s), were NOT read. That "
+                f"channel is BLIND here: if the real list is in the fence, this one is "
+                f"short. Read the section by hand."
+            )
+    elif filled:
+        topics = list(filled[0])
+        source = "fenced-block"
+        if len(filled) > 1:
+            warnings.append(
+                f"{len(filled)} fenced code blocks sit under this heading and only the "
+                f"FIRST was read as the coverage list. The other "
+                f"{sum(len(b) for b in filled[1:])} non-empty line(s) are unread."
+            )
+        if unclosed:
+            warnings.append(
+                "A fenced code block under this heading was never closed inside the "
+                "section. A `#`-commented line in a fence reads as a Markdown heading "
+                "and cuts the section short, so this list may be truncated. Read the "
+                "section by hand."
+            )
+    else:
+        topics = []
+        source = None
+
+    if topics:
+        status = "checked-with-blind-channels" if warnings else "checked"
+    elif body_lines:
+        status = "nothing-to-check"
+        warnings.append(
+            f"The heading is present and {body_lines} non-empty line(s) sit under it, "
+            f"but NO topic could be read from them - no Markdown list item, and no "
+            f"fenced code block with content. NOTHING WAS READ; this is not a clean "
+            f"result and it is NOT evidence that the author declared no topics. The "
+            f"list may well be there in a form this parser does not know. Read "
+            f"COURSE.md by hand before reporting anything about this course\'s "
+            f"coverage."
+        )
+    else:
+        status = "nothing-to-check"
+        warnings.append(
+            "The heading is present and NOTHING at all sits under it. The author "
+            "started this section and never filled it in. This one is a finding about "
+            "the course, not a blind spot in this parser."
+        )
+
+    return {
+        "heading": heading,
+        "topics": topics,
+        "status": status,
+        "warnings": warnings,
+        "scan": {
+            "topic_source": source,
+            "list_items": len(bullets),
+            "fenced_blocks": len(blocks),
+            "fenced_lines": sum(len(b) for b in blocks),
+            "body_lines": body_lines,
+        },
+    }
 
 
 def coverage_list(course_text: str | None) -> dict | None:
@@ -344,31 +500,43 @@ def coverage_list(course_text: str | None) -> dict | None:
     other headings a COURSE.md carries ("Course map", "Checkpoints",
     "Explicit boundaries", "Prerequisites", ...) do not.
 
-    A heading matching "cover" with a bullet list under it wins outright. If
+    TWO forms of list are read under that heading, because the corpus uses
+    both: Markdown list items (durable-event-broker, portable-bytebeat-wav,
+    portable-fixed-window-rate-limiter, webgl-typescript-scene) and a FENCED
+    BLOCK, one topic per non-empty line (rust-automaton-db, `COURSE.md:225`,
+    45 topics inside a ```text fence). Reading only the first form is
+    tutorail-authoring#10: the script reported an empty list and the
+    Markdown report said the author "never filled it in", which was false,
+    and which would have suppressed five real coverage gaps had the auditor
+    believed it.
+
+    List items WIN when both are present, so the four bundles that use them
+    are unaffected; the unread fence is then reported as a blind channel in
+    `warnings`, never dropped in silence. See `_coverage_section` for the
+    status vocabulary, which is `symbol_evidence`\'s.
+
+    A heading matching "cover" with topics under it wins outright. If
     several such headings exist, the first one that actually lists topics is
     used; the search keeps going past a heading with nothing under it, in
     case a later heading is the real one. Only if NO matching heading ever
-    has topics does this fall back to reporting the first empty one it saw -
-    `{"heading": ..., "topics": []}` - which is a THIRD, DISTINCT case from
-    "no matching heading at all" (returns None). A course that writes the
-    heading and lists nothing under it has done something different from a
-    course that never declared a coverage list, and this function must not
-    collapse the two into the same result.
+    has topics does this fall back to reporting the first topic-less one it
+    saw, which is a THIRD, DISTINCT case from "no matching heading at all"
+    (returns None). A course that writes the heading and lists nothing under
+    it has done something different from a course that never declared a
+    coverage list, and this function must not collapse the two.
     """
     if course_text is None:
         return None
-    empty_heading: str | None = None
+    fallback: dict | None = None
     for heading, body in _sections(course_text):
         if "cover" not in heading.lower():
             continue
-        topics = _bullets(body)
-        if topics:
-            return {"heading": heading, "topics": topics}
-        if empty_heading is None:
-            empty_heading = heading
-    if empty_heading is not None:
-        return {"heading": empty_heading, "topics": []}
-    return None
+        section = _coverage_section(heading, body)
+        if section["topics"]:
+            return section
+        if fallback is None:
+            fallback = section
+    return fallback
 
 
 def learning_objectives(lesson_text: str) -> list[str]:
@@ -659,9 +827,6 @@ _SLUG_HYPHEN_RE = re.compile(r"[A-Za-z0-9_]-[A-Za-z0-9_]")
 
 _IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
-
-_FENCE_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})")
-
 
 def strip_fenced_blocks(text: str) -> tuple[str, int]:
     """Blank the CONTENT of every fenced code block, keeping the line count.
@@ -1266,14 +1431,29 @@ def render_markdown(data: dict) -> str:
             "This is a finding, not an empty result: the course has no declared "
             "boundary for a tutor to check a blocked learner's topic against."
         )
+    elif not cov["topics"] and cov["scan"]["body_lines"]:
+        # tutorail-authoring#10. THIS branch is the one the old code got
+        # wrong: it printed "the author never filled it in" over a section
+        # that held 45 topics in a fence. Never say what the author did or
+        # did not write when nothing was read - say that nothing was read.
+        out.append(
+            f'COURSE.md has a coverage-list heading, "{cov["heading"]}", with '
+            f'{cov["scan"]["body_lines"]} non-empty line(s) under it, and THIS SCRIPT '
+            f"COULD NOT READ A TOPIC out of any of them. Do NOT report that the course "
+            f"declares no topics, and do NOT report that the author left the section "
+            f"empty - neither is known. Read COURSE.md by hand."
+        )
     elif not cov["topics"]:
         out.append(
-            f'COURSE.md has a coverage-list heading, "{cov["heading"]}", but it '
-            f"names no topics. This is a DIFFERENT finding from declaring none "
+            f'COURSE.md has a coverage-list heading, "{cov["heading"]}", and NOTHING '
+            f"at all under it. This is a DIFFERENT finding from declaring none "
             f"at all: the author started this section and never filled it in."
         )
     else:
-        out.append(f'Under "{cov["heading"]}":')
+        out.append(
+            f'Under "{cov["heading"]}" ({len(cov["topics"])} topic(s), read from '
+            f'{cov["scan"]["topic_source"]}):'
+        )
         out.extend(f"- {topic}" for topic in cov["topics"])
         out.append("")
         out.append(TOPIC_DISCLAIMER)
@@ -1288,6 +1468,14 @@ def render_markdown(data: dict) -> str:
                     f"no lesson's words overlapped with it; read the lessons "
                     f"before concluding anything"
                 )
+    if cov is not None:
+        out.append("")
+        out.append(f"status: {cov['status']}")
+        if cov["warnings"]:
+            out.append("")
+            out.append("Warnings - an evidence channel here was blind:")
+            for text_line in cov["warnings"]:
+                out.append(f"  - {text_line}")
     out.append("")
 
     out.append("## Lessons")
