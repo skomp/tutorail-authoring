@@ -31,16 +31,21 @@ THE DISCIPLINE THAT MATTERS MOST HERE: this script never rules on anything.
     hit list for a topic says only that no lesson's frontmatter shares a
     meaningful word with it, which is itself worth a human's attention, not
     a verdict that the topic is untaught.
-  * `symbol_evidence` TABULATES every short backticked symbol a lesson uses
-    and fills in four evidence columns for each: does any lesson's `##
-    Concepts to teach` name it, is there a defining sentence near the first
-    use, is there one elsewhere in the same lesson, and does only `DESIGN.md`
-    bind it. It does NOT decide whether a two-character backticked token is a
-    parameter of the subject (`N`, `W`) or an identifier of the chosen
-    language (`go`, `fn`) - that distinction is categorical and a reader
-    makes it, so there is no keyword denylist and no uppercase-only rule
-    here. Its `status` separates "nothing to check" from "checked and
-    clean", and its `warnings` name any evidence channel that was blind.
+  * `symbol_evidence` TABULATES candidates from THREE rules - a short
+    backticked token (`short-token`), a multi-word `## Concepts to teach`
+    term the course also uses (`concept-phrase`), and a 2-to-5 letter
+    all-capitals run (`acronym`) - and fills in the same evidence columns for
+    each: does any lesson's `## Concepts to teach` name it, is there a
+    defining sentence near the first use, is there one elsewhere in the same
+    lesson or in another lesson, does its own `## Theory` section merely
+    mention it, and does only `DESIGN.md` bind it. Every row names the
+    channel that produced it. It does NOT decide whether a candidate is a
+    parameter of the subject (`N`, `W`, `base offset`) or an identifier of
+    the chosen language (`go`, `fn`, `traits`) - that distinction is
+    categorical and a reader makes it, so there is no keyword denylist and no
+    uppercase-only rule here. Its `status` separates "nothing to check" from
+    "checked and clean", and its `warnings` name any evidence channel that
+    was blind.
   * `coverage_list` reads the topics `COURSE.md` declares, from Markdown
     list items OR from a fenced block (one topic per non-empty line) - the
     corpus uses both, and reading only the first form made this script state
@@ -788,6 +793,102 @@ SYMBOL_RULE = (
     "denylist."
 )
 
+# --------------------------------------------------------------------------
+# tutorail-authoring#18 - two more candidate channels, for the same row.
+#
+# The audit of 2026-09-15 answered the undefined-symbol row by hand across
+# five bundles and found six symbols. The short-token channel above found
+# NONE of them, and the reason is structural rather than a bug: every one of
+# the six is a WORD or an ACRONYM, and three of them are not in backticks at
+# all. A 1-2 character token rule cannot reach any of them.
+#
+# The fix the issue forbids is widening the token rule. A rule reporting
+# every 3-to-5 character backticked token reports `bool`, `New`, `go`, `Vec`,
+# `impl` and every type name in every Rust lesson, and the author has ruled
+# that the sort between a parameter of the subject and an identifier of the
+# chosen language is CATEGORICAL - no rule of shape performs it. So instead
+# of one wider rule there are two more NARROW ones, each with its own source:
+#
+#   * `concept-phrase` - the course's own `## Concepts to teach` list is the
+#     candidate source. A course states its vocabulary there, so nothing is
+#     guessed. The direction is inverted from the short-token channel: that
+#     one finds uses and asks whether they are defined; this one takes a
+#     declared concept and asks whether any lesson ever defines it.
+#   * `acronym` - an all-capitals run of 2 to 5 letters. `CAS`, `WAL` and
+#     `FST` share exactly one shape. `AST`, `GC` and `NFA` share it too and
+#     the human reader PASSED them, which is the expected outcome: these are
+#     candidates, and a reader sorts them.
+#
+# Neither channel classifies, neither computes a score, and both fill in the
+# same evidence columns as the short-token channel.
+#
+# WHY A CONCEPT PHRASE MUST ALSO BE MENTIONED SOMEWHERE ELSE. Reading every
+# Concepts bullet as a candidate produces 111, 176 and 172 rows against
+# durable-event-broker, rust-automaton-db and webgl-typescript-scene, and a
+# report nobody reads is worth less than a smaller one somebody does. The
+# candidate rule therefore requires the declared term to appear OUTSIDE every
+# `## Concepts to teach` section - that is the moment a learner meets the
+# word and needs it to have been introduced. Measured on the same three
+# bundles the rule yields 13, 52 and 62 terms.
+#
+# THE TWO-WORD PARTIAL MENTION. `webgl-typescript-scene` declares the concept
+# `thickness bias` and then writes, in prose, "Expose step count, thickness
+# and maximum distance as controlled parameters."
+# (17-depth-reconstruction-and-ssr.md:45). The compound never appears again;
+# the bare word does, and the bare word is what the human reader reported. So
+# a TWO-word term whose full phrase is never mentioned falls back to its
+# constituent words, under three restrictions that keep the fallback from
+# becoming a word-soup scanner: the word is at least 5 characters, it appears
+# in no OTHER declared concept of the same bundle (a word shared by several
+# concepts - "error", "context", "index" - is a generic modifier, not a
+# term), and it is mentioned in the lesson that DECLARED the concept. Terms
+# of three words and more do not fall back at all; that is a stated blind
+# spot, not an oversight.
+#
+# ONE-WORD CONCEPTS ARE A STATED BLIND SPOT. `metrics`, `traits`, `mmap`,
+# `arc`, `indices` and `precision` are one-word Concepts bullets, and the
+# sort between "vocabulary of the subject" and "name in the chosen language"
+# is exactly the categorical sort the author ruled a script cannot make.
+# Emitting them would put 26 Rust API names into rust-automaton-db's report.
+# They are not reported, and this comment is the record of that choice.
+CONCEPT_RULE = (
+    "candidate = a term of TWO OR MORE words from a lesson's '## Concepts to "
+    "teach' section that is also mentioned OUTSIDE every such section, "
+    "somewhere a learner reads it. A two-word term whose full phrase is "
+    "never mentioned falls back to a constituent word of 5+ characters that "
+    "no other declared concept contains and that the declaring lesson "
+    "mentions - that is how `thickness bias` is reported as `thickness`. "
+    "One-word concepts are NOT reported: telling `metrics` and `traits` "
+    "(names in the chosen language) from vocabulary of the subject is the "
+    "categorical sort this script must not attempt. Terms of three words or "
+    "more do not fall back to single words."
+)
+
+ACRONYM_RULE = (
+    "candidate = a run of 2 to 5 capital letters, in backticks or bare, used "
+    "in a lesson outside a fenced block. `CAS`, `WAL` and `FST` share this "
+    "one shape. `AST`, `GC`, `HTTP` and `JSON` share it too and a reader is "
+    "expected to pass them; this is a candidate list, not a verdict. A run "
+    "followed by a dot and an alphanumeric (`STATE.md`) is a filename, not "
+    "an acronym, and is skipped."
+)
+
+CONCEPT_DISCLAIMER = (
+    "A term named in '## Concepts to teach' is NOT thereby introduced. The "
+    "row passes on a DEFINING SENTENCE, and a Concepts bullet is a "
+    "declaration of vocabulary, not a definition of it - two of the six "
+    "symbols the 2026-09-15 audit found by hand are named in a Concepts "
+    "bullet and defined nowhere. So for a concept-phrase candidate the "
+    "Concepts bullet is the SOURCE of the candidate and can never also be "
+    "its binding; it is printed on the row so a reader can read the bullet "
+    "and judge it. THREE BLIND SPOTS, stated so an empty list is never read "
+    "as a clean one: a ONE-WORD concept is not reported, a concept of THREE "
+    "WORDS OR MORE does not fall back to a constituent word, and a noun "
+    "phrase that NO SECTION DECLARES is invisible to every channel here - "
+    "`metadata seam` (durable-event-broker/lessons/09-retention.md:44) is "
+    "one, and a reader still has to find that kind by reading."
+)
+
 SYMBOL_WINDOW = (
     "near the first use = the PARAGRAPH BLOCK holding the first use, plus "
     "the block immediately before it and the block immediately after it "
@@ -827,6 +928,32 @@ _SLUG_HYPHEN_RE = re.compile(r"[A-Za-z0-9_]-[A-Za-z0-9_]")
 
 _IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
+
+# An all-capitals run of 2 to 5 letters, in backticks or bare. The lookbehind
+# excludes only WORD characters, so a backticked `WAL` is still found; the
+# `-` and `/` of "regex/automata/FST" are not word characters either, which
+# is the shape FST is actually written in.
+_ACRONYM_RE = re.compile(r"(?<![A-Za-z0-9_])([A-Z]{2,5})(?![A-Za-z0-9_])")
+
+# `STATE.md`, `README.md`: a capital run followed by a dot and an
+# alphanumeric is a filename. This is a property of the PUNCTUATION that
+# follows the run, never of the letters in it - there is no denylist here.
+_ACRONYM_FILE_TAIL_RE = re.compile(r"^\.[A-Za-z0-9]")
+
+# A concept term is split on whitespace, '/' and '-' for matching, so
+# "latency/availability trade-offs" and "per-partition ordering" match the
+# prose that writes them the same way.
+_TERM_SPLIT_RE = re.compile(r"[\s/-]+")
+
+# The shortest constituent word a two-word concept may fall back to. Below
+# this the fallback starts matching ordinary prose ("cost", "close", "user").
+_CONCEPT_MIN_WORD = 5
+
+# A prose-form Concepts section is one sentence of comma-separated terms:
+# "Depth linearisation, inverse projection, NDC reconstruction, ... and
+# temporal instability." A bulleted one is one term per bullet and is NOT
+# split further, because "hash maps and sets" is one concept.
+_CONCEPT_SEPARATOR_RE = re.compile(r",|\s+and\s+|\s+or\s+")
 
 def strip_fenced_blocks(text: str) -> tuple[str, int]:
     """Blank the CONTENT of every fenced code block, keeping the line count.
@@ -912,9 +1039,101 @@ _COPULA = r"(?:is|are|was|were|will\s+be|shall\s+be)"
 _NAMES = r"(?:means|denotes|represents|refers\s+to|stands\s+for|names)"
 
 
-def _definition_cues(symbol: str) -> list[tuple[str, re.Pattern[str]]]:
+def _symbol_span(symbol: str) -> str:
+    """The regex source for "a backticked span containing this symbol"."""
     sym = re.escape(symbol)
-    span = r"`[^`\n]*(?<![A-Za-z0-9_])" + sym + r"(?![A-Za-z0-9_])[^`\n]*`"
+    return r"`[^`\n]*(?<![A-Za-z0-9_])" + sym + r"(?![A-Za-z0-9_])[^`\n]*`"
+
+
+def _plural_tail(word: str) -> str:
+    """`word`, matching its own simple plural as well.
+
+    A Concepts bullet writes "Base offsets" and the prose that uses it writes
+    "base offset". Neither form is more correct and a scanner that matched
+    only the declared one would miss the use it exists to find. Three endings
+    cover this corpus: -ies/-y, -es, -s.
+    """
+    if len(word) > 3 and word.endswith("ies"):
+        return re.escape(word[:-3]) + r"(?:y|ies)"
+    if len(word) > 3 and word.endswith("es"):
+        return re.escape(word[:-2]) + r"(?:es)?"
+    if len(word) > 2 and word.endswith("s") and not word.endswith("ss"):
+        return re.escape(word[:-1]) + r"s?"
+    return re.escape(word) + r"s?"
+
+
+def _term_core(term: str) -> str | None:
+    """The word-sequence regex source for a concept term, or None if empty."""
+    words = [w for w in _TERM_SPLIT_RE.split(term) if w]
+    if not words:
+        return None
+    parts = [re.escape(w) for w in words[:-1]] + [_plural_tail(words[-1])]
+    return r"[\s/-]+".join(parts)
+
+
+def _term_use_re(term: str) -> re.Pattern[str] | None:
+    """Where a concept term is MENTIONED - backticked or bare, either number."""
+    core = _term_core(term)
+    if core is None:
+        return None
+    return re.compile(r"(?<![A-Za-z0-9_])" + core + r"(?![A-Za-z0-9_])", re.IGNORECASE)
+
+
+def _term_span(term: str) -> str | None:
+    """The regex source a definition cue wraps around a concept term.
+
+    Unlike `_symbol_span` this does NOT require backticks: three of the six
+    symbols the 2026-09-15 audit found by hand are written as plain words.
+    """
+    core = _term_core(term)
+    if core is None:
+        return None
+    return r"`?(?<![A-Za-z0-9_])" + core + r"(?![A-Za-z0-9_])`?"
+
+
+def _acronym_word_re(acronym: str) -> re.Pattern[str]:
+    """Where an acronym is MENTIONED - backticked or bare, singular or plural."""
+    return re.compile(r"(?<![A-Za-z0-9_])" + re.escape(acronym) + r"s?(?![A-Za-z0-9_])")
+
+
+def _acronym_span(acronym: str) -> str:
+    return r"`?(?<![A-Za-z0-9_])" + re.escape(acronym) + r"s?(?![A-Za-z0-9_])`?"
+
+
+def _acronym_cues(acronym: str) -> list[tuple[str, re.Pattern[str]]]:
+    """The shared cues, plus the one cue only an acronym has.
+
+    "a write-ahead log (WAL)" introduces `WAL` and matches none of the shared
+    cues, because the thing being defined is the EXPANSION and the acronym is
+    the parenthetical. The reverse form, "`WAL` (write-ahead log)", is
+    already the `gloss` cue.
+    """
+    expansion = re.compile(
+        r"(?:[A-Za-z][A-Za-z-]*[\s/-]+){1,5}\(\s*" + re.escape(acronym) + r"s?\s*\)"
+    )
+    return _definition_cues(_acronym_span(acronym), bare_word=True) + [("expansion", expansion)]
+
+
+def _definition_cues(span: str, *, bare_word: bool = False) -> list[tuple[str, re.Pattern[str]]]:
+    """The defining-sentence cues, wrapped around any span regex source.
+
+    `span` is a regex SOURCE for the thing being defined - a backticked short
+    symbol (`_symbol_span`), a concept phrase (`_term_span`) or an acronym
+    (`_acronym_span`). The cues themselves are unchanged and each is still
+    reported by name with the sentence it matched.
+
+    `bare_word` tightens the `let-be` cue for the two channels whose span is
+    NOT required to be backticked. Backticks are punctuation a reader can
+    see, and they make a false match unlikely; a bare word sits in ordinary
+    prose, where "write" and "call" are nouns as often as verbs. The
+    measured failure is
+    rust-automaton-db/lessons/10-storage-durability.md:22, "make one logical
+    row write atomic in the WAL" - the noun "write", read as the verb, bound
+    `WAL` in a lesson that never introduces it, and that is precisely the
+    finding tutorail-authoring#18 exists to surface. In bare-word mode the
+    verb must open the sentence or a clause, and "write" is not one of the
+    verbs.
+    """
     return [
         ("copula", re.compile(span + r"\s+" + _COPULA + r"\s+" + _DETERMINER + r"\b", re.IGNORECASE)),
         ("names", re.compile(span + r"\s+" + _NAMES + r"\b", re.IGNORECASE)),
@@ -948,7 +1167,13 @@ def _definition_cues(symbol: str) -> list[tuple[str, re.Pattern[str]]]:
                 # closures." (rust-automaton-db/lessons/00-foundations.md:29)
                 # is an instruction, not a definition, and "use" is the one
                 # verb in this family that reads as neither.
-                r"\b(?:let|call|write|denote|define)\b[^.]{0,48}?" + span, re.IGNORECASE
+                (
+                    r"(?:^[-*+]?\s*|[.;:]\s+)(?:let|call|denote|define)\b[^.]{0,48}?"
+                    if bare_word
+                    else r"\b(?:let|call|write|denote|define)\b[^.]{0,48}?"
+                )
+                + span,
+                re.IGNORECASE,
             ),
         ),
         ("where-is", re.compile(r"\bwhere\s+" + span + r"\s+" + _COPULA + r"\b", re.IGNORECASE)),
@@ -971,39 +1196,60 @@ def _sentences(joined: str) -> list[tuple[int, str]]:
     return out
 
 
-def find_definitions(symbol: str, text: str) -> list[dict]:
-    """Every defining sentence for `symbol` in `text`, with its line and cue.
+def sentence_index(text: str) -> list[tuple[int, int, str, list[tuple[int, int, int]]]]:
+    """Every sentence of `text`, with what is needed to place a match on a line.
 
-    `text` must already have its fenced blocks blanked. The match is decided
-    against a SENTENCE inside a word-unwrapped paragraph block, because this
-    corpus hard-wraps its prose and a definition routinely straddles two
-    physical lines; the reported line is still the physical one a reader
-    opens their editor to, and `block` is the index of the paragraph block
-    the sentence came from, which is what the near-the-first-use window is
-    measured in.
+    `text` must already have its fenced blocks blanked. A sentence is taken
+    inside a word-unwrapped PARAGRAPH BLOCK, because this corpus hard-wraps
+    its prose and a definition routinely straddles two physical lines.
+
+    Built ONCE per lesson and reused by every candidate. There are three
+    candidate channels now and rust-automaton-db declares 176 concepts across
+    23 lessons, so re-splitting each lesson per candidate would be four
+    thousand re-parses of the same text.
     """
     lines = text.splitlines()
-    cues = _definition_cues(symbol)
-    found: list[dict] = []
+    out: list[tuple[int, int, str, list[tuple[int, int, int]]]] = []
     for block_index, indices in enumerate(_paragraph_blocks(lines)):
         joined, spans = _join_block(lines, indices)
         for offset, sentence in _sentences(joined):
-            for name, pattern in cues:
-                m = pattern.search(sentence)
-                if m is None:
-                    continue
-                line_idx = _line_for_offset(spans, offset + m.start())
-                found.append(
-                    {
-                        "line": line_idx + 1,
-                        "cue": name,
-                        "sentence": sentence.strip(),
-                        "block": block_index,
-                    }
-                )
-                break
+            out.append((block_index, offset, sentence, spans))
+    return out
+
+
+def find_definitions_in(
+    index: list[tuple[int, int, str, list[tuple[int, int, int]]]],
+    cues: list[tuple[str, re.Pattern[str]]],
+) -> list[dict]:
+    """Every defining sentence in a prepared `sentence_index`, with line and cue.
+
+    The reported line is the physical one a reader opens their editor to, and
+    `block` is the index of the paragraph block the sentence came from, which
+    is what the near-the-first-use window is measured in.
+    """
+    found: list[dict] = []
+    for block_index, offset, sentence, spans in index:
+        for name, pattern in cues:
+            m = pattern.search(sentence)
+            if m is None:
+                continue
+            line_idx = _line_for_offset(spans, offset + m.start())
+            found.append(
+                {
+                    "line": line_idx + 1,
+                    "cue": name,
+                    "sentence": sentence.strip(),
+                    "block": block_index,
+                }
+            )
+            break
     found.sort(key=lambda d: d["line"])
     return found
+
+
+def find_definitions(symbol: str, text: str) -> list[dict]:
+    """Every defining sentence for a short backticked `symbol` in `text`."""
+    return find_definitions_in(sentence_index(text), _definition_cues(_symbol_span(symbol)))
 
 
 def _block_of_line(blocks: list[list[int]], line_index: int) -> int | None:
@@ -1016,6 +1262,138 @@ def _block_of_line(blocks: list[list[int]], line_index: int) -> int | None:
 # --------------------------------------------------------------------------
 # The `## Concepts to teach` index and the DESIGN.md index.
 # --------------------------------------------------------------------------
+
+
+def _section_bounds(lesson_text: str, heading_name: str) -> tuple[str | None, int]:
+    """(a named section's body, the 1-indexed line it starts on IN THE BODY)."""
+    _, body = bl.split_frontmatter(lesson_text)
+    for heading, section_body in _sections(body):
+        if heading.strip().lower() == heading_name.lower():
+            offset = body.index(section_body)
+            return section_body, body.count("\n", 0, offset) + 1
+    return None, 0
+
+
+def _concepts_section(lesson_text: str) -> tuple[str | None, int, int]:
+    """(the `## Concepts to teach` body, its first line IN THE FILE, its first
+    line IN THE BODY), or (None, 0, 0) when the lesson declares no section.
+
+    Two line bases, because two callers need different ones. Everything a
+    reader is shown is a line in the FILE, frontmatter included. The
+    "mentioned outside the Concepts section" probe works on the body with
+    fences blanked, which starts after the frontmatter, so it needs the same
+    line in BODY coordinates to blank the right rows.
+    """
+    _, body = bl.split_frontmatter(lesson_text)
+    section: str | None = None
+    for heading, section_body in _sections(body):
+        if heading.strip().lower() == "concepts to teach":
+            section = section_body
+            break
+    if section is None:
+        return None, 0, 0
+    offset = body.index(section)
+    body_line = body.count("\n", 0, offset) + 1
+    frontmatter_lines = lesson_text.count("\n", 0, lesson_text.index(body)) if body else 0
+    return section, body_line + frontmatter_lines, body_line
+
+
+def concept_terms(lesson_text: str) -> tuple[bool, list[dict]]:
+    """(does the lesson declare the section, the terms it names).
+
+    The boolean is load-bearing for the same reason it is in
+    `concepts_symbols`: a lesson with no section and a lesson whose section
+    names nothing both return an empty list, and only the first means "this
+    candidate source does not exist here".
+
+    Two forms occur in the corpus and both are read:
+
+      * BULLETS - one term per bullet, kept WHOLE. "hash maps and sets" is
+        one concept, and splitting it on "and" would invent two that the
+        author never wrote.
+      * PROSE - one sentence of comma-separated terms, which is how
+        `webgl-typescript-scene` writes every one of its Concepts sections.
+        That form IS split, on commas and on "and"/"or", because the commas
+        are the author's own separators.
+
+    Each term carries the line IN THE FILE that it was written on, so every
+    candidate this channel produces points at a line a reader can open.
+    """
+    section, base, _body_line = _concepts_section(lesson_text)
+    if section is None:
+        return False, []
+
+    lines = section.splitlines()
+    terms: list[dict] = []
+    bullets = [(i, _BULLET_RE.match(line)) for i, line in enumerate(lines)]
+    bullets = [(i, m) for i, m in bullets if m]
+    if bullets:
+        for i, m in bullets:
+            terms.append(
+                {"term": m.group(1), "line": base + i, "text": lines[i].strip(), "form": "bullet"}
+            )
+    else:
+        joined_parts: list[str] = []
+        starts: list[tuple[int, int]] = []
+        pos = 0
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            starts.append((pos, i))
+            joined_parts.append(stripped)
+            pos += len(stripped) + 1
+        joined = " ".join(joined_parts)
+        pieces: list[tuple[str, int]] = []
+        last = 0
+        for m in _CONCEPT_SEPARATOR_RE.finditer(joined):
+            pieces.append((joined[last : m.start()], last))
+            last = m.end()
+        pieces.append((joined[last:], last))
+        for piece, offset in pieces:
+            lead = len(piece) - len(piece.lstrip())
+            row = starts[0][1] if starts else 0
+            for start, i in starts:
+                if start <= offset + lead:
+                    row = i
+            terms.append(
+                {
+                    "term": piece,
+                    "line": base + row,
+                    "text": lines[row].strip() if row < len(lines) else piece.strip(),
+                    "form": "prose",
+                }
+            )
+
+    out: list[dict] = []
+    for row in terms:
+        cleaned = row["term"].strip().rstrip(".").strip()
+        if cleaned:
+            out.append({**row, "term": cleaned})
+    return True, out
+
+
+def acronym_uses(text: str) -> list[dict]:
+    """Every all-capitals 2-to-5-letter run in `text`, in document order.
+
+    `text` must already have its fenced blocks blanked. A run followed by a
+    dot and an alphanumeric is a filename (`STATE.md`) and is skipped - that
+    is a fact about the punctuation after the run, not about its letters.
+    """
+    uses: list[dict] = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        for m in _ACRONYM_RE.finditer(line):
+            if _ACRONYM_FILE_TAIL_RE.match(line[m.end() :]):
+                continue
+            uses.append(
+                {
+                    "symbol": m.group(1),
+                    "span": m.group(1),
+                    "line": lineno,
+                    "text": line.strip(),
+                }
+            )
+    return uses
 
 
 def concepts_symbols(lesson_text: str) -> tuple[bool, dict[str, dict]]:
@@ -1032,23 +1410,14 @@ def concepts_symbols(lesson_text: str) -> tuple[bool, dict[str, dict]]:
     (request limit) and `W`") or bare ("the window duration W"); both count,
     and the form is reported so a reader can see which it was.
     """
-    _, body = bl.split_frontmatter(lesson_text)
-    section: str | None = None
-    for heading, section_body in _sections(body):
-        if heading.strip().lower() == "concepts to teach":
-            section = section_body
-            break
+    section, base, _body_line = _concepts_section(lesson_text)
     if section is None:
         return False, {}
 
-    offset = body.index(section)
-    first_line = body.count("\n", 0, offset) + 1
-    frontmatter_lines = lesson_text.count("\n", 0, lesson_text.index(body)) if body else 0
-
     named: dict[str, dict] = {}
     backticked: set[str] = set()
-    for lineno, line in enumerate(section.splitlines(), start=first_line):
-        real_line = lineno + frontmatter_lines
+    for lineno, line in enumerate(section.splitlines(), start=base):
+        real_line = lineno
         for m in _INLINE_CODE_RE.finditer(line):
             for symbol in symbols_in_span(m.group(1)):
                 backticked.add(symbol)
@@ -1060,8 +1429,8 @@ def concepts_symbols(lesson_text: str) -> tuple[bool, dict[str, dict]]:
     # caller supplies that set, so record every bare word of candidate length
     # here and let `build_symbol_evidence` intersect.
     bare: dict[str, dict] = {}
-    for lineno, line in enumerate(section.splitlines(), start=first_line):
-        real_line = lineno + frontmatter_lines
+    for lineno, line in enumerate(section.splitlines(), start=base):
+        real_line = lineno
         stripped = _INLINE_CODE_RE.sub(" ", line)
         for word in re.findall(r"(?<![A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)(?![A-Za-z0-9_])", stripped):
             if len(word) <= _MAX_SYMBOL_LEN and word not in backticked:
@@ -1069,6 +1438,48 @@ def concepts_symbols(lesson_text: str) -> tuple[bool, dict[str, dict]]:
     for symbol, hit in bare.items():
         named.setdefault(symbol, hit)
     return True, named
+
+
+def design_anchor_map(design_text: str) -> tuple[list[str], list[str | None]]:
+    """(DESIGN.md's lines with fences blanked, the anchor in force on each)."""
+    stripped, _ = strip_fenced_blocks(design_text)
+    lines = stripped.splitlines()
+    anchor_at: list[str | None] = []
+    current: str | None = None
+    for line in lines:
+        heading = _HEADING_RE.match(line)
+        if heading:
+            found = bl._ANCHOR_RE.search(heading.group(2))
+            current = found.group(1) if found else None
+        anchor_at.append(current)
+    return lines, anchor_at
+
+
+def design_mention(
+    lines: list[str], anchor_at: list[str | None], pattern: re.Pattern[str] | None
+) -> dict | None:
+    """The first DESIGN.md line matching `pattern`, with its anchor, or None.
+
+    The companion of `design_symbol_index` for the two channels whose
+    candidates are NOT backticked short tokens. `FST` is written
+    "regex/automata/FST libraries" at rust-automaton-db/DESIGN.md:173, with
+    no backticks anywhere, and the backticked-span index cannot see it.
+
+    A DESIGN.md mention still never introduces anything to a learner - the
+    runner loads an anchor for the TUTOR - so this exists only to keep
+    "bound solely in DESIGN.md" distinct from "bound nowhere at all".
+    """
+    if pattern is None:
+        return None
+    for lineno, line in enumerate(lines, start=1):
+        if pattern.search(line):
+            anchor = anchor_at[lineno - 1]
+            return {
+                "line": lineno,
+                "text": line.strip(),
+                "anchors": [anchor] if anchor else [],
+            }
+    return None
 
 
 def design_symbol_index(design_text: str) -> dict[str, dict]:
@@ -1079,17 +1490,7 @@ def design_symbol_index(design_text: str) -> dict[str, dict]:
     "bound solely in DESIGN.md" from "bound nowhere at all", which the issue
     requires be reported distinctly.
     """
-    stripped, _ = strip_fenced_blocks(design_text)
-    lines = stripped.splitlines()
-
-    anchor_at: list[str | None] = []
-    current: str | None = None
-    for line in lines:
-        heading = _HEADING_RE.match(line)
-        if heading:
-            found = bl._ANCHOR_RE.search(heading.group(2))
-            current = found.group(1) if found else None
-        anchor_at.append(current)
+    lines, anchor_at = design_anchor_map(design_text)
 
     index: dict[str, dict] = {}
     for lineno, line in enumerate(lines, start=1):
@@ -1121,25 +1522,211 @@ def design_symbol_index(design_text: str) -> dict[str, dict]:
 # bucket is still a finding worth a reader's eye (a learner who starts at
 # lesson 01 has met no definition), which is why it sits below the
 # same-lesson buckets rather than beside `concepts`.
+#
+# `concepts` MOVED DOWN in tutorail-authoring#18, from the top of this list
+# to just below every prose bucket. It used to outrank a real defining
+# sentence, which meant that for `N` in portable-fixed-window-rate-limiter
+# the report showed the weakest evidence and hid the strongest. The issue
+# states the principle plainly: a symbol named in `## Concepts to teach` is
+# NOT thereby introduced, and the row passes on a defining sentence. The
+# bucket is kept rather than deleted, because deleting it would drop `E`,
+# `Eq` and `T` - Rust type parameters named in a Concepts bullet and nowhere
+# else - into `none` and invent four findings.
+#
+# `theory-mention` is new and applies ONLY to a `concept-phrase` candidate.
+# A concept the course declares it will teach and then discusses in its own
+# `## Theory` section has been addressed by the bundle's explaining section,
+# which is weaker than a definition and much stronger than silence; against
+# the five real bundles it takes 46 rows out of `none`. It does NOT apply to
+# a short token or an acronym: `WAL` appears in a Theory paragraph of
+# rust-automaton-db/lessons/10-storage-durability.md and is still introduced
+# nowhere, and burying it under a "mentioned in Theory" heading would hide
+# exactly the finding this change exists to surface.
+_CHANNELS = ["short-token", "concept-phrase", "acronym"]
+
 _BINDING_ORDER = [
-    "concepts",
     "lesson-prose-in-window",
     "lesson-prose-elsewhere",
     "other-lesson-prose",
+    "concepts",
+    "theory-mention",
     "design-md-only",
     "none",
 ]
 
 
+def _lesson_scan(lesson: bl.Lesson, raw: str) -> dict:
+    """Everything the three channels need from one lesson, read ONCE."""
+    _, body = bl.split_frontmatter(raw)
+    prefix = raw.count("\n", 0, raw.index(body)) if body else 0
+    stripped, opened = strip_fenced_blocks(body)
+
+    section, _base, body_line = _concepts_section(raw)
+    outside_lines = stripped.splitlines()
+    if section is not None:
+        count = len(section.splitlines())
+        for i in range(body_line - 1, min(body_line - 1 + count, len(outside_lines))):
+            outside_lines[i] = ""
+    outside = "\n".join(outside_lines)
+
+    # `theory` keeps the body's own line numbering and blanks everything
+    # OUTSIDE the `## Theory` section, so a hit in it reports the line a
+    # reader opens - the same trick `strip_fenced_blocks` uses.
+    theory_lines = [""] * len(stripped.splitlines())
+    theory_body, theory_line = _section_bounds(raw, "Theory")
+    if theory_body is not None:
+        for i in range(theory_line - 1, min(theory_line - 1 + len(theory_body.splitlines()), len(theory_lines))):
+            theory_lines[i] = stripped.splitlines()[i]
+    theory_stripped = "\n".join(theory_lines)
+
+    return {
+        "lesson": lesson,
+        "rel": lesson.rel,
+        "prefix": prefix,
+        "stripped": stripped,
+        "outside": outside,
+        "theory": theory_stripped,
+        "blocks": _paragraph_blocks(stripped.splitlines()),
+        "index": sentence_index(stripped),
+        "fenced": opened,
+    }
+
+
+def _first_match(scans: list[dict], field: str, pattern: re.Pattern[str] | None) -> dict | None:
+    """The first line of `field` in bundle order that `pattern` matches."""
+    if pattern is None:
+        return None
+    for scan in scans:
+        for lineno, line in enumerate(scan[field].splitlines(), start=1):
+            m = pattern.search(line)
+            if m is None:
+                continue
+            return {
+                "rel": scan["rel"],
+                "line": lineno + scan["prefix"],
+                "span": m.group(0).strip(),
+                "text": line.strip(),
+            }
+    return None
+
+
+def _bind(
+    *,
+    channel: str,
+    concepts_hits: list[dict],
+    in_window: dict | None,
+    elsewhere: list[dict],
+    other_lessons: list[dict],
+    in_theory: dict | None,
+    design_hit: dict | None,
+) -> str:
+    """The `binding` label: a PURE FUNCTION of the evidence columns.
+
+    Two channel-dependent rules, both from tutorail-authoring#18 and both
+    documented at `_BINDING_ORDER`: a `concept-phrase` candidate cannot be
+    bound by the Concepts bullet that PRODUCED it, and only a
+    `concept-phrase` candidate can be bound by a `## Theory` mention.
+    """
+    if in_window is not None:
+        return "lesson-prose-in-window"
+    if elsewhere:
+        return "lesson-prose-elsewhere"
+    if other_lessons:
+        return "other-lesson-prose"
+    if concepts_hits and channel != "concept-phrase":
+        return "concepts"
+    if in_theory is not None and channel == "concept-phrase":
+        return "theory-mention"
+    if design_hit is not None:
+        return "design-md-only"
+    return "none"
+
+
+def _candidate_row(
+    *,
+    channel: str,
+    symbol: str,
+    declared_as: str | None,
+    mention: str | None,
+    scan: dict,
+    use: dict,
+    definitions: list[dict],
+    definitions_by_lesson: dict[str, list[dict]],
+    concepts_hits: list[dict],
+    in_theory: dict | None,
+    design_hit: dict | None,
+) -> dict:
+    """One candidate, with every evidence column filled in and never pruned."""
+    use_block = _block_of_line(scan["blocks"], use["line"] - scan["prefix"] - 1)
+    in_window: dict | None = None
+    elsewhere: list[dict] = []
+    for d in definitions:
+        row = {"rel": scan["rel"], "line": d["line"], "cue": d["cue"], "sentence": d["sentence"]}
+        near = use_block is not None and abs(d["block"] - use_block) <= 1
+        if near and in_window is None:
+            row["offset_lines"] = row["line"] - use["line"]
+            in_window = row
+        elif not near:
+            elsewhere.append(row)
+
+    other_lessons: list[dict] = []
+    for rel, found in definitions_by_lesson.items():
+        if rel == scan["rel"]:
+            continue
+        for d in found:
+            other_lessons.append(
+                {"rel": rel, "line": d["line"], "cue": d["cue"], "sentence": d["sentence"]}
+            )
+
+    return {
+        "channel": channel,
+        "symbol": symbol,
+        "declared_as": declared_as,
+        "mention": mention,
+        "lesson": scan["rel"],
+        "first_use": {
+            "rel": use.get("rel", scan["rel"]),
+            "line": use["line"],
+            "span": use["span"],
+            "text": use["text"],
+        },
+        "named_in_concepts": concepts_hits,
+        "defined_in_window": in_window,
+        "defined_elsewhere_in_lesson": elsewhere,
+        "defined_in_other_lessons": other_lessons,
+        "mentioned_in_theory": in_theory,
+        "design_md": design_hit,
+        "binding": _bind(
+            channel=channel,
+            concepts_hits=concepts_hits,
+            in_window=in_window,
+            elsewhere=elsewhere,
+            other_lessons=other_lessons,
+            in_theory=in_theory,
+            design_hit=design_hit,
+        ),
+    }
+
+
 def build_symbol_evidence(bundle: bl.Bundle) -> dict:
-    """Per lesson, per candidate symbol: the evidence, never a verdict.
+    """Per lesson, per candidate: the evidence, never a verdict.
+
+    THREE candidate channels feed one list, and every row carries the
+    `channel` that produced it:
+
+      * `short-token` - a 1-2 character identifier in an expression-shaped
+        backticked span (tutorail-authoring#14).
+      * `concept-phrase` - a multi-word `## Concepts to teach` term that the
+        course also uses outside that section (tutorail-authoring#18).
+      * `acronym` - a 2-to-5 letter all-capitals run (tutorail-authoring#18).
 
     `status` separates NOTHING TO CHECK from CHECKED AND CLEAN. A bundle
     whose lessons declare no `## Concepts to teach` section anywhere, or
-    whose `DESIGN.md` could not be read, has lost an evidence channel, and an
+    whose `DESIGN.md` could not be read, has lost an evidence channel - and,
+    for the Concepts section, an entire CANDIDATE SOURCE as well - and an
     empty `unbound` list from such a bundle means something entirely
     different from an empty list produced with every channel alive. The same
-    goes for a bundle in which no candidate symbol was found at all. Both are
+    goes for a bundle in which no candidate was found at all. Both are
     reported as `status` plus a populated `warnings` list, never as silence.
     """
     warnings: list[str] = []
@@ -1148,6 +1735,8 @@ def build_symbol_evidence(bundle: bl.Bundle) -> dict:
     design_present = (bundle.root / "DESIGN.md").exists()
     if design_text is None:
         design_index: dict[str, dict] = {}
+        design_lines: list[str] = []
+        design_anchor_at: list[str | None] = []
         warnings.append(
             "DESIGN.md could not be read"
             + (" (the file is present but unreadable)" if design_present else " (no such file)")
@@ -1156,6 +1745,7 @@ def build_symbol_evidence(bundle: bl.Bundle) -> dict:
         )
     else:
         design_index = design_symbol_index(design_text)
+        design_lines, design_anchor_at = design_anchor_map(design_text)
 
     lessons_scanned = 0
     unreadable: list[str] = []
@@ -1163,11 +1753,8 @@ def build_symbol_evidence(bundle: bl.Bundle) -> dict:
     concepts_lessons: list[str] = []
     without_concepts: list[str] = []
     concepts_named: dict[str, list[dict]] = {}
-    # (lesson, body with fences blanked, uses, paragraph blocks, frontmatter
-    # line offset). Every line number inside the stripped BODY is offset by
-    # `prefix` to become a line number in the lesson FILE, which is what a
-    # reader opens their editor to.
-    per_lesson: list[tuple[bl.Lesson, str, list[dict], list[list[int]], int]] = []
+    declared: dict[str, list[dict]] = {}
+    scans: list[dict] = []
 
     for lesson in bundle.ordered:
         raw = bl.read_text(lesson.path)
@@ -1175,6 +1762,7 @@ def build_symbol_evidence(bundle: bl.Bundle) -> dict:
             unreadable.append(lesson.rel)
             continue
         lessons_scanned += 1
+
         has_section, named = concepts_symbols(raw)
         if has_section:
             concepts_lessons.append(lesson.rel)
@@ -1183,119 +1771,213 @@ def build_symbol_evidence(bundle: bl.Bundle) -> dict:
         else:
             without_concepts.append(lesson.rel)
 
-        _, body = bl.split_frontmatter(raw)
-        prefix_lines = raw.count("\n", 0, raw.index(body)) if body else 0
-        stripped, opened = strip_fenced_blocks(body)
-        fenced_blocks += opened
-        uses = symbol_uses(stripped)
-        for use in uses:
-            use["line"] += prefix_lines
-        per_lesson.append(
-            (lesson, stripped, uses, _paragraph_blocks(stripped.splitlines()), prefix_lines)
-        )
+        _has_terms, terms = concept_terms(raw)
+        for row in terms:
+            declared.setdefault(row["term"].lower(), []).append({"rel": lesson.rel, **row})
+
+        scan = _lesson_scan(lesson, raw)
+        fenced_blocks += scan["fenced"]
+        scan["uses"] = symbol_uses(scan["stripped"])
+        for use in scan["uses"]:
+            use["line"] += scan["prefix"]
+        scan["acronyms"] = acronym_uses(scan["stripped"])
+        for use in scan["acronyms"]:
+            use["line"] += scan["prefix"]
+        scans.append(scan)
 
     if not concepts_lessons and lessons_scanned:
         warnings.append(
             "NO lesson in this bundle declares a '## Concepts to teach' section - "
-            "the 'some lesson names it' column is BLIND for this bundle. Every "
-            "candidate below is reported as un-introduced by that channel because "
-            "the channel does not exist here, not because a reader checked it."
+            "the 'some lesson names it' column is BLIND for this bundle AND the "
+            "concept-phrase candidate source does not exist here. Every candidate "
+            "below is reported as un-introduced by that channel because the "
+            "channel does not exist, not because a reader checked it."
         )
 
-    # Every distinct candidate symbol, looked for in EVERY lesson, so that a
+    candidates: list[dict] = []
+
+    # ----------------------------------------------------------------------
+    # Channel 1: short backticked tokens (tutorail-authoring#14).
+    #
+    # Every distinct symbol is looked for in EVERY lesson, so that a
     # definition in a different lesson is a column of its own rather than an
     # absence that would make `design-md-only` lie (see `_BINDING_ORDER`).
-    all_symbols = sorted({use["symbol"] for _, _, uses, _, _ in per_lesson for use in uses})
-    definitions_by_lesson: dict[str, dict[str, list[dict]]] = {}
-    for lesson, stripped, _uses, _blocks, prefix in per_lesson:
-        found: dict[str, list[dict]] = {}
-        for symbol in all_symbols:
-            rows = find_definitions(symbol, stripped)
+    # ----------------------------------------------------------------------
+    all_symbols = sorted({use["symbol"] for scan in scans for use in scan["uses"]})
+    token_defs: dict[str, dict[str, list[dict]]] = {}
+    for symbol in all_symbols:
+        cues = _definition_cues(_symbol_span(symbol))
+        per_rel: dict[str, list[dict]] = {}
+        for scan in scans:
+            rows = find_definitions_in(scan["index"], cues)
             if rows:
-                found[symbol] = [dict(row, line=row["line"] + prefix) for row in rows]
-        definitions_by_lesson[lesson.rel] = found
+                per_rel[scan["rel"]] = [dict(r, line=r["line"] + scan["prefix"]) for r in rows]
+        token_defs[symbol] = per_rel
 
-    candidates: list[dict] = []
-    for lesson, stripped, uses, blocks, prefix in per_lesson:
+    for scan in scans:
         seen: set[str] = set()
-        for use in uses:
+        for use in scan["uses"]:
             symbol = use["symbol"]
             if symbol in seen:
                 continue
             seen.add(symbol)
-
-            definitions = definitions_by_lesson[lesson.rel].get(symbol, [])
-
-            use_block = _block_of_line(blocks, use["line"] - prefix - 1)
-            in_window: dict | None = None
-            elsewhere: list[dict] = []
-            for d in definitions:
-                row = {
-                    "rel": lesson.rel,
-                    "line": d["line"],
-                    "cue": d["cue"],
-                    "sentence": d["sentence"],
-                }
-                near = use_block is not None and abs(d["block"] - use_block) <= 1
-                if near and in_window is None:
-                    row["offset_lines"] = row["line"] - use["line"]
-                    in_window = row
-                elif not near:
-                    elsewhere.append(row)
-
-            other_lessons: list[dict] = []
-            for rel, found in definitions_by_lesson.items():
-                if rel == lesson.rel:
-                    continue
-                for d in found.get(symbol, []):
-                    other_lessons.append(
-                        {"rel": rel, "line": d["line"], "cue": d["cue"], "sentence": d["sentence"]}
-                    )
-
-            concepts_hits = concepts_named.get(symbol, [])
-            design_hit = design_index.get(symbol)
-
-            if concepts_hits:
-                binding = "concepts"
-            elif in_window is not None:
-                binding = "lesson-prose-in-window"
-            elif elsewhere:
-                binding = "lesson-prose-elsewhere"
-            elif other_lessons:
-                binding = "other-lesson-prose"
-            elif design_hit is not None:
-                binding = "design-md-only"
-            else:
-                binding = "none"
-
             candidates.append(
-                {
-                    "symbol": symbol,
-                    "lesson": lesson.rel,
-                    "first_use": {
-                        "rel": lesson.rel,
-                        "line": use["line"],
-                        "span": use["span"],
-                        "text": use["text"],
-                    },
-                    "named_in_concepts": concepts_hits,
-                    "defined_in_window": in_window,
-                    "defined_elsewhere_in_lesson": elsewhere,
-                    "defined_in_other_lessons": other_lessons,
-                    "design_md": (
+                _candidate_row(
+                    channel="short-token",
+                    symbol=symbol,
+                    declared_as=None,
+                    mention=None,
+                    scan=scan,
+                    use=use,
+                    definitions=token_defs[symbol].get(scan["rel"], []),
+                    definitions_by_lesson=token_defs[symbol],
+                    concepts_hits=concepts_named.get(symbol, []),
+                    in_theory=None,
+                    design_hit=(
                         None
-                        if design_hit is None
+                        if design_index.get(symbol) is None
                         else {
-                            "line": design_hit["line"],
-                            "text": design_hit["text"],
-                            "anchors": design_hit["anchors"],
+                            "line": design_index[symbol]["line"],
+                            "text": design_index[symbol]["text"],
+                            "anchors": design_index[symbol]["anchors"],
                         }
                     ),
-                    "binding": binding,
-                }
+                )
             )
 
-    candidates.sort(key=lambda c: (c["lesson"], c["first_use"]["line"], c["symbol"]))
+    # ----------------------------------------------------------------------
+    # Channel 2: multi-word `## Concepts to teach` terms (#18).
+    # ----------------------------------------------------------------------
+    word_owners: dict[str, set[str]] = {}
+    for key in declared:
+        for word in key.split():
+            word_owners.setdefault(word, set()).add(key)
+
+    concept_probes: list[tuple[str, str, str, dict]] = []
+    for key in sorted(declared):
+        words = key.split()
+        if len(words) < 2 or "`" in key:
+            continue
+        hit = _first_match(scans, "outside", _term_use_re(key))
+        if hit is not None:
+            concept_probes.append((key, key, "phrase", hit))
+            continue
+        if len(words) != 2:
+            continue
+        declaring = {row["rel"] for row in declared[key]}
+        for word in words:
+            if len(word) < _CONCEPT_MIN_WORD or len(word_owners.get(word, ())) != 1:
+                continue
+            own = [scan for scan in scans if scan["rel"] in declaring]
+            hit = _first_match(own, "outside", _term_use_re(word))
+            if hit is not None:
+                concept_probes.append((key, word, "partial", hit))
+                break
+
+    for key, probe, mention, hit in concept_probes:
+        span = _term_span(probe)
+        cues = _definition_cues(span, bare_word=True) if span else []
+        per_rel: dict[str, list[dict]] = {}
+        for scan in scans:
+            rows = find_definitions_in(scan["index"], cues)
+            if rows:
+                per_rel[scan["rel"]] = [dict(r, line=r["line"] + scan["prefix"]) for r in rows]
+        use_scan = next(scan for scan in scans if scan["rel"] == hit["rel"])
+        candidates.append(
+            _candidate_row(
+                channel="concept-phrase",
+                symbol=probe,
+                declared_as=declared[key][0]["term"],
+                mention=mention,
+                scan=use_scan,
+                use=hit,
+                definitions=per_rel.get(hit["rel"], []),
+                definitions_by_lesson=per_rel,
+                concepts_hits=[
+                    {
+                        "rel": row["rel"],
+                        "line": row["line"],
+                        "text": row["text"],
+                        "form": row["form"],
+                    }
+                    for row in declared[key]
+                ],
+                in_theory=_first_match(scans, "theory", _term_use_re(probe)),
+                design_hit=design_mention(design_lines, design_anchor_at, _term_use_re(probe)),
+            )
+        )
+
+    # ----------------------------------------------------------------------
+    # Channel 3: all-capitals acronyms of 2 to 5 letters (#18).
+    # ----------------------------------------------------------------------
+    all_acronyms = sorted({use["symbol"] for scan in scans for use in scan["acronyms"]})
+    acronym_concepts: dict[str, list[dict]] = {}
+    for scan in scans:
+        raw = bl.read_text(scan["lesson"].path)
+        if raw is None:
+            continue
+        section, base, _body_line = _concepts_section(raw)
+        if section is None:
+            continue
+        for i, line in enumerate(section.splitlines()):
+            for m in _ACRONYM_RE.finditer(line):
+                if _ACRONYM_FILE_TAIL_RE.match(line[m.end() :]):
+                    continue
+                acronym_concepts.setdefault(m.group(1), []).append(
+                    {
+                        "rel": scan["rel"],
+                        "line": base + i,
+                        "text": line.strip(),
+                        "form": "bare" if "`" not in m.group(0) else "backticked",
+                    }
+                )
+
+    acronym_defs: dict[str, dict[str, list[dict]]] = {}
+    for acronym in all_acronyms:
+        cues = _acronym_cues(acronym)
+        per_rel = {}
+        for scan in scans:
+            rows = find_definitions_in(scan["index"], cues)
+            if rows:
+                per_rel[scan["rel"]] = [dict(r, line=r["line"] + scan["prefix"]) for r in rows]
+        acronym_defs[acronym] = per_rel
+
+    for scan in scans:
+        seen = set()
+        for use in scan["acronyms"]:
+            acronym = use["symbol"]
+            if acronym in seen:
+                continue
+            seen.add(acronym)
+            candidates.append(
+                _candidate_row(
+                    channel="acronym",
+                    symbol=acronym,
+                    declared_as=None,
+                    mention=None,
+                    scan=scan,
+                    use=use,
+                    definitions=acronym_defs[acronym].get(scan["rel"], []),
+                    definitions_by_lesson=acronym_defs[acronym],
+                    concepts_hits=acronym_concepts.get(acronym, []),
+                    # Recorded, and deliberately NOT a binding: `WAL` is
+                    # written into a Theory paragraph of
+                    # rust-automaton-db/lessons/10-storage-durability.md and
+                    # is still introduced nowhere. See `_BINDING_ORDER`.
+                    in_theory=_first_match(scans, "theory", _acronym_word_re(acronym)),
+                    design_hit=design_mention(
+                        design_lines, design_anchor_at, _acronym_word_re(acronym)
+                    ),
+                )
+            )
+
+    candidates.sort(
+        key=lambda c: (c["lesson"], c["first_use"]["line"], c["channel"], c["symbol"])
+    )
+
+    by_channel = {name: 0 for name in _CHANNELS}
+    for c in candidates:
+        by_channel[c["channel"]] += 1
 
     if lessons_scanned == 0:
         status = "nothing-to-check"
@@ -1306,10 +1988,11 @@ def build_symbol_evidence(bundle: bl.Bundle) -> dict:
     elif not candidates:
         status = "nothing-to-check"
         warnings.append(
-            f"NO candidate symbol was found in any of the {lessons_scanned} lesson(s) "
-            f"scanned ({fenced_blocks} fenced code block(s) were skipped, as this "
-            f"scanner only reads INLINE backticked spans). 'No candidate found' is "
-            f"NOT 'no undefined symbol' - read the lessons."
+            f"NO candidate was found by ANY of the three channels in the "
+            f"{lessons_scanned} lesson(s) scanned ({fenced_blocks} fenced code "
+            f"block(s) were skipped, as the short-token channel only reads INLINE "
+            f"backticked spans). 'No candidate found' is NOT 'no undefined "
+            f"symbol' - read the lessons."
         )
     elif warnings:
         status = "checked-with-blind-channels"
@@ -1323,8 +2006,14 @@ def build_symbol_evidence(bundle: bl.Bundle) -> dict:
     return {
         "status": status,
         "rule": SYMBOL_RULE,
+        "rules": {
+            "short-token": SYMBOL_RULE,
+            "concept-phrase": CONCEPT_RULE,
+            "acronym": ACRONYM_RULE,
+        },
         "window": SYMBOL_WINDOW,
         "disclaimer": SYMBOL_DISCLAIMER,
+        "concepts_disclaimer": CONCEPT_DISCLAIMER,
         "warnings": warnings,
         "scan": {
             "lessons_scanned": lessons_scanned,
@@ -1335,7 +2024,11 @@ def build_symbol_evidence(bundle: bl.Bundle) -> dict:
             "design_md_present": design_present,
             "design_md_readable": design_text is not None,
             "design_md_symbols": sorted(design_index),
+            "concept_terms_declared": len(declared),
+            "concept_terms_probed": len(concept_probes),
+            "acronyms_seen": all_acronyms,
             "candidate_rows": len(candidates),
+            "candidate_rows_by_channel": by_channel,
             "distinct_symbols": sorted({c["symbol"] for c in candidates}),
         },
         "summary_by_binding": summary,
@@ -1515,13 +2208,20 @@ def render_markdown(data: dict) -> str:
     return "\n".join(out)
 
 
+_CHANNEL_LABELS = {
+    "short-token": "a 1-2 character token in a backticked expression",
+    "concept-phrase": "a multi-word '## Concepts to teach' term the course also uses",
+    "acronym": "a 2-5 letter all-capitals run",
+}
+
 _BINDING_HEADINGS = {
     "none": "Used, and introduced NOWHERE this scanner can see",
+    "theory-mention": "concept-phrase only: the lesson's own '## Theory' section mentions it, but no sentence DEFINES it - read the mention and decide whether it introduces the concept",
     "design-md-only": "Bound ONLY in DESIGN.md - the runner loads an anchor for the TUTOR, not for the learner, so this does NOT introduce the symbol to a learner",
     "lesson-prose-elsewhere": "A defining sentence exists in the same lesson but OUTSIDE the near-the-first-use window - is it early enough? A reader decides",
     "other-lesson-prose": "No same-lesson introduction: the only defining sentence is in a DIFFERENT lesson. A learner who reaches this lesson without that one has met no definition",
     "lesson-prose-in-window": "A defining sentence is near the first use - read the sentence and decide whether it really defines the symbol",
-    "concepts": "Some lesson's '## Concepts to teach' names it - read the bullet and decide whether it really introduces the symbol",
+    "concepts": "NAMED in some lesson's '## Concepts to teach' and DEFINED by no sentence anywhere - a Concepts bullet declares vocabulary, it does not introduce it, so this is a row to read and not a clean result",
 }
 
 
@@ -1531,12 +2231,16 @@ def render_symbol_evidence(ev: dict) -> list[str]:
     out.append("")
     out.append(f"status: {ev['status']}")
     out.append("")
-    out.append(f"Candidate rule: {ev['rule']}")
-    out.append("")
+    for name in _CHANNELS:
+        out.append(f"Candidate rule [{name}]: {ev.get('rules', {}).get(name, ev['rule'])}")
+        out.append("")
     out.append(f"Window: {ev['window']}")
     out.append("")
     out.append(ev["disclaimer"])
     out.append("")
+    if ev.get("concepts_disclaimer"):
+        out.append(ev["concepts_disclaimer"])
+        out.append("")
 
     scan = ev["scan"]
     out.append(
@@ -1547,6 +2251,15 @@ def render_symbol_evidence(ev: dict) -> list[str]:
         f"{scan['candidate_rows']} candidate row(s) over "
         f"{len(scan['distinct_symbols'])} distinct symbol(s)."
     )
+    by_channel = scan.get("candidate_rows_by_channel", {})
+    if by_channel:
+        out.append(
+            "Rows by channel: "
+            + "; ".join(f"{name} {by_channel.get(name, 0)}" for name in _CHANNELS)
+            + f". {scan.get('concept_terms_declared', 0)} concept term(s) declared, "
+            f"{scan.get('concept_terms_probed', 0)} of them reached the candidate rule; "
+            f"{len(scan.get('acronyms_seen', []))} distinct acronym(s) seen."
+        )
     out.append("")
 
     if ev["warnings"]:
@@ -1583,11 +2296,21 @@ def render_symbol_evidence(ev: dict) -> list[str]:
             continue
         for c in rows:
             use = c["first_use"]
-            out.append(f"- `{c['symbol']}` first used at {use['rel']}:{use['line']} (written `{use['span']}`)")
+            channel = c.get("channel", "short-token")
+            out.append(
+                f"- [{channel}] `{c['symbol']}` first used at {use['rel']}:{use['line']} "
+                f"(written `{use['span']}`)"
+            )
+            if c.get("declared_as") and c["declared_as"].lower() != c["symbol"].lower():
+                out.append(
+                    f"    declared as the concept `{c['declared_as']}` - only the part "
+                    f"`{c['symbol']}` is used in prose (mention: {c.get('mention')})"
+                )
             out.append(f"    {use['text']}")
             for hit in c["named_in_concepts"]:
+                label = "declared in concepts" if channel == "concept-phrase" else "concepts"
                 out.append(
-                    f"    concepts: {hit['rel']}:{hit['line']} [{hit['form']}] {hit['text']}"
+                    f"    {label}: {hit['rel']}:{hit['line']} [{hit['form']}] {hit['text']}"
                 )
             if c["defined_in_window"]:
                 d = c["defined_in_window"]
@@ -1604,6 +2327,12 @@ def render_symbol_evidence(ev: dict) -> list[str]:
                 out.append(
                     f"    definition in ANOTHER lesson: {d['rel']}:{d['line']} "
                     f"[{d['cue']}] {d['sentence']}"
+                )
+            if c.get("mentioned_in_theory"):
+                t = c["mentioned_in_theory"]
+                out.append(
+                    f"    mentioned in '## Theory': {t['rel']}:{t['line']} {t['text']} "
+                    f"- a mention is NOT a definition"
                 )
             if c["design_md"]:
                 anchors = ", ".join(c["design_md"]["anchors"]) or "(no anchor)"

@@ -1,0 +1,31 @@
+bundle_format: 1
+id: concept-course
+title: A Concept-Phrase and Acronym Fixture
+description: >
+  A minimal bundle for the two candidate channels of
+  tutorail-authoring#18. It carries one concept term of each binding kind
+  on purpose - `base offsets` is declared and used and defined nowhere,
+  `page cache` is only mentioned in '## Theory', `group commit` has a
+  real defining sentence, `edge fade` is declared and never mentioned
+  again, and `metrics` is a ONE-WORD concept that must never be reported.
+  It carries the `thickness bias` shape too, a two-word concept whose
+  prose uses only the word `thickness`. Its acronyms are `WAL` (used,
+  never expanded, and mentioned in '## Theory' to prove a Theory mention
+  never binds an acronym), `JSON` (expanded in the corpus form "JavaScript
+  Object Notation (JSON)") and the negatives `STATE.md` and `SHOULD`.
+
+lessons:
+  - lessons/00-segments.md
+  - lessons/01-reflections.md
+
+workspace_kind: none
+tutor_owned: [tutorial/STATE.md, tutorial/DESIGN.md]
+learner_owned: []
+ownership_policy: tutor-must-not-edit-learner-owned
+
+validators:
+  manual: { kind: manual }
+
+one_task_at_a_time: true
+solution_code: on-request-only
+advance_on: validated-evidence-only

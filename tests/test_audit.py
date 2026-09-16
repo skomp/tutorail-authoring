@@ -486,15 +486,26 @@ def symbol_evidence(bundle: Path) -> dict:
     return audit_json(bundle)["symbol_evidence"]
 
 
-def bucket(ev: dict, name: str) -> list[dict]:
-    return [c for c in ev["candidates"] if c["binding"] == name]
+def bucket(ev: dict, name: str, channel: str | None = None) -> list[dict]:
+    """The candidates in one binding bucket, optionally of ONE channel.
+
+    tutorail-authoring#18 added two more candidate channels to the same list
+    (`concept-phrase` and `acronym`). Every case below that was written for
+    the short-token channel of #14 now names that channel explicitly, so a
+    #14 assertion cannot be silently satisfied - or silently broken - by a
+    row the #18 channels produced.
+    """
+    rows = [c for c in ev["candidates"] if c["binding"] == name]
+    if channel is not None:
+        rows = [c for c in rows if c["channel"] == channel]
+    return rows
 
 
 def case_symbol_nothing_introduces_is_reported() -> None:
     """FIRING: a symbol a lesson uses and nothing anywhere introduces."""
     ev = symbol_evidence(FIXTURES / "symbol-course")
-    unbound = bucket(ev, "none")
-    check(len(unbound) == 1, f"exactly one symbol is bound nowhere (got {unbound})")
+    unbound = bucket(ev, "none", "short-token")
+    check(len(unbound) == 1, f"exactly one short-token symbol is bound nowhere (got {unbound})")
     if not unbound:
         return
     row = unbound[0]
@@ -537,7 +548,7 @@ def case_design_md_only_is_a_distinct_bucket() -> None:
     indistinguishable and the author could not tell which fix each needs.
     """
     ev = symbol_evidence(FIXTURES / "symbol-course")
-    design_only = bucket(ev, "design-md-only")
+    design_only = bucket(ev, "design-md-only", "short-token")
     check(len(design_only) == 1, f"exactly one symbol is bound only in DESIGN.md (got {design_only})")
     if not design_only:
         return
@@ -590,8 +601,9 @@ def case_design_md_binding_is_not_a_constant() -> None:
         path.write_text(edited, encoding="utf-8")
 
         ev = symbol_evidence(bundle)
-        check(bucket(ev, "design-md-only") == [], f"nothing is DESIGN.md-only any more (got {bucket(ev, 'design-md-only')})")
-        unbound = sorted(c["symbol"] for c in bucket(ev, "none"))
+        left = bucket(ev, "design-md-only", "short-token")
+        check(left == [], f"no short token is DESIGN.md-only any more (got {left})")
+        unbound = sorted(c["symbol"] for c in bucket(ev, "none", "short-token"))
         check(unbound == ["K", "Q"], f"`K` has fallen through to 'bound nowhere', beside `Q` (got {unbound})")
 
 
@@ -605,13 +617,29 @@ def case_introduced_symbol_is_not_reported_as_unbound() -> None:
     sibling bundles repository, which is being edited concurrently and would
     change under this file. A scanner that reported `N` here would be wrong
     about the real bundle too.
+
+    tutorail-authoring#18 changed WHICH channel is reported as introducing
+    it. `concepts` used to outrank every prose bucket, so the report showed
+    the weakest evidence and hid the strongest; the issue states that a
+    symbol named in '## Concepts to teach' is NOT thereby introduced, and the
+    row passes on a defining sentence. So the binding is now the defining
+    sentence, and the Concepts bullet is still printed beside it.
     """
     ev = symbol_evidence(FIXTURES / "symbol-course")
     n_rows = [c for c in ev["candidates"] if c["symbol"] == "N"]
     check(len(n_rows) == 3, f"`N` is used in all three lessons and every use is tabulated (got {len(n_rows)})")
     check(
-        all(c["binding"] == "concepts" for c in n_rows),
-        f"every use of `N` is reported as introduced by a concepts bullet (got {[c['binding'] for c in n_rows]})",
+        all(c["binding"].endswith("prose") or c["binding"] == "lesson-prose-in-window" for c in n_rows),
+        f"every use of `N` is reported as introduced by a DEFINING SENTENCE, "
+        f"not by the weaker concepts bullet (got {[c['binding'] for c in n_rows]})",
+    )
+    check(
+        n_rows[0]["binding"] == "lesson-prose-in-window",
+        f"the first use is bound by the sentence beside it (got {n_rows[0]['binding']!r})",
+    )
+    check(
+        all(c["named_in_concepts"] for c in n_rows),
+        "and the concepts bullet is still reported on every row, never dropped",
     )
     check(
         not any(c["symbol"] == "N" for c in bucket(ev, "none")),
@@ -698,7 +726,15 @@ def case_derived_symbol_2n_is_not_lost() -> None:
         f"and it resolves to the `N` lesson 00 introduces, not to nothing "
         f"(got {row['named_in_concepts']})",
     )
-    check(row["binding"] == "concepts", f"so its binding is 'concepts' (got {row['binding']!r})")
+    check(
+        row["binding"] == "other-lesson-prose",
+        f"so its binding is the defining sentence lesson 00 carries, not the "
+        f"weaker concepts bullet beside it (got {row['binding']!r})",
+    )
+    check(
+        row["named_in_concepts"] != [],
+        "with the concepts bullet still printed on the row",
+    )
 
     lesson = (FIXTURES / "symbol-course" / "lessons" / "02-headroom.md").read_text(encoding="utf-8")
     check("`2N`" in lesson, "control: the fixture really writes `2N`")
@@ -714,8 +750,8 @@ def case_length_and_path_negatives_stay_silent() -> None:
     A two-character language identifier is still emitted, on purpose.
     """
     ev = symbol_evidence(FIXTURES / "symbol-course")
-    symbols = {c["symbol"] for c in ev["candidates"]}
-    check(symbols == {"N", "K", "Q"}, f"only the three real candidates are collected (got {sorted(symbols)})")
+    symbols = {c["symbol"] for c in ev["candidates"] if c["channel"] == "short-token"}
+    check(symbols == {"N", "K", "Q"}, f"only the three real short tokens are collected (got {sorted(symbols)})")
     for noise in ("bool", "New", "package", "json", "starter"):
         check(noise not in symbols, f"`{noise}` is not a candidate")
 
@@ -735,32 +771,63 @@ def case_nothing_to_check_is_not_checked_and_clean() -> None:
     candidate list: `status` plus `warnings`.
     """
     clean = symbol_evidence(FIXTURES / "symbol-course")
-    empty = symbol_evidence(FIXTURES / "toil-course")
 
-    check(empty["scan"]["candidate_rows"] == 0, f"toil-course yields no candidate at all (got {empty['scan']['candidate_rows']})")
-    check(
-        empty["status"] == "nothing-to-check",
-        f"and says so: status is 'nothing-to-check' (got {empty['status']!r})",
-    )
-    check(empty["warnings"] != [], "with a warning saying why, never silence")
-    check(
-        any("NOT" in w for w in empty["warnings"]),
-        f"that spells out that no candidate found is not no undefined symbol (got {empty['warnings']})",
-    )
-    check(
-        clean["status"] == "checked",
-        f"symbol-course, where every channel was alive, says 'checked' (got {clean['status']!r})",
-    )
-    check(clean["warnings"] == [], f"with no warnings (got {clean['warnings']})")
-    check(
-        empty["status"] != clean["status"],
-        "so 'nothing to check' and 'checked' are never the same value",
-    )
+    # `toil-course` is no longer candidate-free: tutorail-authoring#18 reads
+    # its '## Concepts to teach' sections, and "Texture units, samplers,
+    # wrapping, filtering." holds a multi-word term the lessons use. So the
+    # empty half of this pair is BUILT, by replacing each Concepts section
+    # with a single one-word term - which is also the control for the #18
+    # candidate rule: take the multi-word concepts away and the candidates go
+    # away with them.
+    with Workspace() as ws:
+        bundle = ws.copy("toil-course", "no-candidates")
+        replacements = {
+            "lessons/00-shader-basics.md": ("Compilation, linking, program status.", "Compilation."),
+            "lessons/01-texture-work.md": ("Texture units, samplers, wrapping, filtering.", "Samplers."),
+            "lessons/debug-overlay.md": ("Overlay rendering, bitmap glyphs, frame timing.", "Glyphs."),
+        }
+        for rel, (before, after) in replacements.items():
+            path = bundle / rel
+            text = path.read_text(encoding="utf-8")
+            check(before in text, f"fixture sanity: {rel} really writes {before!r}")
+            path.write_text(text.replace(before, after), encoding="utf-8")
 
-    # And the Markdown a reader actually reads must carry it too.
-    done = run(AUDIT, FIXTURES / "toil-course")
-    check(done.returncode == 0, f"markdown mode exits 0 (got {done.returncode}; {done.output!r})")
-    check_in("This section checked NOTHING", done.stdout, "the Markdown report says it checked nothing")
+        populated = symbol_evidence(FIXTURES / "toil-course")
+        check(
+            populated["scan"]["candidate_rows"] > 0,
+            f"control: the unedited toil-course DOES yield concept candidates "
+            f"(got {populated['scan']['candidate_rows']})",
+        )
+
+        empty = symbol_evidence(bundle)
+        check(
+            empty["scan"]["candidate_rows"] == 0,
+            f"with one-word concepts it yields no candidate at all "
+            f"(got {[c['symbol'] for c in empty['candidates']]})",
+        )
+        check(
+            empty["status"] == "nothing-to-check",
+            f"and says so: status is 'nothing-to-check' (got {empty['status']!r})",
+        )
+        check(empty["warnings"] != [], "with a warning saying why, never silence")
+        check(
+            any("NOT" in w for w in empty["warnings"]),
+            f"that spells out that no candidate found is not no undefined symbol (got {empty['warnings']})",
+        )
+        check(
+            clean["status"] == "checked",
+            f"symbol-course, where every channel was alive, says 'checked' (got {clean['status']!r})",
+        )
+        check(clean["warnings"] == [], f"with no warnings (got {clean['warnings']})")
+        check(
+            empty["status"] != clean["status"],
+            "so 'nothing to check' and 'checked' are never the same value",
+        )
+
+        # And the Markdown a reader actually reads must carry it too.
+        done = run(AUDIT, bundle)
+        check(done.returncode == 0, f"markdown mode exits 0 (got {done.returncode}; {done.output!r})")
+        check_in("This section checked NOTHING", done.stdout, "the Markdown report says it checked nothing")
 
 
 def case_blind_concepts_channel_is_announced() -> None:
@@ -816,7 +883,9 @@ def case_symbol_section_renders_in_markdown() -> None:
     done = run(AUDIT, FIXTURES / "symbol-course")
     check(done.returncode == 0, f"markdown mode exits 0 (got {done.returncode}; {done.output!r})")
     check_in("## Short symbols a lesson uses", done.stdout, "the section is rendered")
-    check_in("Candidate rule:", done.stdout, "the candidate rule is stated in the report itself")
+    check_in("Candidate rule [short-token]:", done.stdout, "the short-token candidate rule is stated in the report itself")
+    check_in("Candidate rule [concept-phrase]:", done.stdout, "so is the concept-phrase rule")
+    check_in("Candidate rule [acronym]:", done.stdout, "so is the acronym rule")
     check_in("Window:", done.stdout, "so is the near-the-first-use window")
     check_in("TABULATION, not a verdict", done.stdout, "and the caveat that this is not a verdict")
     check_in("does NOT introduce the symbol to a learner", done.stdout, "the DESIGN.md caveat is spelled out")
@@ -1159,6 +1228,371 @@ def case_markdown_never_claims_an_unread_section_is_empty() -> None:
         )
 
 
+
+# --------------------------------------------------------------------------
+# tutorail-authoring#18 - the concept-phrase and acronym channels.
+#
+# The audit of 2026-09-15 answered the undefined-symbol row by hand across
+# five bundles and found six symbols, and the short-token channel of #14
+# found NONE of them: every one is a word or an acronym, and three are not in
+# backticks. The `concept-course` fixture reproduces the SHAPE of each real
+# finding rather than reading the sibling bundles repository, which moves.
+#
+#   * `Base offsets`  - durable-event-broker/lessons/07-segments.md:32,
+#                       declared, used at :41, defined nowhere.
+#   * `thickness bias` - webgl-typescript-scene/lessons/
+#                       17-depth-reconstruction-and-ssr.md:37, declared as a
+#                       compound and written in prose at :45 as the bare
+#                       word `thickness`.
+#   * `WAL`           - rust-automaton-db/lessons/10-storage-durability.md,
+#                       used at :18, mentioned in a Theory paragraph at :28,
+#                       and expanded nowhere.
+#
+# Every firing case below has its negative control beside it, and the
+# controls matter more than the firings: the issue that created this row
+# warned that a false report costs the author trust.
+# --------------------------------------------------------------------------
+
+
+def case_concept_declared_used_and_undefined_is_reported() -> None:
+    """FIRING (#18): a declared concept the course uses and never defines.
+
+    The `Base offsets` shape. This is the finding the short-token channel
+    cannot reach, because the candidate is two ordinary words.
+    """
+    ev = symbol_evidence(FIXTURES / "concept-course")
+    unbound = bucket(ev, "none", "concept-phrase")
+    symbols = sorted(c["symbol"] for c in unbound)
+    check("base offsets" in symbols, f"`base offsets` is reported as bound nowhere (got {symbols})")
+    row = next((c for c in unbound if c["symbol"] == "base offsets"), None)
+    if row is None:
+        return
+    check(
+        row["first_use"]["rel"] == "lessons/00-segments.md" and row["first_use"]["line"] > 0,
+        f"with the file:line of a USE, not of the bullet (got "
+        f"{row['first_use']['rel']}:{row['first_use']['line']})",
+    )
+    check(row["mention"] == "phrase", f"matched as the whole phrase (got {row['mention']!r})")
+    check(row["defined_in_window"] is None, "no defining sentence near the first use")
+    check(row["defined_in_other_lessons"] == [], "and none in any other lesson")
+    check(
+        row["mentioned_in_theory"] is None,
+        f"and the '## Theory' section never mentions it (got {row['mentioned_in_theory']})",
+    )
+
+    # Controls: the fixture really writes both halves, and the singular /
+    # plural difference between them is real - the bullet says "Base
+    # offsets" and the constraint says "base offset".
+    lesson = (FIXTURES / "concept-course" / "lessons" / "00-segments.md").read_text(encoding="utf-8")
+    check("- Base offsets" in lesson, "control: the fixture really declares the concept `Base offsets`")
+    check(
+        "deterministically by base offset." in lesson,
+        "control: and really uses the SINGULAR `base offset` outside the Concepts section",
+    )
+
+
+def case_concepts_bullet_is_the_source_and_never_the_binding() -> None:
+    """#18: naming a concept is not introducing it.
+
+    The issue is explicit: "A symbol named in `## Concepts to teach` is not
+    thereby introduced. The row passes on a defining sentence." For a
+    concept-phrase candidate the bullet is what PRODUCED the candidate, so it
+    can never also be what binds it - otherwise every row in this channel
+    would report itself as clean.
+    """
+    ev = symbol_evidence(FIXTURES / "concept-course")
+    row = next(
+        (c for c in ev["candidates"] if c["channel"] == "concept-phrase" and c["symbol"] == "base offsets"),
+        None,
+    )
+    check(row is not None, "the `base offsets` row is there at all")
+    if row is None:
+        return
+    check(
+        row["named_in_concepts"] != [],
+        f"the bullet that declared it IS reported, so a reader can read it "
+        f"(got {row['named_in_concepts']})",
+    )
+    check(
+        row["binding"] == "none",
+        f"and the row is STILL 'bound nowhere' - the bullet is the source, "
+        f"not the binding (got {row['binding']!r})",
+    )
+    check(
+        not any(c["binding"] == "concepts" for c in ev["candidates"] if c["channel"] == "concept-phrase"),
+        "no concept-phrase row anywhere is bound by 'concepts'",
+    )
+
+
+def case_theory_mention_is_a_bucket_of_its_own() -> None:
+    """#18: 'the Theory section mentions it' is neither defined nor nowhere.
+
+    FIRING and NEGATIVE CONTROL in one fixture. `Page cache` is declared,
+    used, and only MENTIONED in '## Theory'; `Group commit` is declared and
+    carries a real defining sentence in the same section. A scanner that put
+    them in one bucket would be useless in both directions.
+    """
+    ev = symbol_evidence(FIXTURES / "concept-course")
+    page = next((c for c in ev["candidates"] if c["symbol"] == "page cache"), None)
+    commit = next((c for c in ev["candidates"] if c["symbol"] == "group commit"), None)
+    check(page is not None and commit is not None, "both concepts are candidates")
+    if page is None or commit is None:
+        return
+    check(
+        page["binding"] == "theory-mention",
+        f"a bare Theory mention is its own bucket (got {page['binding']!r})",
+    )
+    check(
+        page["mentioned_in_theory"] is not None and page["defined_in_window"] is None,
+        f"the mention is reported and no definition is claimed (got {page['mentioned_in_theory']})",
+    )
+    check(
+        commit["binding"] == "lesson-prose-in-window",
+        f"a real defining sentence outranks it (got {commit['binding']!r})",
+    )
+    if commit["defined_in_window"]:
+        check(
+            "is one flush" in commit["defined_in_window"]["sentence"],
+            f"quoted, so a reader can overrule it (got {commit['defined_in_window']['sentence']!r})",
+        )
+
+    lesson = (FIXTURES / "concept-course" / "lessons" / "00-segments.md").read_text(encoding="utf-8")
+    check("The page cache sits between" in lesson, "control: the Theory section really only MENTIONS the page cache")
+    check("A group commit is one flush" in lesson, "control: and really DEFINES the group commit")
+
+
+def case_declared_and_never_mentioned_is_not_a_candidate() -> None:
+    """NEGATIVE CONTROL (#18): reading every bullet as a candidate floods.
+
+    Measured against the real corpus, every `## Concepts to teach` term is
+    111, 176 and 172 candidates for durable-event-broker, rust-automaton-db
+    and webgl-typescript-scene. The candidate rule therefore requires the
+    term to be MENTIONED outside the Concepts section - the moment a learner
+    meets the word. `edge fade` is declared and never written again, and must
+    produce nothing.
+
+    The one-word blind spot is asserted here too, and it is deliberate: the
+    sort between `metrics` (a name in the chosen language) and vocabulary of
+    the subject is the categorical one the author ruled a script must not
+    attempt.
+    """
+    ev = symbol_evidence(FIXTURES / "concept-course")
+    symbols = {c["symbol"] for c in ev["candidates"]}
+    check("edge fade" not in symbols, f"a declared-and-never-mentioned concept is not reported (got {sorted(symbols)})")
+    check("metrics" not in symbols, "a ONE-WORD concept is not reported - the stated blind spot")
+
+    lesson = (FIXTURES / "concept-course" / "lessons" / "00-segments.md").read_text(encoding="utf-8")
+    reflections = (FIXTURES / "concept-course" / "lessons" / "01-reflections.md").read_text(encoding="utf-8")
+    check("- metrics" in lesson, "control: `metrics` really is declared as a concept")
+    check("reports its metrics once a second" in lesson, "control: and really IS mentioned outside the section")
+    check("edge fade" in reflections, "control: `edge fade` really is declared")
+    check(
+        reflections.count("edge fade") == 1,
+        f"control: and really is written exactly once, in the bullet "
+        f"(got {reflections.count('edge fade')})",
+    )
+
+
+def case_two_word_concept_falls_back_to_the_word_the_prose_uses() -> None:
+    """FIRING (#18): `thickness bias` declared, `thickness` written.
+
+    webgl-typescript-scene declares the compound and then writes, at
+    17-depth-reconstruction-and-ssr.md:45, "Expose step count, thickness and
+    maximum distance as controlled parameters." The compound never appears
+    again. The human reader reported `thickness`, and so must this.
+    """
+    ev = symbol_evidence(FIXTURES / "concept-course")
+    row = next((c for c in ev["candidates"] if c["symbol"] == "thickness"), None)
+    check(row is not None, "`thickness` is a candidate")
+    if row is None:
+        return
+    check(row["mention"] == "partial", f"reported as a PARTIAL mention (got {row['mention']!r})")
+    check(
+        row["declared_as"] == "thickness bias",
+        f"with the compound the course actually declared (got {row['declared_as']!r})",
+    )
+    check(
+        row["first_use"]["rel"] == "lessons/01-reflections.md",
+        f"and the file:line of the prose that uses the bare word "
+        f"(got {row['first_use']['rel']}:{row['first_use']['line']})",
+    )
+
+    lesson = (FIXTURES / "concept-course" / "lessons" / "01-reflections.md").read_text(encoding="utf-8")
+    line = lesson.splitlines()[row["first_use"]["line"] - 1]
+    check("thickness" in line, f"control: line {row['first_use']['line']} really says it (it says {line!r})")
+    check("thickness bias" not in line, "control: and says the BARE word, not the compound")
+
+
+def case_a_bare_word_binding_in_design_md_is_not_a_constant() -> None:
+    """NEGATIVE CONTROL (#18): `thickness` is bound by DESIGN.md only because
+    DESIGN.md really mentions it. Take the line away and it falls through.
+
+    The #14 index only reads BACKTICKED spans, so without a bare-word
+    DESIGN.md lookup this channel would report every concept as bound
+    nowhere, and 'bound only in DESIGN.md' would stop meaning anything.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy("concept-course", "no-design-thickness")
+        path = bundle / "DESIGN.md"
+        text = path.read_text(encoding="utf-8")
+        check("policy for thickness, step size" in text, "fixture sanity: the DESIGN.md mention is there to remove")
+
+        before = symbol_evidence(bundle)
+        row = next((c for c in before["candidates"] if c["symbol"] == "thickness"), None)
+        check(row is not None and row["binding"] == "design-md-only",
+              f"control: DESIGN.md binds it to start with (got {row and row['binding']})")
+
+        path.write_text(text.replace("policy for thickness, step size", "policy for step size"), encoding="utf-8")
+        after = symbol_evidence(bundle)
+        row = next((c for c in after["candidates"] if c["symbol"] == "thickness"), None)
+        check(row is not None, "it is still a candidate")
+        if row is None:
+            return
+        check(
+            row["binding"] == "none",
+            f"and falls through to 'bound nowhere' once DESIGN.md stops mentioning it "
+            f"(got {row['binding']!r})",
+        )
+
+
+def case_acronym_without_an_expansion_is_reported() -> None:
+    """FIRING (#18): `WAL` used, mentioned in Theory, expanded nowhere.
+
+    The `rust-automaton-db` shape, and the reason a Theory mention does NOT
+    bind an acronym: lesson 10 writes "A WAL converts in-memory mutation into
+    an ordered durable record stream." in its Theory section and never says
+    what the three letters stand for.
+    """
+    ev = symbol_evidence(FIXTURES / "concept-course")
+    row = next((c for c in ev["candidates"] if c["symbol"] == "WAL"), None)
+    check(row is not None, "`WAL` is a candidate at all")
+    if row is None:
+        return
+    check(row["channel"] == "acronym", f"from the acronym channel (got {row['channel']!r})")
+    check(row["binding"] == "none", f"and bound nowhere (got {row['binding']!r})")
+    check(
+        row["mentioned_in_theory"] is not None,
+        f"even though the Theory section mentions it - a mention is reported, "
+        f"never treated as an introduction (got {row['mentioned_in_theory']})",
+    )
+    check(row["first_use"]["line"] > 0, "with a 1-indexed line for the first use")
+
+
+def case_acronym_expansion_binds_it() -> None:
+    """NEGATIVE CONTROL (#18): an acronym the course expands comes back bound.
+
+    "a record is encoded as JavaScript Object Notation (JSON)" is the form
+    that introduces an acronym, and it matches none of the shared cues -
+    the thing being defined is the expansion and the acronym is the
+    parenthetical. Without this control, `WAL` landing in 'none' is equally
+    consistent with a channel that binds nothing at all.
+    """
+    ev = symbol_evidence(FIXTURES / "concept-course")
+    row = next((c for c in ev["candidates"] if c["symbol"] == "JSON"), None)
+    check(row is not None, "`JSON` is a candidate at all - it is not dropped")
+    if row is None:
+        return
+    check(row["binding"] != "none", f"and it is NOT reported as bound nowhere (got {row['binding']!r})")
+    cues = [
+        d["cue"]
+        for d in ([row["defined_in_window"]] if row["defined_in_window"] else [])
+        + row["defined_elsewhere_in_lesson"]
+        + row["defined_in_other_lessons"]
+    ]
+    check("expansion" in cues, f"the cue that bound it is named 'expansion' (got {cues})")
+
+    lesson = (FIXTURES / "concept-course" / "lessons" / "00-segments.md").read_text(encoding="utf-8")
+    check("Notation (JSON)" in lesson, "control: the fixture really writes the expansion form")
+
+
+def case_acronym_negatives_stay_silent() -> None:
+    """NEGATIVE CONTROL (#18): a filename and a six-letter word are not acronyms.
+
+    `STATE.md` is a filename - that is a fact about the DOT after the run,
+    not about its letters - and `SHOULD` is six letters, one past the bound.
+    Neither may be reported, and both really are in the fixture.
+    """
+    ev = symbol_evidence(FIXTURES / "concept-course")
+    seen = set(ev["scan"]["acronyms_seen"])
+    check("STATE" not in seen, f"`STATE.md` produces no acronym candidate (got {sorted(seen)})")
+    check("SHOULD" not in seen, f"`SHOULD` is past the 5-letter bound (got {sorted(seen)})")
+    check(seen == {"JSON", "WAL"}, f"only the two real acronyms are collected (got {sorted(seen)})")
+
+    lesson = (FIXTURES / "concept-course" / "lessons" / "00-segments.md").read_text(encoding="utf-8")
+    check("`STATE.md`" in lesson, "control: `STATE.md` really is in the fixture and still produced nothing")
+    check("A reader SHOULD be" in lesson, "control: so is SHOULD")
+
+
+def case_a_noun_is_not_a_defining_verb_for_a_bare_word() -> None:
+    """FIRING + CONTROL (#18): the `let-be` cue mis-read a NOUN as its verb.
+
+    Measured defect, from the corpus:
+    rust-automaton-db/lessons/10-storage-durability.md:22 says "make one
+    logical row write atomic in the WAL". The noun "write", read as the verb,
+    bound `WAL` in a lesson that introduces it nowhere - it hid exactly the
+    finding this change exists to surface. For a span that need not be
+    backticked the cue now requires the verb to open a sentence or a clause,
+    and "write" is not one of its verbs.
+    """
+    with Workspace() as ws:
+        bundle = ws.copy("concept-course", "let-be-control")
+        path = bundle / "lessons" / "00-segments.md"
+        text = path.read_text(encoding="utf-8")
+        needle = "- Make one logical row write atomic in the WAL."
+        check(needle in text, "fixture sanity: the corpus sentence is there")
+
+        ev = symbol_evidence(bundle)
+        row = next(c for c in ev["candidates"] if c["symbol"] == "WAL")
+        check(
+            row["binding"] == "none",
+            f"the noun 'write' does not bind `WAL` (got {row['binding']!r})",
+        )
+
+        # The positive control: the same cue, with a real defining clause.
+        path.write_text(
+            text.replace(needle, "- Let the WAL be the ordered durable record stream."),
+            encoding="utf-8",
+        )
+        ev = symbol_evidence(bundle)
+        row = next(c for c in ev["candidates"] if c["symbol"] == "WAL")
+        check(
+            row["binding"] != "none",
+            f"while a real 'Let the WAL be ...' clause DOES bind it - the cue "
+            f"still fires (got {row['binding']!r})",
+        )
+
+
+def case_channels_are_named_on_every_row_and_in_the_markdown() -> None:
+    """#18: a reader must be able to tell which rule produced a row.
+
+    Three channels feed one list. Without the label a reader cannot tell a
+    short-token candidate, whose rule is tight, from a partial-mention
+    concept candidate, whose rule is deliberately loose.
+    """
+    ev = symbol_evidence(FIXTURES / "concept-course")
+    channels = {c["channel"] for c in ev["candidates"]}
+    check(channels <= {"short-token", "concept-phrase", "acronym"}, f"every row names a known channel (got {channels})")
+    check({"concept-phrase", "acronym"} <= channels, f"and this fixture exercises both new ones (got {channels})")
+    by_channel = ev["scan"]["candidate_rows_by_channel"]
+    check(
+        sum(by_channel.values()) == ev["scan"]["candidate_rows"],
+        f"the per-channel counts add up to the row count (got {by_channel} vs {ev['scan']['candidate_rows']})",
+    )
+    check(
+        ev["scan"]["concept_terms_declared"] > ev["scan"]["concept_terms_probed"],
+        f"and the report says how many declared concepts the rule DROPPED "
+        f"(got {ev['scan']['concept_terms_declared']} declared, "
+        f"{ev['scan']['concept_terms_probed']} probed)",
+    )
+
+    done = run(AUDIT, FIXTURES / "concept-course")
+    check(done.returncode == 0, f"markdown mode exits 0 (got {done.returncode}; {done.output!r})")
+    check_in("[concept-phrase] `base offsets`", done.stdout, "the Markdown report labels a concept-phrase row")
+    check_in("[acronym] `WAL`", done.stdout, "and an acronym row")
+    check_in("declared as the concept `thickness bias`", done.stdout, "and says which compound a partial mention came from")
+    check_in("Rows by channel:", done.stdout, "and states the per-channel counts a reader is spending attention on")
+
+
 def main() -> int:
     print(f"audit.py  ({AUDIT})")
     print()
@@ -1224,6 +1658,28 @@ def main() -> int:
         case_blind_concepts_channel_is_announced()
     with case("#14: the Markdown report carries the section, its rule, its window and its caveat"):
         case_symbol_section_renders_in_markdown()
+    with case("FIRING (#18): a declared concept the course uses and defines nowhere"):
+        case_concept_declared_used_and_undefined_is_reported()
+    with case("#18: a '## Concepts to teach' bullet is the SOURCE of a row, never its binding"):
+        case_concepts_bullet_is_the_source_and_never_the_binding()
+    with case("#18: 'mentioned in Theory' is a bucket of its own; a real definition outranks it"):
+        case_theory_mention_is_a_bucket_of_its_own()
+    with case("NEGATIVE CONTROL (#18): a concept never mentioned again, and a one-word concept"):
+        case_declared_and_never_mentioned_is_not_a_candidate()
+    with case("FIRING (#18): `thickness bias` declared, bare `thickness` written in prose"):
+        case_two_word_concept_falls_back_to_the_word_the_prose_uses()
+    with case("NEGATIVE CONTROL (#18): remove the DESIGN.md line and `thickness` falls through"):
+        case_a_bare_word_binding_in_design_md_is_not_a_constant()
+    with case("FIRING (#18): `WAL` is used, mentioned in Theory, and expanded nowhere"):
+        case_acronym_without_an_expansion_is_reported()
+    with case("NEGATIVE CONTROL (#18): an expanded acronym comes back bound"):
+        case_acronym_expansion_binds_it()
+    with case("NEGATIVE CONTROL (#18): `STATE.md` and `SHOULD` are not acronyms"):
+        case_acronym_negatives_stay_silent()
+    with case("#18 DEFECT: the noun 'write' must not bind `WAL`; a real 'Let ... be' still does"):
+        case_a_noun_is_not_a_defining_verb_for_a_bare_word()
+    with case("#18: every row names its channel, and the report states the per-channel counts"):
+        case_channels_are_named_on_every_row_and_in_the_markdown()
     return report("audit.py")
 
 
