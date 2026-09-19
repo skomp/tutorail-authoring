@@ -34,6 +34,22 @@ grow a hard gate. Issues that add rubric rows say this in their own words; keep 
 This rule lived in `TODO.md` until 2026-09-13 and was lost for one commit when that file was
 removed. It is operating guidance, not tracked work, so it belongs here.
 
+## The format is the runner's to write, not ours
+
+`bundle-format.md` and `state-lifecycle.md` are the tutorAIl runner's normative contract. This
+repository owns the authoring toolkit, the `course-quality` rubric and the audit reports, and
+nothing else. When a change needs a new manifest field, **file it in `skomp/tutorAIl` and stop
+there** -- do not offer to write the contract section, and do not write a toolkit that emits a
+field the contract has not defined yet, because the validator then warns about it.
+
+Told so on 2026-09-19, after this session offered to write the `bundle-format.md` section for
+the new `version` field it had just designed. Tracked as `tutorAIl#51` (the field),
+`tutorail-authoring#24` and `tutorail-authoring#25` (our half, both blocked on it).
+
+A decision reached in this session and relayed to the runner session arrives there
+second-hand. Expect that session to confirm it with the owner before it changes the contract,
+and say where a decision came from when you relay one.
+
 ## The validator comes from the runner plugin
 
 `validate_bundle.py` lives in the tutorAIl runner plugin. Every mutating script calls it.
