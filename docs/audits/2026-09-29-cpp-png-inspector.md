@@ -337,11 +337,29 @@ lesson 08's three.
 
 ### P5 — Two contradictions in lesson 11's machinery
 
-**`src/crc32.hpp` is classed both ways.** `11:26-27` says it is "not yours to edit" and
-`11:278` says it is "supplied and not learner-owned", while `tutorial.yaml:36` lists `src/**`
-under `learner_owned:` with `ownership_policy: tutor-must-not-edit-learner-owned`. On the
-manifest the tutor is forbidden to touch a file the lesson says belongs to the course. One of
-the two is wrong, and the manifest is what a runner reads.
+**`src/crc32.hpp`: the lesson states the ownership wrongly. The manifest is correct.**
+
+> **Correction, 2026-09-29, after this report was first published.** The paragraph here
+> originally read that the file was "classed both ways", that the manifest forbids the tutor
+> to touch a file the lesson calls the course's, and that "one of the two is wrong, and the
+> manifest is what a runner reads." **That was wrong about the manifest**, and anyone who
+> read the first version should discard the proposed repair. `bundle-format.md`, section
+> "The ownership exemption", settles it: under
+> `ownership_policy: tutor-must-not-edit-learner-owned` the tutor MAY **create** a declared
+> supplies target that does not exist even where it falls under a `learner_owned` glob, and
+> MAY **never modify** one that does. So `src/**` covering `src/crc32.hpp` is correct and
+> intended, the supplies declaration grants exactly the create permission the course needs,
+> and there is no manifest defect. The finding below is what remains of it.
+
+`11:278` says "Note that `src/crc32.hpp` is supplied and not learner-owned". **That clause is
+false.** `tutorial.yaml:36` lists `src/**` under `learner_owned:`, so the file *is*
+learner-owned — correctly, per the exemption above. What is true is the course rule rather
+than the manifest classification: the file is supplied, the learner must not edit it, and the
+tutor may place it but never modify it.
+
+`11:26-27` ("It is supplied and is not yours to edit") and `11:195-196` ("supplied and must
+not be edited, replaced or reimplemented") are both addressed to the learner and are **true
+as written**. Only `11:278` needs rewording, and the manifest must not change.
 
 **Lesson 11 asserts the allocation balance and checks it with nothing.** Constraint
 `11:204-205` requires "the allocation report still prints at exit and still balances", but
@@ -711,7 +729,7 @@ breakage as a method, and completion conditions that mostly ask the learner to a
 their own code rather than recite.
 
 The findings worth acting on first are not the score. They are **P4** (a function three
-lessons require and one lesson never asks for), **P5** (an ownership contradiction a runner
-will act on, and an assertion nothing checks), and the `Buffer`/`View`/mangled-name group in
-section 6 — three one-sentence repairs that between them remove the course's most likely
+lessons require and one lesson never asks for), **P5** (a false ownership claim in one
+lesson's prose, and an assertion nothing checks), and the `Buffer`/`View`/mangled-name group
+in section 6 — three one-sentence repairs that between them remove the course's most likely
 "the tutor used a word I have never seen" moments.
