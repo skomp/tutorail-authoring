@@ -121,7 +121,9 @@ corrupted.
 | `python3 scripts/supplies.py add <bundle> --from <path> --to <path> --describe <text> [--lesson <lesson-id>] [--check] [--force]` | declaring a file the bundle hands over, instead of a lesson step that tells the learner to copy it |
 | `python3 scripts/promote.py <instance> <generated-lesson-path> <bundle> [--check] [--force]` | a generated lesson becoming a course lesson |
 | `python3 scripts/promote.py <instance> <generated-lesson-path> <bundle> --optional [--confirm] [--check] [--force]` | a generated lesson becoming an **offered** lesson rather than a main-path one, with the offer metadata derived from its provenance |
-| `python3 scripts/catalog.py <bundles-repo> [-o <path>]` | `catalog.yaml` for a bundles repository |
+| `python3 scripts/report.py propose <bundles-repo>` | the proposed `report` block (where a learner's defect report goes), from the repository's `origin` on github.com or gitlab.com; exit 1 when there is nothing to propose from |
+| `python3 scripts/report.py set <bundle> --url <url> [--prefill github\|gitlab\|none] [--check] [--force]` | writing or replacing the bundle's `report` |
+| `python3 scripts/catalog.py <bundles-repo> [-o <path>]` | `catalog.yaml` for a bundles repository. It never copies a bundle's `report` into the entry: the runner reads the instance's own copy first, and a catalogue entry's `report` is for a catalogue owner who does not control the course |
 
 Three things about the two `--optional` modes that the table cannot show, and that you
 cannot find out by running the command wrong:

@@ -535,6 +535,19 @@ the prose and the manifest disagree about whether a lesson is optional, say so i
 report, score the course as the manifest has it, and state what the total would be without
 the lesson.
 
+## A course with no `report` gets a note, never a finding
+
+`report` in `tutorial.yaml` says where a learner's defect report goes (the runner's
+`bundle-format.md`, subsection "Defect reports"). A bundle without it is complete. The
+runner falls back to the catalogue entry's `report`, then to the catalogue repository's
+issue page, and otherwise gives the learner the text to send by hand.
+
+So when `audit.py` shows `report` as not declared, write one line in the report: a note
+that the course does not say where defect reports go, and who receives them instead. It
+scores nothing and it is not a finding. Do not check the shape of a declared `report`
+either: the runner's validator check 34 does that, and a second check that disagrees with
+it is worse than none.
+
 ## Dynamic evidence is evidence, not a verdict
 
 A dry-run harness that walks a course can report that a lesson **stalled**. Cite a stall

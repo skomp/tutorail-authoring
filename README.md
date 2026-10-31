@@ -39,6 +39,9 @@ On Codex, install the runner the way its own README describes — a symlink into
 it searches the Claude Code plugin directories, so that install is what makes the validator
 findable there. `$BELAY_VALIDATOR` overrides the search on either host.
 
+`report.py` needs runner 0.12.0 or later. An older validator does not know the `report` key,
+so check 28 warns about it as an unknown field.
+
 ## Install
 
 **Claude Code**
@@ -152,6 +155,7 @@ slug drift apart and how a `lessons` list stops matching the files beside it.
 | `supplies.py` | declare the files a bundle hands the learner, instead of a lesson step that assigns a copy |
 | `promote.py` | move a generated lesson from a learner instance into a bundle |
 | `promote.py --optional` | move a generated lesson into `optional_lessons` instead; `offer_at` and `offer_because` are derived from the lesson's provenance, printed, and written only once `--confirm` is passed |
+| `report.py propose` / `report.py set` | propose where a learner's defect reports go, from the repository's `origin` on github.com or gitlab.com, and write the bundle's `report` key |
 | `catalog.py` | generate a repository-level `catalog.yaml` from bundle manifests |
 
 Every operation that changes a bundle:

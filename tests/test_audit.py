@@ -2041,6 +2041,86 @@ def case_setup_section_renders_in_markdown() -> None:
         check_not_in("all three conditions hold", done.stdout, "and reports no finding")
 
 
+def _with_report(ws: "Workspace", block: str | None):
+    bundle = ws.copy("concept-course")
+    if block is not None:
+        manifest = bundle / "tutorial.yaml"
+        manifest.write_text(manifest.read_text(encoding="utf-8") + block, encoding="utf-8")
+    return bundle
+
+
+def case_report_declared_is_shown() -> None:
+    """belay-authoring#40: a declared `report` is carried, url and all."""
+    url = "https://github.com/skomp/concept-course/issues/new"
+    with Workspace() as ws:
+        bundle = _with_report(ws, f"report:\n  url: {url}\n  prefill: github\n")
+        data = audit_json(bundle)
+        check(data["course"].get("report") == {"url": url, "prefill": "github"},
+              f"course.report is the declared mapping (got {data['course'].get('report')!r})")
+        md = run(AUDIT, bundle).stdout
+        check_in("## Defect reports", md, "the Markdown has a defect-reports section")
+        check_in(url, md, "the Markdown shows the declared url")
+        check_not_in("NOTE, not a finding", md, "a declared report gets no absence note")
+
+
+def case_report_absent_is_a_note() -> None:
+    """belay-authoring#40: no `report` is a NOTE, never a finding."""
+    with Workspace() as ws:
+        bundle = _with_report(ws, None)
+        data = audit_json(bundle)
+        check("report" in data["course"] and data["course"]["report"] is None,
+              f"course.report is null when absent (got {data['course'].get('report', 'MISSING')!r})")
+        md = run(AUDIT, bundle).stdout
+        check_in("## Defect reports", md, "the section is there when report is absent")
+        check_in("NOTE, not a finding", md, "absence is said to be a note, not a finding")
+        check_in("catalogue entry's `report`", md, "names the first fallback")
+        check_in("catalogue repository's issue page", md, "names the second fallback")
+        check_in("by hand", md, "names the last fallback")
+
+
+def _report_section(markdown: str) -> str:
+    return markdown.split("## Defect reports", 1)[1].split("\n## ", 1)[0]
+
+
+def case_report_shape_is_not_checked() -> None:
+    """The validator's check 34 owns the shape. audit.py repeats nothing:
+    a malformed block is carried as declared, the run exits 0, and its
+    section is the same text a well-formed block gets, values aside."""
+    with Workspace() as ws:
+        bad = _with_report(ws, "report:\n  url: http://example.org\n  prefill: gitlab\n  prefil: x\n")
+        data = audit_json(bad)  # raises unless exit 0
+        check(data["course"].get("report") == {"url": "http://example.org", "prefill": "gitlab", "prefil": "x"},
+              f"a malformed block is carried verbatim (got {data['course'].get('report')!r})")
+        bad_md = run(AUDIT, bad)
+        check(bad_md.returncode == 0, "the Markdown run exits 0 too")
+    with Workspace() as ws:
+        good = _with_report(ws, "report:\n  url: https://gitlab.com/g/r/-/issues/new\n  prefill: gitlab\n")
+        good_md = run(AUDIT, good)
+    bad_section = _report_section(bad_md.stdout)
+    good_section = _report_section(good_md.stdout)
+    check(bad_section.replace("http://example.org", "URL") == good_section.replace("https://gitlab.com/g/r/-/issues/new", "URL"),
+          f"the section reads the same for a malformed and a valid block ({bad_section!r} vs {good_section!r})")
+    check_in("http://example.org", bad_section, "the declared url is shown as declared")
+    check_in("check 34", good_section, "the section says the shape is check 34's")
+
+
+def case_report_declared_empty_is_not_absent() -> None:
+    """`report:` with nothing under it is declared, not absent."""
+    with Workspace() as ws:
+        bundle = _with_report(ws, "report:\n")
+        data = audit_json(bundle)
+        check(data["course"]["report"] is None and data["course"]["report_declared"] is True,
+              f"declared-empty: report None, report_declared True (got {data['course']!r})")
+        section = _report_section(run(AUDIT, bundle).stdout)
+        check_not_in("declares no `report`", section, "declared-empty does not get the absence note")
+        check_in("not a mapping", section, "declared-empty is shown as declared with a non-mapping value")
+    # CONTROL: the absent case does get the note, and report_declared False.
+    with Workspace() as ws:
+        bundle = _with_report(ws, None)
+        data = audit_json(bundle)
+        check(data["course"]["report_declared"] is False, "control: absent -> report_declared False")
+
+
 def main() -> int:
     print(f"audit.py  ({AUDIT})")
     print()
@@ -2152,6 +2232,14 @@ def main() -> int:
         case_blind_channels_are_named_not_swallowed()
     with case("#11: the Markdown report carries the section, and a clean result names its reason"):
         case_setup_section_renders_in_markdown()
+    with case("#40: a declared report is carried in course.report and shown in the Markdown"):
+        case_report_declared_is_shown()
+    with case("#40: an absent report is null and a NOTE, not a finding, naming the fallbacks"):
+        case_report_absent_is_a_note()
+    with case("#40: audit.py does not check the report shape; validator check 34 does"):
+        case_report_shape_is_not_checked()
+    with case("#40: `report:` with no value is declared, not absent"):
+        case_report_declared_empty_is_not_absent()
     return report("audit.py")
 
 

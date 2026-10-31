@@ -246,6 +246,13 @@ detour rather than to add one after it.
   the next author believes it. A change that added, moved or removed a supplied file
   updates the spec's *Supplied files* section in the same sitting; `python3
   scripts/supplies.py list <bundle>` prints what the bundle now declares.
+- **Offer `report` when the bundle has none.** A bundle written before Belay 0.12.0 does
+  not say where a learner's defect report goes. Run
+  `python3 scripts/report.py propose <bundles-repo>` and offer the printed block once, in
+  passing, as the create interview does (`interview-create.md`, section 3). The author can
+  decline, and then you do not offer it again in this change. Write it with
+  `python3 scripts/report.py set <bundle> --url <url> [--prefill ...]`, never by hand, and
+  record the decision in the spec's proposed fields.
 - **Update `COURSE.md`** when the chapter map or coverage list moved.
 - **Validate**, and work the runner's `bundle-format.md` section 10 self-check by looking.
 - **Rebuild the catalogue** with `python3 scripts/catalog.py <bundles-repo>` if a bundle

@@ -50,6 +50,7 @@ PROMOTE = SCRIPTS / "promote.py"
 CATALOG = SCRIPTS / "catalog.py"
 RUNNER = SCRIPTS / "runner.py"
 SUPPLIES = SCRIPTS / "supplies.py"
+REPORT = SCRIPTS / "report.py"
 
 # course-quality is a separate skill from belay-authoring, with its own
 # scripts directory. Its scripts are run as subprocesses, like every other

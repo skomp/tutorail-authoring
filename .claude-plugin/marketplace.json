@@ -8,7 +8,7 @@
     {
       "name": "belay-authoring",
       "source": "./",
-      "version": "0.4.3",
+      "version": "0.5.0",
       "description": "Two skills: belay-authoring interviews you about a course, then builds or changes a Belay bundle correctly; course-quality audits one for what it teaches and where its toil is.",
       "author": {
         "name": "skomp",

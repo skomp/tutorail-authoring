@@ -104,8 +104,10 @@ decision is, and what would break if a later lesson contradicted it. Mark the de
 unresolved ones as unresolved; they are useful context and often where a later lesson does
 its teaching.
 
-**The proposed fields.** `subjects`, `aliases`, `level`, `style`, and the defaults, shown
-as one block. This is the block the author objects to instead of answering nine questions,
+**The proposed fields.** `subjects`, `aliases`, `level`, `style`, `report`, and the
+defaults, shown as one block. `report` is the block `scripts/report.py propose` printed, or
+the URL the author gave, or the word **declined**: the three are different claims, and an
+absent line says the question was never put. This is the block the author objects to instead of answering nine questions,
 so it must actually appear rather than being held in your head.
 
 ### For a standard or long course
@@ -173,7 +175,8 @@ What the decision is. What breaks if a lesson contradicts it. Resolved or open.
 What the course owes. What it deliberately leaves out.
 
 ## Proposed manifest fields
-subjects, aliases, level, style, and the defaults — as one block to object to.
+subjects, aliases, level, style, report, and the defaults — as one block to object to.
+report is the proposed block, the author's URL, or "declined".
 
 ## Open questions
 Anything the author has not decided. Empty is a fine answer; a "TBD" in a
