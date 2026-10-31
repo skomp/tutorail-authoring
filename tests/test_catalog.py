@@ -914,6 +914,44 @@ def case_no_private_quoting_rule() -> None:
           "catalog.py writes through bundlelib's emitters")
 
 
+def case_report_is_not_copied() -> None:
+    """belay-authoring#40: a bundle's `report` stays in its own manifest.
+
+    The runner reads `report` from the instance manifest first. A catalogue
+    entry's `report` is for a catalogue owner who does not control the
+    course, so catalog.py must not copy the bundle's value into the entry.
+    """
+    with Workspace() as ws:
+        repo = ws.path("repo")
+        repo.mkdir()
+        bundle = make_bundle(repo, "report-probe", 3)
+        url = "https://github.com/skomp/report-probe/issues/new"
+        manifest = bundle / "tutorial.yaml"
+        manifest.write_text(
+            manifest.read_text(encoding="utf-8")
+            + f"report:\n  url: {url}\n  prefill: github\n",
+            encoding="utf-8",
+        )
+        declared = bl.load_manifest(bundle)[0].get("report")
+        check(declared == {"url": url, "prefill": "github"},
+              f"fixture: the bundle declares report (got {declared!r})")
+        done = run(CATALOG, repo)
+        check(done.returncode == 0, f"exit 0 with a bundle that declares report ({done.output[-300:]!r})")
+        text = (repo / "catalog.yaml").read_text(encoding="utf-8")
+        entry = bl.load_yaml(text, "catalog.yaml")["tutorials"][0]
+        # POSITIVE CONTROL: the same probe sees a key that IS copied, so an
+        # absent `report` below is not a probe that sees nothing.
+        check(entry.get("title") == "Synthetic report-probe",
+              f"control: the probe reads a copied key (title {entry.get('title')!r})")
+        check(entry.get("id") == "report-probe", "control: the probe reads the id")
+        check("report" not in entry, f"the catalogue entry has no report key (keys {sorted(entry)})")
+        check_not_in(url, text, "the bundle's report url appears nowhere in the catalogue")
+        validator = bl.find_validator()[0]
+        good = run(validator, "--catalog", "--portable", repo / "catalog.yaml")
+        check(good.returncode == 0,
+              f"the catalogue still validates independently (exit {good.returncode}; {good.output[-300:]!r})")
+
+
 def main() -> int:
     print(f"catalog.py  ({CATALOG})")
     print()
@@ -951,6 +989,8 @@ def main() -> int:
         case_non_string_fields_refused()
     with case("belay-authoring#33: catalog.py has no quoting rule of its own"):
         case_no_private_quoting_rule()
+    with case("belay-authoring#40: a bundle's report is not copied into its catalogue entry"):
+        case_report_is_not_copied()
     return report("catalog.py")
 
 

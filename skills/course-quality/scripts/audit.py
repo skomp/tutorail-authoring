@@ -7,7 +7,8 @@ Usage:
 This is the `course-quality` skill's own script, not the authoring toolkit's.
 It reads a bundle and reports facts a script can honestly produce: the lesson
 skeleton, the coverage list `COURSE.md` declares, the `DESIGN.md` anchors,
-declared `supplies:` entries, and candidate sites of authored toil. Default
+declared `supplies:` entries, the declared `report:` target, and candidate
+sites of authored toil. Default
 output is a Markdown skeleton for a human (or the skill that wraps this
 script) to fill in with judgement; `--json` is the same data as a JSON
 object.
@@ -70,6 +71,13 @@ THE DISCIPLINE THAT MATTERS MOST HERE: this script never rules on anything.
     `nothing-to-check` dict with `scan.body_lines > 0` (a coverage list this
     parser COULD NOT READ, which is a fact about this script and not about
     the course).
+
+  * `course.report` is the `report:` mapping as declared, or null. It is
+    carried, never checked: the shape is the runner validator's check 34.
+    An absent `report` is a NOTE, never a finding, because a bundle without
+    one is complete and the runner falls back to the catalogue
+    (belay-authoring#40). `course.report_declared` keeps "absent" apart
+    from "declared with no value", which both read as null.
 
 This script computes no score. Scoring is judgement (the rubric in
 `references/rubric.md`, applied by the skill this script serves); this
@@ -2521,6 +2529,11 @@ def build(bundle: bl.Bundle) -> dict:
         "title": manifest.get("title"),
         "lesson_count": len(bundle.lessons) - len(optional_on_disk),
         "optional_lesson_count": len(optional_on_disk),
+        # belay-authoring#40. Carried as declared, never checked: the shape is
+        # the runner validator's check 34. `report_declared` keeps "absent"
+        # apart from "declared with no value", which both read as None.
+        "report": manifest.get("report"),
+        "report_declared": "report" in manifest,
     }
 
     topic_candidates = topic_candidates_for(cov["topics"], lesson_tokens) if cov else {}
@@ -2647,12 +2660,55 @@ def render_markdown(data: dict) -> str:
             out.append(f"- [{scope}] {entry.get('from')} -> {entry.get('to')}: {entry.get('describe')}")
     out.append("")
 
+    out.extend(render_report(course))
+
     out.extend(render_symbol_evidence(data["symbol_evidence"]))
 
     out.extend(render_unsupplied_setup(data["unsupplied_setup"]))
 
     out.append(f"DESIGN.md anchors ({len(data['anchors'])}): {', '.join(data['anchors']) or '(none)'}")
     return "\n".join(out)
+
+
+REPORT_ABSENT_NOTE = (
+    "The bundle declares no `report`. This is a NOTE, not a finding: a bundle "
+    "without `report` is complete. When the runner finds a defect in the course, "
+    "it falls back to the catalogue entry's `report`, then to the catalogue "
+    "repository's issue page, and then to a text the learner sends by hand. "
+    "Declare `report` if the author wants reports to reach a place of their "
+    "own choosing."
+)
+REPORT_SHAPE_NOTE = (
+    "This script shows the value as declared and does not check its shape; "
+    "the runner's validator does (check 34)."
+)
+
+
+def render_report(course: dict) -> list[str]:
+    """Where a learner's defect report goes (belay-authoring#40).
+
+    Evidence only. Absence is a note, and no line here is a finding: no
+    quality finding may reject a bundle, and the shape is check 34's.
+    """
+    out = ["## Defect reports", ""]
+    value = course.get("report")
+    if not course.get("report_declared"):
+        out.append(REPORT_ABSENT_NOTE)
+    elif isinstance(value, dict):
+        out.append(f"Declared: url {value.get('url')!s}")
+        prefill = value.get("prefill")
+        out.append(
+            f"prefill: {prefill}" if "prefill" in value
+            else "prefill: not given (the runner reads none)"
+        )
+        out.append("")
+        out.append(REPORT_SHAPE_NOTE)
+    else:
+        out.append(f"Declared, with a value that is not a mapping: {value!r}")
+        out.append("")
+        out.append(REPORT_SHAPE_NOTE)
+    out.append("")
+    return out
 
 
 def render_unsupplied_setup(ev: dict) -> list[str]:

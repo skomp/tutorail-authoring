@@ -206,10 +206,29 @@ confirmed in passing. None of it is a question.
 | `validators` | phase 3's toolchain |
 | `workspace_kind`, `tutor_owned`, `learner_owned` | phase 3, plus the language's conventional layout |
 | `ownership_policy`, `one_task_at_a_time`, `solution_code`, `advance_on` | the defaults, confirmed as one group |
+| `report` | the bundles repository's git remote, through `python3 scripts/report.py propose <bundles-repo>` |
 | lesson numbering and file naming | the toolkit's, never discussed |
 
 Show the whole group once, in the spec, as a block the author can object to. One
 objection is cheaper than nine questions.
+
+### `report`: where a learner's defect report goes
+
+When the runner finds a defect in the course, it offers the learner a drafted report to
+send to the author. `report` says where it goes (the runner's `bundle-format.md`,
+subsection "Defect reports"). Propose it. Do not ask for it.
+
+- Run `python3 scripts/report.py propose <bundles-repo>`. When the repository's `origin`
+  is on `github.com` or `gitlab.com`, the script prints the issue page of that repository
+  and the matching `prefill`. Put that block in the proposed fields as it is.
+- When the script exits 1 (no git repository, no `origin`, or a different host), the
+  proposal has nothing to start from. This is the one case where you ask: "Where should a
+  learner send a defect report? A `https://` page or a `mailto:` address, or none." A page
+  that takes no prefilled text gets `prefill: none`.
+- **The author can decline.** Write the decision in the spec ("`report`: declined"). A
+  bundle without `report` is complete: the runner then uses the catalogue entry's
+  `report`, then the catalogue repository's issue page, and otherwise gives the learner
+  the text to send by hand.
 
 ---
 
@@ -271,7 +290,7 @@ Order matters, because the format's invariants are easier to keep than to repair
    `lessons: []`, `COURSE.md` from the chapter map and coverage list, `DESIGN.md` with one
    anchored section per phase 4 decision, `STATE.template.md` describing a learner who has
    not started, and an empty `lessons/`. These are judgement, not bookkeeping, and no
-   script writes them.
+   script writes them. Leave `report` out of the hand-written skeleton.
 2. **Add every lesson with the toolkit**, in spec order:
    `python3 scripts/lesson.py add <bundle> --id <slug> --title <text> --position <n>`, with
    `--folder` for a lesson that ships material. This is what keeps `id` equal to the slug
@@ -295,9 +314,12 @@ Order matters, because the format's invariants are easier to keep than to repair
 5. **Set `design_refs` and `validators`** in each lesson's frontmatter from the spec.
 6. **Confirm the two links by hand**: `STATE.template.md`'s `tutorial_id` equals
    `tutorial.yaml`'s `id`, and its `active_lesson` equals the first entry of `lessons`.
-7. **Validate**, and work through the runner's `bundle-format.md` section 10 self-check by
+7. **Write `report`**, when the spec has one:
+   `python3 scripts/report.py set <bundle> --url <url> [--prefill github|gitlab|none]`.
+   Skip this step when the author declined it.
+8. **Validate**, and work through the runner's `bundle-format.md` section 10 self-check by
    looking at the files.
-8. **Rebuild the catalogue**: `python3 scripts/catalog.py <bundles-repo>`, because a new
+9. **Rebuild the catalogue**: `python3 scripts/catalog.py <bundles-repo>`, because a new
    bundle that no catalogue lists is a bundle no learner can find.
 
 A skeleton with no lessons is not a valid bundle — the format requires at least one. Do
